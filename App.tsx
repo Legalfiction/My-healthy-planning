@@ -10,8 +10,6 @@ import {
   Plus, 
   Trash2, 
   Calendar as CalendarIcon, 
-  TrendingDown, 
-  Zap,
   Bookmark
 } from 'lucide-react';
 import { 
@@ -19,8 +17,7 @@ import {
   DailyLog, 
   AppState, 
   MealMoment, 
-  LoggedMealItem,
-  MealOption
+  LoggedMealItem
 } from './types';
 import { 
   MEAL_MOMENTS, 
@@ -54,7 +51,6 @@ export default function App() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure customOptions structure exists
       if (!parsed.customOptions) parsed.customOptions = {};
       return parsed;
     }
@@ -136,7 +132,6 @@ export default function App() {
     });
   };
 
-  // Added updateProfile function to handle user profile state updates
   const updateProfile = (updates: Partial<UserProfile>) => {
     setState(prev => ({
       ...prev,
@@ -184,7 +179,7 @@ export default function App() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
               <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">Verwachte streefdatum</p>
-              <h2 className="text-3xl font-black mb-4">{totals.targetDate}</h2>
+              <h2 className="text-3xl font-black mb-4">{totals.targetDate || 'Berekenen...'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbranding</p>
@@ -192,7 +187,7 @@ export default function App() {
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <p className="text-[10px] text-indigo-100 font-bold uppercase">Dagtekort</p>
-                  <p className="text-lg font-black text-green-300">-{Math.round(totals.tdee - totals.intakeGoal)} <span className="text-[10px]">kcal</span></p>
+                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.tdee - totals.intakeGoal))} <span className="text-[10px]">kcal</span></p>
                 </div>
               </div>
             </div>
@@ -203,7 +198,7 @@ export default function App() {
                   <Utensils size={18} className="text-orange-500" /> Dagbudget
                 </h3>
                 <span className={`text-xl font-black ${totals.actualIntake > totals.intakeGoal ? 'text-red-500' : 'text-slate-900'}`}>
-                  {totals.actualIntake} <span className="text-xs text-slate-400 font-bold">/ {totals.intakeGoal}</span>
+                  {totals.actualIntake} <span className="text-xs text-slate-400 font-bold">/ {Math.round(totals.intakeGoal)}</span>
                 </span>
               </div>
               <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-1 mb-2">
@@ -215,7 +210,7 @@ export default function App() {
               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <span>Inname</span>
                 <span className={totals.remaining < 0 ? 'text-red-500' : 'text-indigo-600'}>
-                  {totals.remaining < 0 ? 'Budget Overschreden' : `Nog ${totals.remaining} kcal`}
+                  {totals.remaining < 0 ? 'Budget Overschreden' : `Nog ${Math.round(totals.remaining)} kcal`}
                 </span>
               </div>
             </div>
@@ -289,7 +284,8 @@ export default function App() {
                           const val = e.target.value;
                           if (!val) return;
                           const opt = [...standard, ...custom].find(o => o.id === val);
-                          const qty = Number((document.getElementById(`q-${moment}`) as HTMLInputElement).value) || 1;
+                          const qtyInput = document.getElementById(`q-${moment}`) as HTMLInputElement;
+                          const qty = Number(qtyInput.value) || 1;
                           if (opt) addMealItem(moment, { name: opt.name, kcal: opt.kcal * qty, quantity: qty, mealId: opt.id });
                           e.target.value = '';
                         }}
@@ -442,4 +438,10 @@ export default function App() {
             className={`flex flex-col items-center gap-1 transition-all ${activeTab === tab.id ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}
           >
             <tab.icon size={22} strokeWidth={activeTab === tab.id ? 3 : 2} />
-            <span className="
+            <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
