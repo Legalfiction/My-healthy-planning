@@ -92,8 +92,8 @@ export const MEAL_OPTIONS: Record<MealMoment, MealOption[]> = {
 };
 
 export const ACTIVITY_TYPES: ActivityType[] = [
-  { id: 'wandelen', name: 'Wandelen (stevig tempo)', met: 4.5, unit: 'minuten' },
-  { id: 'wandelen_km', name: 'Wandelen (per km)', met: 4.5, unit: 'km' },
+  { id: 'wandelen', name: 'Wandelen (tijd in min)', met: 4.5, unit: 'minuten' },
+  { id: 'wandelen_km', name: 'Wandelen (afstand in km)', met: 4.5, unit: 'km' },
   { id: 'zwemmen', name: 'Recreatief Zwemmen', met: 6.0, unit: 'minuten' },
   { id: 'padellen', name: 'Padellen', met: 8.0, unit: 'minuten' },
   { id: 'fietsen', name: 'Fietsen (15-20 km/u)', met: 6.0, unit: 'minuten' },

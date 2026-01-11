@@ -47,6 +47,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isAddingCustom, setIsAddingCustom] = useState<MealMoment | null>(null);
+  const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -158,15 +159,24 @@ export default function App() {
 
   const totals = useMemo(() => {
     const activityBurn = currentLog.activities.reduce((sum, a) => sum + a.burnedKcal, 0);
-    const tdee = calculateTDEE(state.profile, activityBurn);
-    const intakeGoal = DAILY_KCAL_INTAKE_GOAL + activityBurn;
+    const baselineTdee = calculateTDEE(state.profile, 0);
+    const totalTdee = calculateTDEE(state.profile, activityBurn);
+    const intakeGoal = DAILY_KCAL_INTAKE_GOAL;
     const actualIntake = Object.values(currentLog.meals).flat().reduce((sum, m) => sum + m.kcal, 0);
-    const remaining = intakeGoal - actualIntake;
+    
+    // Remaining is calculated against (1800 + activity bonus)
+    const currentAdjustedGoal = intakeGoal + activityBurn;
+    const remaining = currentAdjustedGoal - actualIntake;
+    
     const progress = calculateProgressPercentage(state.profile);
-    const targetDate = calculateTargetDate(state.profile, tdee - intakeGoal);
+    const targetDate = calculateTargetDate(state.profile, totalTdee - intakeGoal);
 
-    return { activityBurn, tdee, intakeGoal, actualIntake, remaining, progress, targetDate };
+    return { activityBurn, baselineTdee, totalTdee, intakeGoal, actualIntake, remaining, progress, targetDate, currentAdjustedGoal };
   }, [state.profile, currentLog]);
+
+  const activeUnit = useMemo(() => {
+    return ACTIVITY_TYPES.find(t => t.id === selectedActivityId)?.unit || 'minuten';
+  }, [selectedActivityId]);
 
   return (
     <div className="max-w-md mx-auto min-h-screen pb-20 bg-slate-50 flex flex-col shadow-2xl relative">
@@ -204,11 +214,11 @@ export default function App() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbruik (Profiel)</p>
-                  <p className="text-lg font-black">{Math.round(totals.tdee)} <span className="text-[10px]">kcal</span></p>
+                  <p className="text-lg font-black">{Math.round(totals.baselineTdee)} <span className="text-[10px]">kcal</span></p>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <p className="text-[10px] text-indigo-100 font-bold uppercase">KORTEN VOOR DOEL</p>
-                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.tdee - totals.intakeGoal))} <span className="text-[10px]">kcal</span></p>
+                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.totalTdee - totals.intakeGoal))} <span className="text-[10px]">kcal</span></p>
                 </div>
               </div>
             </div>
@@ -218,14 +228,22 @@ export default function App() {
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Utensils size={18} className="text-orange-500" /> Dagbudget
                 </h3>
-                <span className={`text-xl font-black ${totals.actualIntake > totals.intakeGoal ? 'text-red-500' : 'text-slate-900'}`}>
-                  {totals.actualIntake} <span className="text-xs text-slate-400 font-bold">/ {Math.round(totals.intakeGoal)}</span>
-                </span>
+                <div className="text-right">
+                  <span className={`text-xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-slate-900'}`}>
+                    {totals.actualIntake}
+                  </span>
+                  <span className="text-xs text-slate-400 font-bold ml-1">
+                    / {totals.intakeGoal}
+                    {totals.activityBurn > 0 && (
+                      <span className="text-green-500"> +{Math.round(totals.activityBurn)}</span>
+                    )}
+                  </span>
+                </div>
               </div>
               <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-1 mb-2">
                 <div 
-                  className={`h-full rounded-full transition-all duration-700 ${totals.actualIntake > totals.intakeGoal ? 'bg-red-400' : 'bg-orange-400'}`}
-                  style={{ width: `${Math.min((totals.actualIntake / totals.intakeGoal) * 100, 100)}%` }}
+                  className={`h-full rounded-full transition-all duration-700 ${totals.actualIntake > totals.currentAdjustedGoal ? 'bg-red-400' : 'bg-orange-400'}`}
+                  style={{ width: `${Math.min((totals.actualIntake / totals.currentAdjustedGoal) * 100, 100)}%` }}
                 />
               </div>
               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -385,10 +403,27 @@ export default function App() {
                 const val = Number(fd.get('val'));
                 if (tid && val > 0) { addActivity(tid, val); (e.target as HTMLFormElement).reset(); }
               }}>
-                <select name="tid" className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white focus:ring-0">
+                <select 
+                  name="tid" 
+                  value={selectedActivityId}
+                  onChange={(e) => setSelectedActivityId(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white focus:ring-0"
+                >
                   {ACTIVITY_TYPES.map(t => <option key={t.id} value={t.id} className="text-slate-800">{t.name}</option>)}
                 </select>
-                <input name="val" type="number" step="0.1" placeholder="Duur of afstand..." className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white placeholder:text-indigo-200" required />
+                <div className="relative">
+                  <input 
+                    name="val" 
+                    type="number" 
+                    step="0.1" 
+                    placeholder="Hoeveelheid..." 
+                    className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white placeholder:text-indigo-200" 
+                    required 
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black uppercase text-white/50 pointer-events-none">
+                    {activeUnit}
+                  </span>
+                </div>
                 <button type="submit" className="w-full bg-white text-indigo-700 font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all uppercase text-xs tracking-widest">Toevoegen</button>
               </form>
             </div>
