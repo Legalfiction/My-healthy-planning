@@ -10,7 +10,8 @@ import {
   Plus, 
   Trash2, 
   Calendar as CalendarIcon, 
-  Bookmark
+  Bookmark,
+  Share2
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -137,6 +138,22 @@ export default function App() {
       ...prev,
       profile: { ...prev.profile, ...updates }
     }));
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Mijn Gezonde Planning',
+          text: 'Check deze handige gezondheidsplanner app!',
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log('Error sharing', err);
+      }
+    } else {
+      alert(`Kopieer deze link om te delen: ${window.location.href}`);
+    }
   };
 
   const totals = useMemo(() => {
@@ -397,6 +414,21 @@ export default function App() {
         {activeTab === 'profile' && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <h2 className="text-xl font-black text-slate-800 italic px-1">Instellingen</h2>
+            
+            <button 
+              onClick={handleShare}
+              className="w-full bg-indigo-600 text-white rounded-3xl p-6 flex items-center justify-between shadow-lg active:scale-95 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-3 rounded-2xl"><Share2 size={24} /></div>
+                <div className="text-left">
+                  <p className="text-sm font-black italic">App Delen</p>
+                  <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-wider">Stuur de link naar anderen</p>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-white/50 group-hover:translate-x-1 transition-transform" />
+            </button>
+
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
