@@ -203,11 +203,11 @@ export default function App() {
               <h2 className="text-3xl font-black mb-4">{totals.targetDate || 'Berekenen...'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbranding</p>
+                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbruik (Profiel)</p>
                   <p className="text-lg font-black">{Math.round(totals.tdee)} <span className="text-[10px]">kcal</span></p>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Dagtekort</p>
+                  <p className="text-[10px] text-indigo-100 font-bold uppercase">KORTEN VOOR DOEL</p>
                   <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.tdee - totals.intakeGoal))} <span className="text-[10px]">kcal</span></p>
                 </div>
               </div>
@@ -451,6 +451,11 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            <div className="text-center py-4">
+               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Mijn Gezonde Planning • v1.1</p>
+            </div>
+
             <button 
               onClick={() => { if(confirm('Alles wissen?')) { localStorage.clear(); window.location.reload(); } }}
               className="w-full py-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]"
