@@ -44,6 +44,7 @@ export interface DailyLog {
   date: string;
   meals: Record<string, LoggedMealItem[]>;
   activities: LoggedActivity[];
+  weight?: number; // Optional daily weight entry
 }
 
 export interface AppState {

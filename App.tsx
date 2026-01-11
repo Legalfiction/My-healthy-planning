@@ -11,7 +11,8 @@ import {
   Trash2, 
   Calendar as CalendarIcon, 
   Bookmark,
-  Share2
+  Share2,
+  Scale
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -75,6 +76,30 @@ export default function App() {
     };
   }, [state.dailyLogs, selectedDate]);
 
+  // Find the most recently logged weight up to the selected date
+  const latestWeight = useMemo(() => {
+    const dates = Object.keys(state.dailyLogs).sort().reverse();
+    // First check selected date
+    if (state.dailyLogs[selectedDate]?.weight) return state.dailyLogs[selectedDate].weight;
+    
+    // Then check all previous dates
+    for (const d of dates) {
+      if (d <= selectedDate && state.dailyLogs[d].weight) {
+        return state.dailyLogs[d].weight;
+      }
+    }
+    return state.profile.currentWeight;
+  }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
+
+  const setDailyWeight = (weight: number | undefined) => {
+    setState(prev => {
+      const logs = { ...prev.dailyLogs };
+      const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
+      logs[selectedDate] = { ...log, weight };
+      return { ...prev, dailyLogs: logs };
+    });
+  };
+
   const addMealItem = (moment: MealMoment, item: Omit<LoggedMealItem, 'id'>, saveToOptions = false) => {
     setState(prev => {
       const newItemId = Math.random().toString(36).substr(2, 9);
@@ -113,7 +138,7 @@ export default function App() {
   };
 
   const addActivity = (typeId: string, value: number) => {
-    const burn = calculateActivityBurn({ typeId, value }, state.profile.currentWeight);
+    const burn = calculateActivityBurn({ typeId, value }, latestWeight || state.profile.currentWeight);
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
@@ -159,20 +184,34 @@ export default function App() {
 
   const totals = useMemo(() => {
     const activityBurn = currentLog.activities.reduce((sum, a) => sum + a.burnedKcal, 0);
-    const baselineTdee = calculateTDEE(state.profile, 0);
-    const totalTdee = calculateTDEE(state.profile, activityBurn);
+    const effectiveProfile = { ...state.profile, currentWeight: latestWeight || state.profile.currentWeight };
+    
+    const baselineTdee = calculateTDEE(effectiveProfile, 0);
+    const totalTdee = calculateTDEE(effectiveProfile, activityBurn);
     const intakeGoal = DAILY_KCAL_INTAKE_GOAL;
     const actualIntake = Object.values(currentLog.meals).flat().reduce((sum, m) => sum + m.kcal, 0);
     
-    // Remaining is calculated against (1800 + activity bonus)
     const currentAdjustedGoal = intakeGoal + activityBurn;
     const remaining = currentAdjustedGoal - actualIntake;
     
-    const progress = calculateProgressPercentage(state.profile);
-    const targetDate = calculateTargetDate(state.profile, totalTdee - intakeGoal);
+    const progress = calculateProgressPercentage(effectiveProfile);
+    const targetDate = calculateTargetDate(effectiveProfile, totalTdee - intakeGoal);
 
-    return { activityBurn, baselineTdee, totalTdee, intakeGoal, actualIntake, remaining, progress, targetDate, currentAdjustedGoal };
-  }, [state.profile, currentLog]);
+    const baselineDeficit = baselineTdee - intakeGoal;
+
+    return { 
+      activityBurn, 
+      baselineTdee, 
+      totalTdee, 
+      intakeGoal, 
+      actualIntake, 
+      remaining, 
+      progress, 
+      targetDate, 
+      currentAdjustedGoal, 
+      baselineDeficit 
+    };
+  }, [state.profile, currentLog, latestWeight]);
 
   const activeUnit = useMemo(() => {
     return ACTIVITY_TYPES.find(t => t.id === selectedActivityId)?.unit || 'minuten';
@@ -184,7 +223,7 @@ export default function App() {
         <div className="flex justify-between items-center mb-3">
           <h1 className="text-xl font-bold text-indigo-700">Mijn Gezonde Planning</h1>
           <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">
-            {state.profile.currentWeight}kg → {state.profile.targetWeight}kg
+            {latestWeight || state.profile.currentWeight}kg → {state.profile.targetWeight}kg
           </div>
         </div>
         <div className="flex items-center justify-between bg-slate-100 rounded-2xl p-2">
@@ -213,12 +252,38 @@ export default function App() {
               <h2 className="text-3xl font-black mb-4">{totals.targetDate || 'Berekenen...'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbruik (Profiel)</p>
+                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbruik (Basis)</p>
                   <p className="text-lg font-black">{Math.round(totals.baselineTdee)} <span className="text-[10px]">kcal</span></p>
                 </div>
                 <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
                   <p className="text-[10px] text-indigo-100 font-bold uppercase">KORTEN VOOR DOEL</p>
-                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.totalTdee - totals.intakeGoal))} <span className="text-[10px]">kcal</span></p>
+                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.baselineDeficit))} <span className="text-[10px]">kcal</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Weight Logging Card */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Scale size={18} className="text-indigo-500" /> Gewicht vandaag
+                </h3>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="relative flex-grow">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    placeholder="bijv. 91.5"
+                    value={currentLog.weight || ''}
+                    onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black text-indigo-700 shadow-inner focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-300 pointer-events-none uppercase">kg</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Doel</p>
+                  <p className="text-lg font-black text-slate-700">{state.profile.targetWeight}kg</p>
                 </div>
               </div>
             </div>
@@ -235,7 +300,7 @@ export default function App() {
                   <span className="text-xs text-slate-400 font-bold ml-1">
                     / {totals.intakeGoal}
                     {totals.activityBurn > 0 && (
-                      <span className="text-green-500"> +{Math.round(totals.activityBurn)}</span>
+                      <span className="text-green-500 font-black"> +{Math.round(totals.activityBurn)}</span>
                     )}
                   </span>
                 </div>
@@ -477,8 +542,8 @@ export default function App() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Huidig (kg)</label>
-                  <input type="number" step="0.1" value={state.profile.currentWeight} onChange={e => updateProfile({currentWeight: Number(e.target.value)})} className="w-full bg-indigo-50 p-3 rounded-xl font-black text-indigo-700 border-none" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Begin (kg)</label>
+                  <input type="number" step="0.1" value={state.profile.startWeight} onChange={e => updateProfile({startWeight: Number(e.target.value)})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Doel (kg)</label>
