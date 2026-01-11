@@ -163,14 +163,18 @@ export default function App() {
         <div className="flex items-center justify-between bg-slate-100 rounded-2xl p-2">
           <button onClick={() => {
             const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]);
-          }} className="p-2 hover:bg-white rounded-xl transition-all"><ChevronLeft size={20}/></button>
-          <div className="flex items-center gap-2 font-bold text-sm">
+          }} className="p-2 hover:bg-white rounded-xl transition-all">
+            <ChevronLeft size={20}/>
+          </button>
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-700">
             <CalendarIcon size={16} className="text-indigo-500" />
             {new Date(selectedDate).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
           <button onClick={() => {
             const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]);
-          }} className="p-2 hover:bg-white rounded-xl transition-all"><ChevronRight size={20}/></button>
+          }} className="p-2 hover:bg-white rounded-xl transition-all">
+            <ChevronRight size={20}/>
+          </button>
         </div>
       </header>
 
