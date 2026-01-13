@@ -1,7 +1,7 @@
 
 {
-  "name": "Mijn Gezonde Planning",
-  "short_name": "Gezond",
+  "name": "Doelgewicht in Zicht",
+  "short_name": "In Zicht",
   "description": "Persoonlijke dieet- en bewegingsplanner.",
   "start_url": "./index.html",
   "display": "standalone",

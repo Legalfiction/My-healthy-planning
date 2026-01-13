@@ -11,8 +11,18 @@ import {
   Trash2, 
   Calendar as CalendarIcon, 
   Bookmark,
-  Share2,
-  Scale
+  Scale,
+  Flame,
+  Target,
+  TrendingDown,
+  X,
+  Upload,
+  Info,
+  Cloud,
+  Database,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -30,11 +40,50 @@ import {
 import { 
   calculateTDEE,
   calculateActivityBurn, 
-  calculateTargetDate, 
-  calculateProgressPercentage 
+  calculateTargetDate
 } from './services/calculator';
 
-const STORAGE_KEY = 'mijn_gezonde_planning_v4';
+const DB_NAME = 'GezondPlanningDB';
+const STORE_NAME = 'appState';
+const STATE_KEY = 'mainState';
+
+// IndexedDB Utility
+const idb = {
+  open: (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, 2);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+          request.result.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+  get: async (): Promise<AppState | null> => {
+    try {
+      const db = await idb.open();
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(STATE_KEY);
+        request.onsuccess = () => resolve(request.result || null);
+      });
+    } catch (e) { return null; }
+  },
+  set: async (state: AppState): Promise<void> => {
+    try {
+      const db = await idb.open();
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put(state, STATE_KEY);
+        tx.oncomplete = () => resolve();
+      });
+    } catch (e) { console.error("DB Save Fail", e); }
+  }
+};
 
 const DEFAULT_PROFILE: UserProfile = {
   age: 55,
@@ -44,50 +93,62 @@ const DEFAULT_PROFILE: UserProfile = {
   targetWeight: 80
 };
 
+const INITIAL_STATE: AppState = {
+  profile: DEFAULT_PROFILE,
+  dailyLogs: {},
+  customOptions: {}
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isAddingCustom, setIsAddingCustom] = useState<MealMoment | null>(null);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
-  
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (!parsed.customOptions) parsed.customOptions = {};
-      return parsed;
-    }
-    return {
-      profile: DEFAULT_PROFILE,
-      dailyLogs: {},
-      customOptions: {}
-    };
-  });
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const [showInfo, setShowInfo] = useState(false);
+  const [fileHandle, setFileHandle] = useState<any>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error' | 'success'>('idle');
+
+  const activeUnit = useMemo(() => ACTIVITY_TYPES.find(t => t.id === selectedActivityId)?.unit || '', [selectedActivityId]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
-
-  const currentLog: DailyLog = useMemo(() => {
-    return state.dailyLogs[selectedDate] || {
-      date: selectedDate,
-      meals: {},
-      activities: []
+    const initApp = async () => {
+      if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
+      const saved = await idb.get();
+      if (saved) setState(saved);
+      setIsLoaded(true);
     };
-  }, [state.dailyLogs, selectedDate]);
+    initApp();
+  }, []);
 
-  // Find the most recently logged weight up to the selected date
+  useEffect(() => {
+    if (!isLoaded) return;
+    idb.set(state);
+    
+    if (fileHandle) {
+      const syncToFile = async () => {
+        setSyncStatus('syncing');
+        try {
+          const writable = await fileHandle.createWritable();
+          await writable.write(JSON.stringify(state, null, 2));
+          await writable.close();
+          setSyncStatus('success');
+          setTimeout(() => setSyncStatus('idle'), 2000);
+        } catch (e) {
+          setSyncStatus('error');
+        }
+      };
+      syncToFile();
+    }
+  }, [state, isLoaded, fileHandle]);
+
+  const currentLog: DailyLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
+
   const latestWeight = useMemo(() => {
     const dates = Object.keys(state.dailyLogs).sort().reverse();
-    // First check selected date
     if (state.dailyLogs[selectedDate]?.weight) return state.dailyLogs[selectedDate].weight;
-    
-    // Then check all previous dates
-    for (const d of dates) {
-      if (d <= selectedDate && state.dailyLogs[d].weight) {
-        return state.dailyLogs[d].weight;
-      }
-    }
+    for (const d of dates) { if (d <= selectedDate && state.dailyLogs[d].weight) return state.dailyLogs[d].weight; }
     return state.profile.currentWeight;
   }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
 
@@ -104,24 +165,21 @@ export default function App() {
     setState(prev => {
       const newItemId = Math.random().toString(36).substr(2, 9);
       const newItem: LoggedMealItem = { ...item, id: newItemId };
-
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
       const meals = { ...log.meals };
       meals[moment] = [...(meals[moment] || []), newItem];
       logs[selectedDate] = { ...log, meals };
-
       const customOptions = { ...prev.customOptions };
       if (saveToOptions) {
-        const momentOpts = customOptions[moment] || [];
-        if (!momentOpts.some(o => o.name.toLowerCase() === item.name.toLowerCase())) {
-          customOptions[moment] = [
-            { id: 'c_' + newItemId, name: item.name, kcal: item.kcal, isCustom: true },
-            ...momentOpts
-          ];
-        }
+        const momentsToUpdate = moment.toLowerCase().includes('snack') ? MEAL_MOMENTS.filter(m => m.toLowerCase().includes('snack')) : [moment];
+        momentsToUpdate.forEach(m => {
+          const momentOpts = customOptions[m] || [];
+          if (!momentOpts.some(o => o.name.toLowerCase() === item.name.toLowerCase())) {
+            customOptions[m] = [{ id: 'c_' + newItemId, name: item.name, kcal: item.kcal, isCustom: true }, ...momentOpts];
+          }
+        });
       }
-
       return { ...prev, dailyLogs: logs, customOptions };
     });
   };
@@ -137,15 +195,21 @@ export default function App() {
     });
   };
 
+  const removeCustomOption = (moment: MealMoment, id: string) => {
+    setState(prev => {
+      const customOptions = { ...prev.customOptions };
+      const momentsToUpdate = moment.toLowerCase().includes('snack') ? MEAL_MOMENTS.filter(m => m.toLowerCase().includes('snack')) : [moment];
+      momentsToUpdate.forEach(m => { if (customOptions[m]) customOptions[m] = customOptions[m].filter(o => o.id !== id); });
+      return { ...prev, customOptions };
+    });
+  };
+
   const addActivity = (typeId: string, value: number) => {
     const burn = calculateActivityBurn({ typeId, value }, latestWeight || state.profile.currentWeight);
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
-      logs[selectedDate] = {
-        ...log,
-        activities: [...log.activities, { id: Math.random().toString(36).substr(2, 9), typeId, value, burnedKcal: burn }]
-      };
+      logs[selectedDate] = { ...log, activities: [...log.activities, { id: Math.random().toString(36).substr(2, 9), typeId, value, burnedKcal: burn }] };
       return { ...prev, dailyLogs: logs };
     });
   };
@@ -159,430 +223,320 @@ export default function App() {
     });
   };
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
-    setState(prev => ({
-      ...prev,
-      profile: { ...prev.profile, ...updates }
-    }));
+  const updateProfile = (updates: Partial<UserProfile>) => setState(prev => ({ ...prev, profile: { ...prev.profile, ...updates } }));
+
+  const setupCloudSync = async () => {
+    try {
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName: 'doelgewicht_sync.json',
+        types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
+      });
+      setFileHandle(handle);
+      alert('Cloud Sync geactiveerd! Sla dit bestand op in je Google Drive of Dropbox map.');
+    } catch (e) { console.log('Sync geannuleerd'); }
   };
 
-  const handleShare = async () => {
-    if (navigator.share) {
+  const restoreData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
       try {
-        await navigator.share({
-          title: 'Mijn Gezonde Planning',
-          text: 'Check deze handige gezondheidsplanner app!',
-          url: window.location.href,
-        });
-      } catch (err) {
-        console.log('Error sharing', err);
-      }
-    } else {
-      alert(`Kopieer deze link om te delen: ${window.location.href}`);
-    }
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed.profile && parsed.dailyLogs) { setState(parsed); alert('Succesvol hersteld!'); }
+      } catch (err) { alert('Fout bij herstellen.'); }
+    };
+    reader.readAsText(file);
   };
 
   const totals = useMemo(() => {
     const activityBurn = currentLog.activities.reduce((sum, a) => sum + a.burnedKcal, 0);
     const effectiveProfile = { ...state.profile, currentWeight: latestWeight || state.profile.currentWeight };
-    
     const baselineTdee = calculateTDEE(effectiveProfile, 0);
     const totalTdee = calculateTDEE(effectiveProfile, activityBurn);
     const intakeGoal = DAILY_KCAL_INTAKE_GOAL;
     const actualIntake = Object.values(currentLog.meals).flat().reduce((sum, m) => sum + m.kcal, 0);
-    
     const currentAdjustedGoal = intakeGoal + activityBurn;
     const remaining = currentAdjustedGoal - actualIntake;
-    
-    const progress = calculateProgressPercentage(effectiveProfile);
     const targetDate = calculateTargetDate(effectiveProfile, totalTdee - intakeGoal);
-
     const baselineDeficit = baselineTdee - intakeGoal;
-
-    return { 
-      activityBurn, 
-      baselineTdee, 
-      totalTdee, 
-      intakeGoal, 
-      actualIntake, 
-      remaining, 
-      progress, 
-      targetDate, 
-      currentAdjustedGoal, 
-      baselineDeficit 
-    };
+    const weightJourneyTotal = state.profile.startWeight - state.profile.targetWeight;
+    const weightLostSoFar = state.profile.startWeight - (latestWeight || state.profile.currentWeight);
+    const weightProgressPercent = weightJourneyTotal > 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 0;
+    return { activityBurn, baselineTdee, totalTdee, intakeGoal, actualIntake, remaining, targetDate, currentAdjustedGoal, baselineDeficit, weightProgressPercent };
   }, [state.profile, currentLog, latestWeight]);
 
-  const activeUnit = useMemo(() => {
-    return ACTIVITY_TYPES.find(t => t.id === selectedActivityId)?.unit || 'minuten';
-  }, [selectedActivityId]);
+  if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-slate-50 flex items-center justify-center font-black text-indigo-700 uppercase tracking-widest">Laden...</div>;
 
   return (
-    <div className="max-w-md mx-auto min-h-screen pb-20 bg-slate-50 flex flex-col shadow-2xl relative">
-      <header className="bg-white border-b sticky top-0 z-30 p-4 shadow-sm">
-        <div className="flex justify-between items-center mb-3">
-          <h1 className="text-xl font-bold text-indigo-700">Mijn Gezonde Planning</h1>
-          <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">
-            {latestWeight || state.profile.currentWeight}kg → {state.profile.targetWeight}kg
+    <div className="max-w-md mx-auto min-h-screen pb-24 bg-slate-50 flex flex-col shadow-2xl relative">
+      <header className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-30 p-4 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col">
+             <h1 className="text-xl font-black text-indigo-700 leading-none tracking-tight">DOELGEWICHT</h1>
+             <span className="text-[10px] font-black text-slate-400 tracking-[0.2em]">IN ZICHT</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowInfo(true)} className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all">
+              <Info size={22} />
+            </button>
+            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-2xl">
+              <TrendingDown size={14} className="text-indigo-600" />
+              <span className="text-[11px] font-black text-indigo-700 uppercase">
+                {latestWeight.toFixed(1)} <span className="text-[9px] opacity-60">KG</span>
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center justify-between bg-slate-100 rounded-2xl p-2">
-          <button onClick={() => {
-            const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]);
-          }} className="p-2 hover:bg-white rounded-xl transition-all">
-            <ChevronLeft size={20}/>
-          </button>
-          <div className="flex items-center gap-2 font-bold text-sm text-slate-700">
-            <CalendarIcon size={16} className="text-indigo-500" />
-            {new Date(selectedDate).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}
-          </div>
-          <button onClick={() => {
-            const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]);
-          }} className="p-2 hover:bg-white rounded-xl transition-all">
-            <ChevronRight size={20}/>
-          </button>
+        <div className="flex items-center justify-between bg-slate-100/50 rounded-2xl p-1.5 border border-slate-200/50">
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2.5 hover:bg-white rounded-xl bg-white/50 shadow-sm transition-colors"><ChevronLeft size={18} className="text-slate-600"/></button>
+          <div className="flex items-center gap-2 font-black text-xs text-slate-600 uppercase tracking-widest"><CalendarIcon size={14} className="text-indigo-500" />{new Date(selectedDate).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2.5 hover:bg-white rounded-xl bg-white/50 shadow-sm transition-colors"><ChevronRight size={18} className="text-slate-600"/></button>
         </div>
       </header>
 
       <main className="p-4 flex-grow space-y-6 overflow-x-hidden">
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
-              <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1">Verwachte streefdatum</p>
-              <h2 className="text-3xl font-black mb-4">{totals.targetDate || 'Berekenen...'}</h2>
+          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-[32px] p-6 text-slate-800 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10"><Target size={80} className="text-indigo-700" /></div>
+              <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-1.5">Doel bereikt op</p>
+              <h2 className="text-3xl font-black mb-5 tracking-tight text-indigo-900">{totals.targetDate || 'Berekenen...'}</h2>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase">Verbruik (Basis)</p>
-                  <p className="text-lg font-black">{Math.round(totals.baselineTdee)} <span className="text-[10px]">kcal</span></p>
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl p-3.5 border border-indigo-100/50">
+                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><Flame size={10} className="text-indigo-500" /><p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Basis</p></div>
+                  <p className="text-xl font-black text-indigo-700">{Math.round(totals.baselineTdee)} <span className="text-[10px] font-medium opacity-60">kcal</span></p>
                 </div>
-                <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase">KORTEN VOOR DOEL</p>
-                  <p className="text-lg font-black text-green-300">-{Math.round(Math.max(0, totals.baselineDeficit))} <span className="text-[10px]">kcal</span></p>
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl p-3.5 border border-indigo-100/50">
+                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><TrendingDown size={10} className="text-green-500" /><p className="text-[9px] font-black uppercase tracking-widest text-green-600">Tekort</p></div>
+                  <p className="text-xl font-black text-green-600">-{Math.round(Math.max(0, totals.baselineDeficit))} <span className="text-[10px] font-medium opacity-60">kcal</span></p>
                 </div>
               </div>
             </div>
 
-            {/* Daily Weight Logging Card */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Scale size={18} className="text-indigo-500" /> Gewicht vandaag
-                </h3>
+            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
+               <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-tight"><TrendingDown size={18} className="text-green-500" /> Jouw Reis</h3>
+                  <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-lg">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
+               </div>
+               <div className="relative pt-6 pb-2 px-2">
+                 <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
+                 </div>
+                 <div className="absolute top-0 left-0 text-[9px] font-black text-slate-400 uppercase">{state.profile.startWeight} KG</div>
+                 <div className="absolute top-0 right-0 text-[9px] font-black text-indigo-600 uppercase">DOEL {state.profile.targetWeight} KG</div>
+                 <div 
+                   className="absolute top-10 transform -translate-x-1/2 text-[10px] font-black text-slate-800 transition-all duration-1000 whitespace-nowrap"
+                   style={{ 
+                     left: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%`,
+                     marginLeft: totals.weightProgressPercent < 10 ? '1rem' : totals.weightProgressPercent > 90 ? '-1rem' : '0'
+                   }}
+                 >
+                   NU {latestWeight.toFixed(1)}
+                 </div>
+               </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-tight"><Scale size={18} className="text-indigo-500" /> Weegmoment</h3>
+                <div className="bg-indigo-50 px-3 py-1 rounded-full"><span className="text-[10px] font-black text-indigo-600 uppercase">Vandaag</span></div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
                 <div className="relative flex-grow">
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    placeholder="bijv. 91.5"
-                    value={currentLog.weight || ''}
-                    onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black text-indigo-700 shadow-inner focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-300 pointer-events-none uppercase">kg</span>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Doel</p>
-                  <p className="text-lg font-black text-slate-700">{state.profile.targetWeight}kg</p>
+                  <input type="number" step="0.1" placeholder="00.0" value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-4xl font-black text-indigo-700 focus:ring-0" />
+                  <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400 uppercase">kg</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Utensils size={18} className="text-orange-500" /> Dagbudget
-                </h3>
+            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
+              <div className="flex justify-between items-start mb-5">
+                <div>
+                  <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-tight mb-1"><Utensils size={18} className="text-orange-500" /> Dagbudget</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Plan: {totals.intakeGoal} kcal</p>
+                </div>
                 <div className="text-right">
-                  <span className={`text-xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-slate-900'}`}>
-                    {totals.actualIntake}
-                  </span>
-                  <span className="text-xs text-slate-400 font-bold ml-1">
-                    / {totals.intakeGoal}
-                    {totals.activityBurn > 0 && (
-                      <span className="text-green-500 font-black"> +{Math.round(totals.activityBurn)}</span>
-                    )}
-                  </span>
+                  <div className="flex items-baseline justify-end gap-1"><span className={`text-3xl font-black tracking-tight ${totals.remaining < 0 ? 'text-red-500' : 'text-slate-900'}`}>{totals.actualIntake}</span><span className="text-xs font-black text-slate-400">kcal</span></div>
+                  {totals.activityBurn > 0 && <div className="flex items-center justify-end gap-1 text-green-500 font-black text-[10px] uppercase tracking-wider"><Plus size={10} strokeWidth={4} /> {Math.round(totals.activityBurn)} bonus</div>}
                 </div>
               </div>
-              <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-1 mb-2">
-                <div 
-                  className={`h-full rounded-full transition-all duration-700 ${totals.actualIntake > totals.currentAdjustedGoal ? 'bg-red-400' : 'bg-orange-400'}`}
-                  style={{ width: `${Math.min((totals.actualIntake / totals.currentAdjustedGoal) * 100, 100)}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <span>Inname</span>
-                <span className={totals.remaining < 0 ? 'text-red-500' : 'text-indigo-600'}>
-                  {totals.remaining < 0 ? 'Budget Overschreden' : `Nog ${Math.round(totals.remaining)} kcal`}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-               <div className="flex justify-between items-center mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Totaal Voortgang</span>
-                  <span className="text-sm font-black text-indigo-600">{Math.round(totals.progress)}%</span>
-               </div>
-               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${totals.progress}%` }} />
-               </div>
+              <div className="w-full bg-slate-100 h-6 rounded-2xl overflow-hidden p-1.5 mb-3 border border-slate-200/50"><div className={`h-full rounded-xl transition-all duration-1000 shadow-sm ${totals.remaining < 0 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min((totals.actualIntake / totals.currentAdjustedGoal) * 100, 100)}%` }} /></div>
+              <div className="flex justify-between items-center bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100/50"><span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Status</span><span className={`text-xs font-black uppercase tracking-widest ${totals.remaining < 0 ? 'text-red-500' : 'text-indigo-600'}`}>{totals.remaining < 0 ? 'Overschreden' : `${Math.round(totals.remaining)} over`}</span></div>
             </div>
           </div>
         )}
 
         {activeTab === 'meals' && (
-          <div className="space-y-4 pb-10 animate-in fade-in duration-300">
-            <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black text-slate-800 italic">Mijn Eetschema</h2>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Vandaag</p>
-                <p className="text-lg font-black text-indigo-600">{totals.actualIntake} kcal</p>
-              </div>
+          <div className="space-y-4 pb-12 animate-in fade-in duration-300">
+            <div className="flex justify-between items-end px-2 mb-2">
+              <div><h2 className="text-2xl font-black text-slate-800 leading-none tracking-tight">Eetschema</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Planning voor vandaag</span></div>
+              <div className="text-right bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Totaal</p><p className="text-lg font-black text-indigo-600 leading-none">{totals.actualIntake} <span className="text-xs">kcal</span></p></div>
             </div>
-
-            {MEAL_MOMENTS.map(moment => {
+            {MEAL_MOMENTS.map((moment, idx) => {
               const items = currentLog.meals[moment] || [];
               const custom = state.customOptions[moment] || [];
               const standard = MEAL_OPTIONS[moment] || [];
-              
+              const groupBg = idx < 2 ? 'bg-orange-50/50' : idx < 4 ? 'bg-emerald-50/50' : 'bg-indigo-50/70';
               return (
-                <div key={moment} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-black text-indigo-700 italic tracking-tight">{moment}</h3>
-                    <button 
-                      onClick={() => setIsAddingCustom(moment)}
-                      className="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl flex items-center gap-1 active:scale-95 transition-all"
-                    >
-                      <Plus size={12} /> Nieuw
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
+                <div key={moment} className={`rounded-[32px] p-5 border border-slate-100 shadow-sm ${groupBg}`}>
+                  <div className="flex justify-between items-center mb-4"><h3 className="font-black text-slate-800 tracking-tight uppercase text-sm">{moment}</h3><button onClick={() => setIsAddingCustom(moment)} className="text-[9px] font-black uppercase tracking-widest bg-white/60 text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm"><Plus size={12} strokeWidth={3} /> Eigen product</button></div>
+                  {custom.length > 0 && <div className="mb-4 flex flex-wrap gap-2">{custom.map(o => (<div key={o.id} className="bg-white/80 text-indigo-700 text-[9px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1.5 border border-indigo-100 group shadow-sm">{o.name}<button onClick={() => removeCustomOption(moment, o.id)} className="hover:text-red-500"><X size={10} strokeWidth={4} /></button></div>))}</div>}
+                  <div className="space-y-2 mb-5">
                     {items.length > 0 ? items.map(item => (
-                      <div key={item.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 group">
-                        <div className="flex flex-col">
-                           <span className="text-sm font-bold text-slate-800">{item.name}</span>
-                           <span className="text-[10px] font-bold text-indigo-400 uppercase">Aantal: {item.quantity}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black text-orange-600">{item.kcal} <span className="text-[10px]">kcal</span></span>
-                          <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-200 hover:text-red-500 transition-colors">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )) : (
-                      <div className="py-4 text-center border border-dashed border-slate-200 rounded-2xl">
-                         <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Leeg</span>
-                      </div>
-                    )}
+                      <div key={item.id} className="flex justify-between items-center bg-white/60 p-3.5 rounded-2xl border border-white/40 group shadow-sm"><div className="flex flex-col"><span className="text-xs font-bold text-slate-800 leading-tight">{item.name}</span><span className="text-[9px] font-black text-indigo-400 uppercase mt-0.5">{item.quantity} stuks</span></div><div className="flex items-center gap-3"><span className="text-sm font-black text-slate-700">{item.kcal} <span className="text-[9px] opacity-40">KCAL</span></span><button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={16} /></button></div></div>
+                    )) : (<div className="py-6 text-center border-2 border-dashed border-slate-200/50 rounded-[24px]"><span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Geen items</span></div>)}
                   </div>
-
-                  <div className="grid grid-cols-[1fr,60px,50px] gap-2 items-end">
+                  <div className="grid grid-cols-[1fr,60px,54px] gap-2 items-end">
                     <div className="relative">
-                      <select 
-                        id={`sel-${moment}`}
-                        className="w-full bg-slate-50 border-none rounded-xl p-3 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-indigo-500 appearance-none"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (!val) return;
+                      <select id={`sel-${moment}`} className="w-full bg-white/60 border-none rounded-2xl p-3.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 appearance-none shadow-inner" onChange={(e) => {
+                          const val = e.target.value; if (!val) return;
                           const opt = [...standard, ...custom].find(o => o.id === val);
-                          const qtyInput = document.getElementById(`q-${moment}`) as HTMLInputElement;
-                          const qty = Number(qtyInput.value) || 1;
+                          const qty = Number((document.getElementById(`q-${moment}`) as HTMLInputElement).value) || 1;
                           if (opt) addMealItem(moment, { name: opt.name, kcal: opt.kcal * qty, quantity: qty, mealId: opt.id });
                           e.target.value = '';
-                        }}
-                      >
-                        <option value="">+ Kies optie...</option>
-                        {custom.length > 0 && (
-                          <optgroup label="⭐ Jouw toevoegingen">
-                            {custom.map(o => <option key={o.id} value={o.id}>{o.name} ({o.kcal} kcal)</option>)}
-                          </optgroup>
-                        )}
-                        <optgroup label="Standaard lijst">
-                          {standard.map(o => <option key={o.id} value={o.id}>{o.name} ({o.kcal} kcal)</option>)}
-                        </optgroup>
+                        }}>
+                        <option value="">+ Kies...</option>
+                        {custom.length > 0 && <optgroup label="⭐ Eigen lijst">{custom.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</optgroup>}
+                        <optgroup label="Opties">{standard.map(o => <option key={o.id} value={o.id}>{o.name} ({o.kcal} kcal)</option>)}</optgroup>
                       </select>
                     </div>
-                    <input id={`q-${moment}`} type="number" defaultValue="1" min="1" className="w-full bg-slate-50 border-none rounded-xl p-3 text-xs font-black text-center text-slate-700" />
-                    <button 
-                      onClick={() => {
-                        const s = document.getElementById(`sel-${moment}`) as HTMLSelectElement;
-                        s.dispatchEvent(new Event('change', { bubbles: true }));
-                      }}
-                      className="bg-indigo-600 text-white h-11 flex items-center justify-center rounded-xl shadow-md active:scale-95 transition-transform"
-                    >
-                      <Plus size={20} />
-                    </button>
+                    <input id={`q-${moment}`} type="number" defaultValue="1" min="1" className="w-full bg-white/60 border-none rounded-2xl p-3.5 text-xs font-black text-center text-slate-700 shadow-inner" />
+                    <button onClick={() => document.getElementById(`sel-${moment}`)?.dispatchEvent(new Event('change', { bubbles: true }))} className="bg-indigo-50 border border-indigo-200 text-indigo-700 h-12 flex items-center justify-center rounded-2xl shadow-sm active:scale-90 transition-transform"><Plus size={22} strokeWidth={3} /></button>
                   </div>
                 </div>
               );
             })}
-
-            {isAddingCustom && (
-              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-6">
-                <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-90 duration-200">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-indigo-100 p-3 rounded-2xl text-indigo-600"><Bookmark size={24} /></div>
-                    <h3 className="text-xl font-black text-slate-800 italic">{isAddingCustom}</h3>
-                  </div>
-                  <form className="space-y-5" onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    const name = fd.get('name') as string;
-                    const kcal = Number(fd.get('kcal'));
-                    if (name && !isNaN(kcal)) {
-                      addMealItem(isAddingCustom, { name, kcal, quantity: 1 }, true);
-                      setIsAddingCustom(null);
-                    }
-                  }}>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Naam maaltijd</label>
-                      <input name="name" type="text" placeholder="bijv. Pannenkoek" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner" required autoFocus />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Kcal per stuk</label>
-                      <input name="kcal" type="number" placeholder="0" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-orange-600 shadow-inner" required />
-                    </div>
-                    <div className="flex gap-3 pt-4">
-                      <button type="button" onClick={() => setIsAddingCustom(null)} className="flex-1 py-4 font-black text-slate-400 bg-slate-100 rounded-2xl">Annuleer</button>
-                      <button type="submit" className="flex-1 py-4 font-black text-white bg-indigo-600 rounded-2xl shadow-lg">Voeg toe</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
         {activeTab === 'activity' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-xl font-black text-slate-800 italic px-1">Beweging</h2>
-            <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg">
-              <h3 className="font-bold mb-4 flex items-center gap-2"><Plus size={18}/> Log je activiteit</h3>
-              <form className="space-y-4" onSubmit={(e) => {
+            <h2 className="text-2xl font-black text-slate-800 px-2 leading-none tracking-tight">Beweging</h2>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-[32px] p-7 text-slate-800 shadow-sm relative overflow-hidden">
+              <div className="absolute -bottom-4 -right-4 opacity-5 rotate-12"><Activity size={120} className="text-indigo-700" /></div>
+              <h3 className="text-lg font-black mb-6 flex items-center gap-2 uppercase tracking-tight text-indigo-800"><Plus size={20} strokeWidth={3} /> Activiteit</h3>
+              <form className="space-y-4 relative z-10" onSubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
                 const tid = fd.get('tid') as string;
                 const val = Number(fd.get('val'));
                 if (tid && val > 0) { addActivity(tid, val); (e.target as HTMLFormElement).reset(); }
               }}>
-                <select 
-                  name="tid" 
-                  value={selectedActivityId}
-                  onChange={(e) => setSelectedActivityId(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white focus:ring-0"
-                >
-                  {ACTIVITY_TYPES.map(t => <option key={t.id} value={t.id} className="text-slate-800">{t.name}</option>)}
-                </select>
-                <div className="relative">
-                  <input 
-                    name="val" 
-                    type="number" 
-                    step="0.1" 
-                    placeholder="Hoeveelheid..." 
-                    className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm font-bold text-white placeholder:text-indigo-200" 
-                    required 
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black uppercase text-white/50 pointer-events-none">
-                    {activeUnit}
-                  </span>
-                </div>
-                <button type="submit" className="w-full bg-white text-indigo-700 font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all uppercase text-xs tracking-widest">Toevoegen</button>
+                <select name="tid" value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-white/80 border border-indigo-100 rounded-[20px] p-4 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 appearance-none">{ACTIVITY_TYPES.map(t => <option key={t.id} value={t.id} className="text-slate-800">{t.name}</option>)}</select>
+                <div className="relative"><input name="val" type="number" step="0.1" placeholder="Hoeveelheid..." className="w-full bg-white/80 border border-indigo-100 rounded-[20px] p-4 text-lg font-black text-indigo-700 placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-500" required /><span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-indigo-300 tracking-widest">{activeUnit}</span></div>
+                <button type="submit" className="w-full bg-white border border-indigo-100 text-indigo-700 font-black py-4.5 rounded-[20px] shadow-sm active:scale-95 transition-all uppercase text-xs tracking-[0.2em]">Toevoegen</button>
               </form>
             </div>
-
             <div className="space-y-3">
-               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Vandaag gedaan</h4>
-               {currentLog.activities.map(a => {
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Vandaag verbrand</h4>
+               {currentLog.activities.length > 0 ? currentLog.activities.map(a => {
                  const t = ACTIVITY_TYPES.find(x => x.id === a.typeId);
                  return (
-                   <div key={a.id} className="bg-white rounded-2xl p-4 border border-slate-100 flex justify-between items-center shadow-sm">
-                     <div>
-                       <p className="font-bold text-slate-800">{t?.name}</p>
-                       <p className="text-xs text-slate-500">{a.value} {t?.unit} • <span className="text-green-600 font-black">+{a.burnedKcal} kcal</span></p>
-                     </div>
-                     <button onClick={() => removeActivity(a.id)} className="text-slate-200 hover:text-red-500 p-2"><Trash2 size={18}/></button>
-                   </div>
+                   <div key={a.id} className="bg-white rounded-3xl p-4.5 border border-slate-100 flex justify-between items-center shadow-sm"><div className="flex items-center gap-4"><div className="bg-indigo-50 p-3 rounded-2xl text-indigo-500"><Activity size={20} /></div><div><p className="font-black text-slate-800 text-sm tracking-tight">{t?.name}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{a.value} {t?.unit} • <span className="text-green-600 font-black">+{a.burnedKcal} kcal</span></p></div></div><button onClick={() => removeActivity(a.id)} className="text-slate-200 hover:text-red-500 p-2 transition-colors active:scale-90"><Trash2 size={20}/></button></div>
                  );
-               })}
+               }) : (<div className="bg-white/50 border-2 border-dashed border-slate-200 rounded-[32px] p-10 text-center"><p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Geen beweging gelogd</p></div>)}
             </div>
           </div>
         )}
 
         {activeTab === 'profile' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-xl font-black text-slate-800 italic px-1">Instellingen</h2>
+            <h2 className="text-2xl font-black text-slate-800 px-2 leading-none tracking-tight">Instellingen</h2>
+            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-6">
+              <div className="grid grid-cols-2 gap-5">
+                <div><label className="text-[9px] font-black text-slate-300 uppercase block mb-2 tracking-widest ml-1">Leeftijd</label><input type="number" value={state.profile.age} onChange={e => updateProfile({age: Number(e.target.value)})} className="w-full bg-slate-50 p-4 rounded-2xl font-black text-slate-700 border-none shadow-inner" /></div>
+                <div><label className="text-[9px] font-black text-slate-300 uppercase block mb-2 tracking-widest ml-1">Lengte (cm)</label><input type="number" value={state.profile.height} onChange={e => updateProfile({height: Number(e.target.value)})} className="w-full bg-slate-50 p-4 rounded-2xl font-black text-slate-700 border-none shadow-inner" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div><label className="text-[9px] font-black text-slate-300 uppercase block mb-2 tracking-widest ml-1">Startgewicht</label><input type="number" step="0.1" value={state.profile.startWeight} onChange={e => updateProfile({startWeight: Number(e.target.value)})} className="w-full bg-slate-50 p-4 rounded-2xl font-black text-slate-700 border-none shadow-inner" /></div>
+                <div><label className="text-[9px] font-black text-slate-300 uppercase block mb-2 tracking-widest ml-1">Doelgewicht</label><input type="number" value={state.profile.targetWeight} onChange={e => updateProfile({targetWeight: Number(e.target.value)})} className="w-full bg-indigo-50 p-4 rounded-2xl font-black text-indigo-700 border-none shadow-inner" /></div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-4">
+               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2"><Database size={16} /> Opslag Locatie</h3>
+               <div className="flex flex-col gap-3">
+                 <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${!fileHandle ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100 opacity-60'}`} onClick={() => setFileHandle(null)}>
+                   <div className="flex items-center gap-3"><Database className="text-indigo-600" size={20}/><div className="flex flex-col"><span className="text-[10px] font-black uppercase">Standaard Opslag</span><span className="text-[9px] text-indigo-400 font-bold">Lokaal & Beveiligd</span></div></div>
+                   {!fileHandle && <CheckCircle2 size={20} className="text-indigo-600" />}
+                 </div>
+                 <div className={`p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${fileHandle ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`} onClick={setupCloudSync}>
+                   <div className="flex items-center gap-3"><Cloud className="text-indigo-600" size={20}/><div className="flex flex-col"><span className="text-[10px] font-black uppercase">Opslag in cloud</span><span className={`text-[9px] font-bold ${fileHandle ? 'text-indigo-600' : 'text-indigo-400'}`}>{fileHandle ? 'Gekoppeld' : 'Koppel Google Drive/Dropbox'}</span></div></div>
+                   {fileHandle && <CheckCircle2 size={20} className="text-indigo-600" />}
+                 </div>
+               </div>
+               {syncStatus !== 'idle' && (
+                 <div className={`text-[9px] font-black uppercase text-center flex items-center justify-center gap-2 ${syncStatus === 'syncing' ? 'text-indigo-500' : syncStatus === 'success' ? 'text-indigo-500' : 'text-red-500'}`}>
+                   {syncStatus === 'syncing' && <RefreshCw size={10} className="animate-spin" />}
+                   {syncStatus === 'syncing' ? 'Synchroniseren...' : syncStatus === 'success' ? 'Cloud update voltooid' : 'Fout bij synchronisatie'}
+                 </div>
+               )}
+            </div>
+
+            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-4">
+               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-2">Systeem</h3>
+               <label className="flex items-center justify-center gap-2 bg-slate-50 text-slate-700 text-[10px] font-black uppercase py-4 rounded-2xl border border-slate-100 cursor-pointer"><Upload size={16} /> Data Herstellen vanaf bestand<input type="file" accept=".json" onChange={restoreData} className="hidden" /></label>
+            </div>
             
-            <button 
-              onClick={handleShare}
-              className="w-full bg-indigo-600 text-white rounded-3xl p-6 flex items-center justify-between shadow-lg active:scale-95 transition-all group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-white/20 p-3 rounded-2xl"><Share2 size={24} /></div>
-                <div className="text-left">
-                  <p className="text-sm font-black italic">App Delen</p>
-                  <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-wider">Stuur de link naar anderen</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-white/50 group-hover:translate-x-1 transition-transform" />
-            </button>
-
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Leeftijd</label>
-                  <input type="number" value={state.profile.age} onChange={e => updateProfile({age: Number(e.target.value)})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Lengte (cm)</label>
-                  <input type="number" value={state.profile.height} onChange={e => updateProfile({height: Number(e.target.value)})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-none" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Begin (kg)</label>
-                  <input type="number" step="0.1" value={state.profile.startWeight} onChange={e => updateProfile({startWeight: Number(e.target.value)})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Doel (kg)</label>
-                  <input type="number" value={state.profile.targetWeight} onChange={e => updateProfile({targetWeight: Number(e.target.value)})} className="w-full bg-slate-50 p-3 rounded-xl font-bold border-none" />
-                </div>
-              </div>
+            <div className="pt-6 border-t border-slate-100 text-center flex flex-col items-center gap-4">
+               <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">DOELGEWICHT IN ZICHT v1.5.5</p>
+               <button onClick={() => { if(confirm('Alles wissen?')) { indexedDB.deleteDatabase(DB_NAME); window.location.reload(); } }} className="text-slate-300 text-[9px] font-bold uppercase hover:text-red-400">Volledige reset</button>
             </div>
-
-            <div className="text-center py-4">
-               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Mijn Gezonde Planning • v1.1</p>
-            </div>
-
-            <button 
-              onClick={() => { if(confirm('Alles wissen?')) { localStorage.clear(); window.location.reload(); } }}
-              className="w-full py-4 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]"
-            >
-              Reset App Gegevens
-            </button>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-100 px-6 py-3 flex justify-between items-center max-w-md mx-auto z-40">
-        {[
-          { id: 'dashboard', icon: LayoutDashboard, label: 'Plan' },
-          { id: 'meals', icon: Utensils, label: 'Eten' },
-          { id: 'activity', icon: Activity, label: 'Beweeg' },
-          { id: 'profile', icon: UserIcon, label: 'Ik' }
-        ].map(tab => (
-          <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`flex flex-col items-center gap-1 transition-all ${activeTab === tab.id ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}
-          >
-            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 3 : 2} />
-            <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 py-4 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[32px] shadow-2xl">
+        {[{ id: 'dashboard', icon: LayoutDashboard, label: 'Plan' }, { id: 'meals', icon: Utensils, label: 'Eten' }, { id: 'activity', icon: Activity, label: 'Beweeg' }, { id: 'profile', icon: UserIcon, label: 'Ik' }].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
+            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 3 : 2} /><span className="text-[9px] font-black uppercase tracking-[0.15em]">{tab.label}</span>
           </button>
         ))}
       </nav>
+
+      {/* Informatie Modal */}
+      {showInfo && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[60] flex items-center justify-center p-6" onClick={() => setShowInfo(false)}>
+          <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Hoe werkt het?</h3>
+              <button onClick={() => setShowInfo(false)} className="p-2 bg-slate-100 rounded-full"><X size={20}/></button>
+            </div>
+            <div className="space-y-6 text-slate-600 text-sm leading-relaxed">
+              <section className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                <h4 className="font-black text-indigo-700 uppercase text-[10px] mb-2 tracking-widest flex items-center gap-2"><Database size={14}/> Lokale Opslag</h4>
+                <p className="text-[12px]">Standaard worden je gegevens opgeslagen in <b>IndexedDB</b>. Dit is een beveiligde database in je browser die niet zomaar gewist wordt, zelfs niet bij het opschonen van je cache.</p>
+              </section>
+              <section className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                <h4 className="font-black text-indigo-700 uppercase text-[10px] mb-2 tracking-widest flex items-center gap-2"><Cloud size={14}/> Cloud Sync</h4>
+                <p className="text-[12px]">Kies je voor Cloud Sync? Dan koppelen we een bestand op je apparaat (bijvoorbeeld in je Google Drive map). Iedere wijziging wordt direct naar dit bestand geschreven.</p>
+              </section>
+              <section className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                <h4 className="font-black text-orange-700 uppercase text-[10px] mb-2 tracking-widest flex items-center gap-2"><AlertCircle size={14}/> Privacy</h4>
+                <p className="text-[12px]">Jouw gegevens verlaten je apparaat <b>nooit</b>. Wij hebben geen eigen servers. Alleen jij hebt toegang tot je database en je cloud-bestanden.</p>
+              </section>
+            </div>
+            <button onClick={() => setShowInfo(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100">Begrepen</button>
+          </div>
+        </div>
+      )}
+
+      {isAddingCustom && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-[40px] p-9 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-8"><div className="bg-indigo-600 p-3 rounded-[20px] text-white shadow-lg"><Bookmark size={24} /></div><h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{isAddingCustom}</h3></div>
+            <form className="space-y-6" onSubmit={(e) => {
+              e.preventDefault(); const fd = new FormData(e.currentTarget); const name = fd.get('name') as string; const kcal = Number(fd.get('kcal'));
+              if (name && !isNaN(kcal)) { addMealItem(isAddingCustom, { name, kcal, quantity: 1 }, true); setIsAddingCustom(null); }
+            }}>
+              <div><label className="block text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2.5 ml-1">Naam product</label><input name="name" type="text" placeholder="bijv. Eiwit pannenkoek" className="w-full bg-slate-50 border-none rounded-2xl p-4.5 text-sm font-bold shadow-inner focus:ring-2 focus:ring-indigo-500" required autoFocus /></div>
+              <div><label className="block text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2.5 ml-1">Kcal per stuk</label><input name="kcal" type="number" placeholder="0" className="w-full bg-slate-50 border-none rounded-2xl p-4.5 text-lg font-black text-orange-600 shadow-inner focus:ring-2 focus:ring-indigo-500" required /></div>
+              <div className="flex gap-3 pt-6"><button type="button" onClick={() => setIsAddingCustom(null)} className="flex-1 py-4.5 font-black text-slate-400 bg-slate-100 rounded-2xl uppercase text-[10px] tracking-widest">Sluiten</button><button type="submit" className="flex-1 py-4.5 font-black text-white bg-indigo-600 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Bewaren</button></div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

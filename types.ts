@@ -7,7 +7,7 @@ export interface UserProfile {
   targetWeight: number;
 }
 
-export type MealMoment = 'Ontbijt' | 'Tussendoor 1' | 'Lunch' | 'Tussendoor 2' | 'Diner' | 'Avondsnack';
+export type MealMoment = 'Ontbijt' | 'Ochtend snack' | 'Lunch' | 'Middag snack' | 'Diner' | 'Avondsnack';
 
 export interface MealOption {
   id: string;
