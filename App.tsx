@@ -383,11 +383,11 @@ export default function App() {
               <h2 className="text-3xl font-black mb-5 tracking-tight text-indigo-900">{totals.targetDate || 'Berekenen...'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/60 backdrop-blur-md rounded-2xl p-3.5 border border-indigo-100/50">
-                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><Flame size={10} className="text-indigo-500" /><p className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Basis</p></div>
+                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><Flame size={10} className="text-indigo-500" /><p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 leading-tight">Mijn Oude <br /> Calorie inname</p></div>
                   <p className="text-xl font-black text-indigo-700">{Math.round(totals.baselineTdee)} <span className="text-[10px] font-medium opacity-60">kcal</span></p>
                 </div>
                 <div className="bg-white/60 backdrop-blur-md rounded-2xl p-3.5 border border-indigo-100/50">
-                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><TrendingDown size={10} className="text-green-500" /><p className="text-[9px] font-black uppercase tracking-widest text-green-600">Tekort</p></div>
+                  <div className="flex items-center gap-1.5 mb-1 opacity-70"><TrendingDown size={10} className="text-green-500" /><p className="text-[9px] font-black uppercase tracking-widest text-green-600 leading-tight">Mijn aangepaste <br /> calorie inname</p></div>
                   <p className="text-xl font-black text-green-600">-{Math.round(Math.max(0, totals.baselineDeficit))} <span className="text-[10px] font-medium opacity-60">kcal</span></p>
                 </div>
               </div>
@@ -395,7 +395,7 @@ export default function App() {
 
             <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-tight"><TrendingDown size={18} className="text-green-500" /> Jouw Reis</h3>
+                  <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-tight"><TrendingDown size={18} className="text-green-500" /> Mijn Reis</h3>
                   <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-lg">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
                </div>
                <div className="relative pt-6 pb-2 px-2">
@@ -404,7 +404,7 @@ export default function App() {
                  </div>
                  <div className="absolute top-0 left-0 text-[9px] font-black text-slate-400 uppercase">{state.profile.startWeight} KG</div>
                  <div className="absolute top-0 right-0 text-[9px] font-black text-indigo-600 uppercase">DOEL {state.profile.targetWeight} KG</div>
-                 <div className="absolute top-10 transform -translate-x-1/2 text-[10px] font-black text-slate-800 transition-all duration-1000 whitespace-nowrap" style={{ left: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }}>NU {latestWeight.toFixed(1)}</div>
+                 <div className="absolute top-10 text-[10px] font-black text-slate-800 transition-all duration-1000 whitespace-nowrap" style={{ left: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }}>NU {latestWeight.toFixed(1)}</div>
                </div>
             </div>
 
@@ -437,7 +437,7 @@ export default function App() {
           <div className="space-y-5 pb-12 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-2">
               <div><h2 className="text-2xl font-black text-slate-800 leading-none tracking-tight">Eetschema</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Planning voor vandaag</span></div>
-              <button onClick={() => setShowMyList(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.1em] shadow-lg shadow-indigo-100 active:scale-95 transition-all">
+              <button onClick={() => setShowMyList(true)} className="flex items-center gap-2 bg-sky-100 text-sky-700 border border-sky-200 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.1em] shadow-sm active:scale-95 transition-all">
                 <ListFilter size={18} /> Mijn Lijst
               </button>
             </div>
