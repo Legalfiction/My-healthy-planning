@@ -1,4 +1,6 @@
 
+export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | 'hi' | 'ar';
+
 export interface UserProfile {
   age: number;
   height: number;
@@ -15,7 +17,7 @@ export interface MealOption {
   kcal: number;
   isUnitBased?: boolean;
   unitName?: string;
-  isCustom?: boolean; // Flag to identify user-created options
+  isCustom?: boolean;
 }
 
 export interface LoggedMealItem {
@@ -31,6 +33,7 @@ export interface ActivityType {
   name: string;
   met: number;
   unit: 'minuten' | 'km';
+  isCustom?: boolean;
 }
 
 export interface LoggedActivity {
@@ -44,11 +47,13 @@ export interface DailyLog {
   date: string;
   meals: Record<string, LoggedMealItem[]>;
   activities: LoggedActivity[];
-  weight?: number; // Optional daily weight entry
+  weight?: number;
 }
 
 export interface AppState {
   profile: UserProfile;
   dailyLogs: Record<string, DailyLog>;
-  customOptions: Record<string, MealOption[]>; // Persistent custom dropdown items
+  customOptions: Record<string, MealOption[]>;
+  customActivities: ActivityType[];
+  language: Language;
 }
