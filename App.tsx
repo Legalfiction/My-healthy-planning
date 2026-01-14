@@ -125,7 +125,6 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
         type === 'info' ? 'bg-sky-900 border-sky-700 text-white' :
         'bg-slate-900 border-slate-700 text-white'
       }`}>
-        {/* Fix: size prop was incorrectly called as a function; fixed to use curly brace assignment */}
         {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
         <span className="text-xs font-black uppercase tracking-widest">{message}</span>
       </div>
@@ -149,7 +148,6 @@ export default function App() {
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Robust fallback translation logic to prevent blank screens
   const t = useMemo(() => {
     const lang = state.language || 'nl';
     const base = translations['nl'];
@@ -357,11 +355,9 @@ export default function App() {
     const translated = PRODUCT_TRANSLATIONS[lang]?.[id];
     if (translated) return translated;
     
-    // Fallback to English if current lang fails
     const engTranslated = PRODUCT_TRANSLATIONS['en']?.[id];
     if (engTranslated) return engTranslated;
 
-    // Finally fallback to original Dutch
     return originalName;
   };
 
@@ -501,7 +497,7 @@ export default function App() {
 
       <main className="p-3 flex-grow space-y-3">
         {activeTab === 'dashboard' && (
-          <div className="space-y-3 animate-in fade-in duration-500">
+          <div className="space-y-6 animate-in fade-in duration-500">
             <div className="bg-[#e0f2fe] rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-sky-100">
                <Target size={60} className="absolute -right-2 -top-2 text-sky-200/30" />
                <p className="text-sky-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.targetReached}</p>
@@ -518,8 +514,8 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-2 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-1.5">
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-1.5">
                     <Zap size={14} className="text-amber-400 fill-amber-400" />
                     <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.dailyBudget}</h3>
@@ -545,10 +541,10 @@ export default function App() {
                       </span>
                     </div>
                  </div>
-                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
+                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
                     <div className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                  </div>
-                 <div className="flex justify-center mb-1">
+                 <div className="flex justify-center">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
                      <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-black'}`}>{Math.round(totals.intakePercent)}%</span>
@@ -557,8 +553,8 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-2 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-1.5">
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.myJourney}</h3>
                   <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ (Number(state.profile.startWeight) - Number(latestWeight)).toFixed(1) } KG</span>
                </div>
@@ -573,10 +569,10 @@ export default function App() {
                       <span className="text-sm font-black text-sky-500">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
-                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
+                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
-                 <div className="flex justify-center mb-1">
+                 <div className="flex justify-center">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.nowWeight}</span>
                      <span className="text-sm font-black text-black">{latestWeight.toFixed(1)} KG</span>
@@ -586,7 +582,7 @@ export default function App() {
             </div>
 
             <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm">
-              <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest mb-2.5 flex items-center gap-1.5"><Scale size={15} className="text-sky-400" /> {t.weighMoment}</h3>
+              <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest mb-4 flex items-center gap-1.5"><Scale size={15} className="text-sky-400" /> {t.weighMoment}</h3>
               <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-inner">
                 <input type="number" step="0.1" placeholder={t.placeholders.weight} value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
