@@ -15,8 +15,6 @@ import {
   Info,
   Database,
   ListFilter,
-  ShieldCheck, 
-  CheckCircle2,
   Globe,
   Coffee,
   Sun,
@@ -25,13 +23,16 @@ import {
   Cloud,
   Download,
   Upload,
-  Share2,
   Check,
   AlertCircle,
   GlassWater,
   Search,
   ChevronDown,
-  X
+  X,
+  Calendar,
+  Wand2,
+  Footprints,
+  Baby
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -41,19 +42,20 @@ import {
   LoggedMealItem,
   MealOption,
   ActivityType,
-  Language
+  Language,
+  WeightLossSpeed
 } from './types';
 import { 
   MEAL_OPTIONS, 
   ACTIVITY_TYPES, 
-  DAILY_KCAL_INTAKE_GOAL,
   PRODUCT_TRANSLATIONS,
   MEAL_MOMENTS
 } from './constants';
 import { 
   calculateTDEE,
   calculateActivityBurn, 
-  calculateTargetDate
+  calculateTargetDate,
+  calculateBMI
 } from './services/calculator';
 import { translations } from './translations';
 
@@ -105,7 +107,7 @@ const idb = {
 };
 
 const INITIAL_STATE: AppState = {
-  profile: { age: 55, height: 194, startWeight: 92, currentWeight: 92, targetWeight: 80 },
+  profile: { age: 44, height: 170, startWeight: 86, currentWeight: 78, targetWeight: 80, dailyBudget: 1800, weightLossSpeed: 'average' },
   dailyLogs: {},
   customOptions: MEAL_OPTIONS,
   customActivities: ACTIVITY_TYPES,
@@ -138,7 +140,6 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [showInfo, setShowInfo] = useState(false);
-  const [showLegal, setShowLegal] = useState(false);
   const [showMyList, setShowMyList] = useState(false);
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
@@ -147,37 +148,14 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string; qty: number }>>({});
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
     const base = translations['nl'];
     const selected = translations[lang] || {};
-    
-    const merge = (b: any, s: any) => {
-      if (!s) return b;
-      const result = { ...b };
-      for (const key in b) {
-        if (s[key] && typeof s[key] === 'object' && !Array.isArray(s[key])) {
-          result[key] = { ...b[key], ...s[key] };
-        } else if (s[key]) {
-          result[key] = s[key];
-        }
-      }
-      return result;
-    };
-
-    return merge(base, selected);
+    return { ...base, ...selected };
   }, [state.language]);
-
-  const [newProductName, setNewProductName] = useState('');
-  const [newProductGram, setNewProductGram] = useState('');
-  const [newProductKcal, setNewProductKcal] = useState('');
-  const [newProductCats, setNewProductCats] = useState<string[]>([]);
-  const [newProductIsDrink, setNewProductIsDrink] = useState(false);
-  const [newActivityName, setNewActivityName] = useState('');
-  const [newActivityKcalMin, setNewActivityKcalMin] = useState('');
-
-  const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string, qty: number }>>({});
 
   const flagEmojis: Record<Language, string> = { 
     nl: '🇳🇱', en: '🇬🇧', es: '🇪🇸', de: '🇩🇪', pt: '🇵🇹', zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷', hi: '🇮🇳', ar: '🇸🇦'
@@ -188,7 +166,8 @@ export default function App() {
       if (saved) {
         setState({
           ...saved,
-          customActivities: saved.customActivities && saved.customActivities.length > 0 ? saved.customActivities : ACTIVITY_TYPES
+          profile: { ...INITIAL_STATE.profile, ...saved.profile },
+          customActivities: saved.customActivities?.length > 0 ? saved.customActivities : ACTIVITY_TYPES
         });
       }
       setIsLoaded(true);
@@ -199,35 +178,34 @@ export default function App() {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setOpenPickerMoment(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const currentLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
   
   const latestWeight = useMemo((): number => {
-    const dates = Object.keys(state.dailyLogs).sort().reverse();
-    const todayWeight = state.dailyLogs[selectedDate]?.weight;
-    if (typeof todayWeight === 'number') return todayWeight;
+    const manualLogWeight = state.dailyLogs[selectedDate]?.weight;
+    if (typeof manualLogWeight === 'number' && manualLogWeight > 0) return manualLogWeight;
+    // Look back for last weight if not logged today
+    const loggedWeights = Object.keys(state.dailyLogs)
+      .filter(d => d <= selectedDate && state.dailyLogs[d].weight)
+      .sort((a,b) => b.localeCompare(a));
     
-    for (const d of dates) { 
-      const weight = state.dailyLogs[d]?.weight;
-      if (d <= selectedDate && typeof weight === 'number') return weight; 
-    }
+    if (loggedWeights.length > 0) return state.dailyLogs[loggedWeights[0]].weight as number;
     return Number(state.profile.currentWeight) || 0;
   }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
+
+  const bmi = useMemo(() => calculateBMI(latestWeight, state.profile.height), [latestWeight, state.profile.height]);
+
+  const bmiColor = useMemo(() => {
+    if (bmi < 18.5) return 'text-sky-400';
+    if (bmi < 25) return 'text-green-500';
+    if (bmi < 30) return 'text-amber-500';
+    return 'text-red-500';
+  }, [bmi]);
 
   const totals = useMemo(() => {
     const activityBurn = Number(currentLog.activities.reduce((sum: number, a) => sum + (Number(a.burnedKcal) || 0), 0));
     const startW = Number(state.profile.startWeight) || 0;
     const targetW = Number(state.profile.targetWeight) || 0;
-    const currentW = Number(latestWeight) || Number(state.profile.currentWeight) || 0;
+    const currentW = Number(latestWeight);
     
     const effectiveProfile: UserProfile = { ...state.profile, currentWeight: currentW };
     const baselineTdee = Number(calculateTDEE(effectiveProfile, 0));
@@ -237,14 +215,14 @@ export default function App() {
       return acc + Number(mealItems.reduce((sum: number, m: LoggedMealItem) => sum + (Number(m.kcal) || 0), 0));
     }, 0));
     
-    const intakeGoal = Number(DAILY_KCAL_INTAKE_GOAL) || 1800;
+    const intakeGoal = Number(state.profile.dailyBudget) || 1800;
     const currentAdjustedGoal = Number(intakeGoal + activityBurn);
-    const deficit = Number((baselineTdee + activityBurn) - intakeGoal);
-    const targetDateStr = calculateTargetDate(effectiveProfile, deficit);
+    
+    const autoTargetDate = calculateTargetDate(effectiveProfile, intakeGoal);
     
     const weightJourneyTotal = Number(startW - targetW);
     const weightLostSoFar = Number(startW - currentW);
-    const weightProgressPercent = weightJourneyTotal > 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 0;
+    const weightProgressPercent = weightJourneyTotal !== 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 100;
     
     const intakePercent = currentAdjustedGoal > 0 ? (actualIntake / currentAdjustedGoal) * 100 : 0;
     let calorieStatusColor = 'bg-green-500';
@@ -255,7 +233,7 @@ export default function App() {
       activityBurn, 
       baselineTdee, 
       actualIntake, 
-      targetDate: targetDateStr, 
+      targetDate: state.profile.customTargetDate || autoTargetDate, 
       weightProgressPercent, 
       currentAdjustedGoal,
       intakePercent,
@@ -281,45 +259,13 @@ export default function App() {
   ], [t]);
 
   const exportData = () => {
-    try {
-      const dataStr = JSON.stringify(state, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      const exportFileDefaultName = `doelgewicht_backup_${new Date().toISOString().split('T')[0]}.json`;
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      document.body.appendChild(linkElement);
-      linkElement.click();
-      document.body.removeChild(linkElement);
-      setToast({msg: state.language === 'nl' ? "Download gestart" : "Download started"});
-    } catch (e) {
-      setToast({msg: "Download mislukt", type: 'error'});
-    }
-  };
-
-  const handleCloudExport = async (provider: string) => {
     const dataStr = JSON.stringify(state, null, 2);
-    const fileName = `doelgewicht_backup.json`;
-    setToast({msg: `${t.dataManagement.googleDrive.split(' ')[0]} back-up...`, type: 'info'});
-    try {
-      const file = new File([dataStr], fileName, { type: 'application/json' });
-      if (navigator.share) {
-        try {
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: `Doelgewicht ${provider} Back-up`, text: `Handmatige back-up voor ${provider}` });
-          } else {
-            await navigator.share({ title: `Doelgewicht ${provider} Back-up`, text: dataStr });
-          }
-          setToast({msg: state.language === 'nl' ? "Deelmenu geopend" : "Share menu opened"});
-        } catch (shareErr) {
-          exportData();
-        }
-      } else {
-        exportData();
-      }
-    } catch (err) {
-      exportData();
-    }
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', `doelgewicht_backup_${new Date().toISOString().split('T')[0]}.json`);
+    linkElement.click();
+    setToast({msg: "Download gestart"});
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,14 +277,13 @@ export default function App() {
         const json = JSON.parse(e.target?.result as string);
         if (json.profile && json.dailyLogs) {
           setState(json);
-          setToast({msg: state.language === 'nl' ? 'Gegevens hersteld!' : 'Data restored!'});
+          setToast({msg: 'Gegevens hersteld!'});
         }
       } catch (err) {
-        setToast({msg: "Herstel mislukt: ongeldig bestand", type: 'error'});
+        setToast({msg: "Herstel mislukt", type: 'error'});
       }
     };
     reader.readAsText(file);
-    event.target.value = '';
   };
 
   const resetAllData = async () => {
@@ -346,44 +291,21 @@ export default function App() {
       await idb.clear();
       setState(INITIAL_STATE);
       setActiveTab('dashboard');
-      setToast({msg: state.language === 'nl' ? 'Alles gewist' : 'Cleared all'});
+      setToast({msg: 'Alles gewist'});
     }
   };
 
   const getTranslatedName = (id: string, originalName: string) => {
-    const lang = state.language || 'nl';
-    const translated = PRODUCT_TRANSLATIONS[lang]?.[id];
-    if (translated) return translated;
-    
-    const engTranslated = PRODUCT_TRANSLATIONS['en']?.[id];
-    if (engTranslated) return engTranslated;
-
-    return originalName;
-  };
-
-  const splitProductName = (fullName: string) => {
-    const unitRegex = /(\d+\s*(ml|g|gr|gram|liter|l|cl))/i;
-    const match = fullName.match(unitRegex);
-    let title = fullName;
-    let unitInfo = null;
-    if (match) {
-      unitInfo = match[1].trim();
-      title = fullName.replace(match[0], '').trim();
-      title = title.replace(/,\s*\)/g, ')')
-                   .replace(/\(\s*,/g, '(')
-                   .replace(/\(\s*\)/g, '')
-                   .replace(/,\s*$/, '')
-                   .replace(/\s+/g, ' ')
-                   .trim();
-    }
-    return { title, unitInfo };
+    return PRODUCT_TRANSLATIONS[state.language]?.[id] || PRODUCT_TRANSLATIONS['en']?.[id] || originalName;
   };
 
   const setDailyWeight = (weight: number | undefined) => {
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       logs[selectedDate] = { ...(logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }), weight };
-      return { ...prev, dailyLogs: logs };
+      // Also update profile current weight as the persistent baseline
+      const newProfile = weight ? { ...prev.profile, currentWeight: weight } : prev.profile;
+      return { ...prev, dailyLogs: logs, profile: newProfile };
     });
   };
 
@@ -398,19 +320,8 @@ export default function App() {
     });
   };
 
-  const removeMealItem = (moment: MealMoment, id: string) => {
-    setState(prev => {
-      const logs = { ...prev.dailyLogs };
-      if (!logs[selectedDate]) return prev;
-      const meals = { ...logs[selectedDate].meals };
-      meals[moment] = (meals[moment] || []).filter(m => m.id !== id);
-      logs[selectedDate] = { ...logs[selectedDate], meals };
-      return { ...prev, dailyLogs: logs };
-    });
-  };
-
   const addActivity = (typeId: string, value: number) => {
-    const burn = calculateActivityBurn({ typeId, value }, latestWeight || state.profile.currentWeight);
+    const burn = calculateActivityBurn({ typeId, value }, latestWeight);
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
@@ -421,45 +332,31 @@ export default function App() {
     if (input) input.value = '';
   };
 
-  const removeActivity = (id: string) => {
-    setState(prev => {
-      const logs = { ...prev.dailyLogs };
-      if (!logs[selectedDate]) return prev;
-      logs[selectedDate] = { ...logs[selectedDate], activities: logs[selectedDate].activities.filter(a => a.id !== id) };
-      return { ...prev, dailyLogs: logs };
-    });
+  const setLossSpeed = (speed: WeightLossSpeed) => {
+    const tdee = calculateTDEE(state.profile, 0);
+    let deficit = 500;
+    if (speed === 'slow') deficit = 250;
+    if (speed === 'fast') deficit = 750;
+
+    const newBudget = Math.round(tdee - deficit);
+    const newTargetDate = calculateTargetDate({ ...state.profile, dailyBudget: newBudget }, newBudget);
+
+    setState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        weightLossSpeed: speed,
+        dailyBudget: newBudget,
+        customTargetDate: newTargetDate
+      }
+    }));
+    setToast({ msg: `Snelheid aangepast naar: ${speed === 'slow' ? t.speedSlow : speed === 'average' ? t.speedAverage : t.speedFast}`, type: 'info' });
   };
 
-  const removeProductFromMomentInLibrary = (moment: MealMoment, productId: string) => {
-    setState((prev: AppState) => {
-      const newOptions = { ...prev.customOptions };
-      if (newOptions[moment]) newOptions[moment] = newOptions[moment].filter(o => o.id !== productId);
-      return { ...prev, customOptions: newOptions };
-    });
-  };
-
-  const addCustomOptionCentral = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProductName || !newProductKcal || newProductCats.length === 0) return;
-    const kcalValue = Number(newProductKcal);
-    const displayName = newProductGram ? `${newProductName} (${newProductGram}g)` : newProductName;
-    const newItemId = 'c_' + Math.random().toString(36).substr(2, 9);
-    const newOption: MealOption = { id: newItemId, name: displayName, kcal: kcalValue, isCustom: true, isDrink: newProductIsDrink };
-    setState(prev => {
-      const customOptions = { ...prev.customOptions };
-      const momentsToUpdate: MealMoment[] = [];
-      if (newProductCats.includes('Ontbijt')) momentsToUpdate.push('Ontbijt');
-      if (newProductCats.includes('Lunch')) momentsToUpdate.push('Lunch');
-      if (newProductCats.includes('Diner')) momentsToUpdate.push('Diner');
-      if (newProductCats.includes('Snacks')) momentsToUpdate.push('Ochtend snack', 'Middag snack', 'Avondsnack');
-      momentsToUpdate.forEach(m => {
-        const momentOpts = customOptions[m] || [];
-        customOptions[m] = [newOption, ...momentOpts];
-      });
-      return { ...prev, customOptions };
-    });
-    setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]); setNewProductIsDrink(false);
-    setToast({msg: "Product opgeslagen"});
+  const formatTargetDateDisplay = (isoDate: string) => {
+    if (!isoDate) return "...";
+    const date = new Date(isoDate);
+    return date.toLocaleDateString(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-sky-500 uppercase tracking-widest text-lg">...</div>;
@@ -478,7 +375,10 @@ export default function App() {
             <button onClick={() => setShowInfo(true)} className="p-1.5 text-sky-400 hover:bg-sky-50 rounded-xl transition-all"><Info size={20} /></button>
             <div className="bg-slate-50 border border-slate-200 px-3 py-1 rounded-2xl flex items-center gap-1.5 shadow-sm">
               <TrendingDown size={14} className="text-sky-400" />
-              <span className="text-sm font-black text-sky-600">{latestWeight.toFixed(1)} <span className="text-[10px] opacity-60">KG</span></span>
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-sky-600 leading-tight">{latestWeight.toFixed(1)} <span className="text-[10px] opacity-60 font-bold">KG</span></span>
+                <span className={`text-[9px] font-black uppercase ${bmiColor} leading-none tracking-tighter`}>BMI: {bmi}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -498,10 +398,10 @@ export default function App() {
       <main className="p-3 flex-grow space-y-3">
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="bg-[#e0f2fe] rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-sky-100">
+            <div className="bg-[#e0f2fe] rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-sky-100 shadow-sm">
                <Target size={60} className="absolute -right-2 -top-2 text-sky-200/30" />
                <p className="text-sky-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.targetReached}</p>
-               <h2 className="text-xl font-black mb-4 text-slate-800">{totals.targetDate || '...'}</h2>
+               <h2 className="text-xl font-black mb-4 text-slate-800">{formatTargetDateDisplay(totals.targetDate)}</h2>
                <div className="grid grid-cols-2 gap-3">
                  <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
@@ -509,7 +409,7 @@ export default function App() {
                  </div>
                  <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
-                   <p className="text-sm font-black text-slate-700">{DAILY_KCAL_INTAKE_GOAL} <span className="text-xs font-normal">kcal</span></p>
+                   <p className="text-sm font-black text-slate-700">{state.profile.dailyBudget} <span className="text-xs font-normal">kcal</span></p>
                  </div>
                </div>
             </div>
@@ -530,7 +430,7 @@ export default function App() {
                     <div className="flex flex-col">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.dailyBudget}</span>
                       <div className="flex items-center gap-1">
-                        <span className="text-sm font-black text-slate-600">1800</span>
+                        <span className="text-sm font-black text-slate-600">{state.profile.dailyBudget}</span>
                         {totals.activityBurn > 0 && <span className="text-sm font-black text-emerald-500">+ {Math.round(totals.activityBurn)}</span>}
                       </div>
                     </div>
@@ -584,7 +484,7 @@ export default function App() {
             <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm">
               <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest mb-4 flex items-center gap-1.5"><Scale size={15} className="text-sky-400" /> {t.weighMoment}</h3>
               <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-inner">
-                <input type="number" step="0.1" placeholder={t.placeholders.weight} value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
+                <input type="number" step="0.1" placeholder={t.placeholders.weight} value={state.dailyLogs[selectedDate]?.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
               </div>
             </div>
@@ -609,7 +509,7 @@ export default function App() {
                     const availableOptions = state.customOptions[moment] || [];
                     const currentInput = mealInputs[moment] || { mealId: '', qty: 1 };
                     const selectedOption = availableOptions.find(o => o.id === currentInput.mealId);
-                    const { title, unitInfo } = selectedOption ? splitProductName(getTranslatedName(selectedOption.id, selectedOption.name)) : { title: t.placeholders.select, unitInfo: null };
+                    const title = selectedOption ? selectedOption.name : t.placeholders.select;
 
                     return (
                       <div key={moment} className="bg-sky-50 rounded-[20px] p-3 shadow-sm border border-sky-100">
@@ -621,71 +521,45 @@ export default function App() {
                               <ChevronDown size={14} className={`text-sky-300 transition-transform ${openPickerMoment === moment ? 'rotate-180' : ''}`} />
                             </button>
                             {openPickerMoment === moment && (
-                              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[320px] animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[320px] animate-in fade-in duration-200">
                                 <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
                                   <Search size={14} className="text-slate-400" />
                                   <input autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-bold" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 </div>
                                 <div className="overflow-y-auto py-2">
-                                  {['Eten', 'Drinken'].map(type => {
-                                    const isDrinkSection = type === 'Drinken';
-                                    const sectionItems = availableOptions.filter(o => !!o.isDrink === isDrinkSection && getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()));
-                                    if (sectionItems.length === 0) return null;
-                                    return (
-                                      <div key={type} className="mb-2">
-                                        <div className="px-3 py-1 flex items-center gap-1.5">
-                                          {isDrinkSection ? <GlassWater size={10} className="text-sky-400" /> : <Utensils size={10} className="text-slate-400" />}
-                                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">{isDrinkSection ? t.drink : t.food}</span>
-                                        </div>
-                                        {sectionItems.map(opt => {
-                                          const nameData = splitProductName(getTranslatedName(opt.id, opt.name));
-                                          return (
-                                            <button key={opt.id} onClick={() => { setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } }); setOpenPickerMoment(null); }} className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-sky-50 transition-colors ${currentInput.mealId === opt.id ? 'bg-sky-50' : ''}`}>
-                                              <div className="flex items-center gap-2 min-w-0 pr-2">
-                                                <div className={`p-1 rounded-lg border shrink-0 ${opt.isDrink ? 'bg-sky-100/50 border-sky-200 text-sky-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
-                                                  {opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                  <span className="text-[13px] font-black text-slate-800 leading-tight truncate">{nameData.title}</span>
-                                                  <span className="text-[9px] font-bold text-slate-400 uppercase">{nameData.unitInfo && `${nameData.unitInfo} • `}{opt.kcal} kcal</span>
-                                                </div>
-                                              </div>
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  })}
+                                  {availableOptions.filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())).map(opt => (
+                                    <button key={opt.id} onClick={() => { setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } }); setOpenPickerMoment(null); }} className="w-full text-left px-4 py-2 hover:bg-sky-50 transition-colors flex items-center gap-2">
+                                      {opt.isDrink ? <GlassWater size={12} className="text-sky-400" /> : <Utensils size={12} className="text-slate-400" />}
+                                      <span className="text-[13px] font-black text-slate-800 truncate">{getTranslatedName(opt.id, opt.name)}</span>
+                                    </button>
+                                  ))}
                                 </div>
                               </div>
                             )}
                           </div>
                           <input type="number" min="0" step="0.1" className="w-12 flex-shrink-0 bg-white border border-sky-100 rounded-xl p-2 text-[13px] font-black text-center shadow-sm" value={currentInput.qty} onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })} />
-                          <button className="flex-shrink-0 bg-sky-400 text-white p-2 rounded-xl shadow-md disabled:opacity-40" disabled={!currentInput.mealId} onClick={() => {
+                          <button className="flex-shrink-0 bg-sky-400 text-white p-2 rounded-xl shadow-md" disabled={!currentInput.mealId} onClick={() => {
                               const opt = availableOptions.find(o => o.id === currentInput.mealId);
-                              if (opt) {
-                                addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id, isDrink: opt.isDrink });
-                                setMealInputs({ ...mealInputs, [moment]: { mealId: '', qty: 1 } });
-                              }
+                              if (opt) addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id, isDrink: opt.isDrink });
+                              setMealInputs({ ...mealInputs, [moment]: { mealId: '', qty: 1 } });
                             }}><Plus size={18} strokeWidth={3} /></button>
                         </div>
                         <div className="space-y-1.5">
-                          {items.map(item => {
-                            const nameData = splitProductName(getTranslatedName(item.mealId || '', item.name));
-                            return (
-                              <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded-xl border border-sky-100 shadow-sm animate-in slide-in-from-right-4 duration-300">
-                                <div className="flex items-center gap-2 min-w-0 pr-2">
-                                  <div className={`p-1 rounded-lg border shrink-0 ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}</div>
-                                  <div className="flex flex-col min-w-0">
-                                    <p className="text-[13px] font-black text-slate-800 leading-tight truncate">{nameData.title}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{nameData.unitInfo && `${nameData.unitInfo} • `}{item.quantity}x • {item.kcal} kcal</p>
-                                  </div>
-                                </div>
-                                <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1 transition-colors shrink-0"><Trash2 size={14} /></button>
+                          {items.map(item => (
+                            <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded-xl border border-sky-100 shadow-sm">
+                              <span className="text-[13px] font-black text-slate-800 truncate">{getTranslatedName(item.mealId || '', item.name)}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">{item.kcal} kcal</span>
+                                <button onClick={() => setState(prev => {
+                                  const logs = { ...prev.dailyLogs };
+                                  const meals = { ...logs[selectedDate].meals };
+                                  meals[moment] = meals[moment].filter(m => m.id !== item.id);
+                                  logs[selectedDate] = { ...logs[selectedDate], meals };
+                                  return { ...prev, dailyLogs: logs };
+                                })} className="text-slate-200 hover:text-red-500"><Trash2 size={14}/></button>
                               </div>
-                            );
-                          })}
-                          {items.length === 0 && <p className="text-[9px] text-slate-300 font-bold uppercase text-center py-1.5">{t.nothingPlanned}</p>}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
@@ -696,57 +570,85 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'activity' && (
-           <div className="space-y-4 animate-in fade-in duration-300">
-             <div className="flex justify-between items-center px-1">
-                <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
-                <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1.5 bg-slate-50 text-sky-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
-             </div>
-             <div className="bg-slate-50 border border-slate-200 rounded-[20px] p-5 text-slate-800 shadow-sm">
-                <select className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold mb-3 shadow-sm" value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)}>
-                   {state.customActivities.map(act => <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>)}
-                </select>
-                <div className="flex gap-2">
-                   <input type="number" id="act-val" placeholder={t.amount} className="flex-grow bg-white border border-slate-100 rounded-xl p-3 text-sm font-black shadow-sm" />
-                   <button onClick={() => {
-                     const val = Number((document.getElementById('act-val') as HTMLInputElement).value);
-                     if (val > 0) addActivity(selectedActivityId, val);
-                   }} className="bg-sky-400 text-white px-5 rounded-xl font-black shadow-md"><Plus size={20} strokeWidth={3}/></button>
-                </div>
-             </div>
-             <div className="space-y-2">
-               {currentLog.activities.map(a => (
-                 <div key={a.id} className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 shadow-sm flex justify-between items-center">
-                   <div><p className="font-black text-slate-800 text-base">{getTranslatedName(a.typeId, state.customActivities.find(x => x.id === a.typeId)?.name || '')}</p><p className="text-xs font-bold text-slate-400 uppercase">{a.value} {state.customActivities.find(x => x.id === a.typeId)?.unit} • <span className="text-green-600">+{a.burnedKcal} kcal</span></p></div>
-                   <button onClick={() => removeActivity(a.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors"><Trash2 size={18}/></button>
-                 </div>
-               ))}
-               {currentLog.activities.length === 0 && <p className="text-xs text-slate-300 font-bold uppercase text-center py-8">{t.nothingPlanned}</p>}
-             </div>
-           </div>
-        )}
-
         {activeTab === 'profile' && (
           <div className="space-y-4 animate-in fade-in duration-300">
              <h2 className="text-xl font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
+             
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-6">
+                {/* Core stats on 1 row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block leading-none">{t.age}</label>
+                    <input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-white p-2.5 rounded-xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block leading-none">{t.height}</label>
+                    <input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-white p-2.5 rounded-xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block leading-none truncate">{t.startWeight}</label>
+                    <input type="number" value={state.profile.startWeight} onChange={e => setState({...state, profile: {...state.profile, startWeight: Number(e.target.value)}})} className="w-full bg-white p-2.5 rounded-xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label>
+                    <input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-2xl font-black text-sky-500 border border-sky-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.dailyBudgetLabel}</label>
+                    <input type="number" value={state.profile.dailyBudget} onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-2xl font-black text-sky-500 border border-sky-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  </div>
+                </div>
+
+                {/* Strategy Selection */}
+                <div className="pt-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">{t.speedSlow} / {t.speedAverage} / {t.speedFast}</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button onClick={() => setLossSpeed('slow')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'slow' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Baby size={24} className={state.profile.weightLossSpeed === 'slow' ? 'text-sky-500' : ''} />
+                      <span className="text-[9px] font-black uppercase">{t.speedSlow}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('average')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'average' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Footprints size={24} className={state.profile.weightLossSpeed === 'average' ? 'text-sky-500' : ''} />
+                      <span className="text-[9px] font-black uppercase">{t.speedAverage}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('fast')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'fast' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Zap size={24} className={state.profile.weightLossSpeed === 'fast' ? 'text-amber-400 fill-amber-400' : ''} />
+                      <span className="text-[9px] font-black uppercase">{t.speedFast}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5"><Calendar size={12} className="text-sky-400" /> {t.projectedDate}</label>
+                  <div className="relative">
+                    <input 
+                      type="date" 
+                      value={state.profile.customTargetDate || totals.targetDate} 
+                      onChange={e => setState({...state, profile: {...state.profile, customTargetDate: e.target.value}})}
+                      className="w-full bg-white p-4 pl-12 rounded-2xl font-black border border-slate-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 transition-all outline-none"
+                    />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center bg-sky-100 rounded-lg p-1.5 text-sky-500">
+                      <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />
+                    </div>
+                  </div>
+                  <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">
+                    {state.profile.customTargetDate ? "Handmatig aangepast" : "Projectie op basis van huidig tekort"}
+                  </p>
+                </div>
+             </div>
+
              <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm space-y-2">
                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5"><Globe size={14} className="text-sky-400" /> {t.language}</h3>
-               <div className="grid grid-cols-5 gap-2" dir="ltr">
+               <div className="grid grid-cols-5 gap-2">
                  {(Object.keys(flagEmojis) as Language[]).map(lang => (
                    <button key={lang} onClick={() => setState(prev => ({ ...prev, language: lang }))} className={`text-xl p-1.5 rounded-xl transition-all border-2 ${state.language === lang ? 'border-sky-400 bg-white shadow-sm' : 'border-transparent hover:bg-white/50'}`}>{flagEmojis[lang]}</button>
                  ))}
                </div>
              </div>
-             <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.age}</label><input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-xl font-black border border-slate-100 text-sm shadow-sm" /></div>
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.height}</label><input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-xl font-black border border-slate-100 text-sm shadow-sm" /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.startWeight}</label><input type="number" value={state.profile.startWeight} onChange={e => setState({...state, profile: {...state.profile, startWeight: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-xl font-black border border-slate-100 text-sm shadow-sm" /></div>
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label><input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-xl font-black text-sky-500 border border-sky-100 text-sm shadow-sm" /></div>
-                </div>
-             </div>
+
              <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-sky-400" /> {t.dataManagement.title}</h3>
                <div className="grid grid-cols-1 gap-2">
@@ -754,21 +656,10 @@ export default function App() {
                    <div className="flex items-center gap-2"><Download size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.export}</span></div>
                    <ChevronRight size={14} />
                  </button>
-                 
-                 <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => handleCloudExport('Google Drive')} className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-600 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
-                      <Cloud size={16} className="text-sky-400" /><span className="text-[9px] font-black uppercase tracking-widest">{t.dataManagement.googleDrive}</span>
-                    </button>
-                    <button onClick={() => handleCloudExport('Dropbox')} className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-600 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
-                      <Cloud size={16} className="text-blue-500" /><span className="text-[9px] font-black uppercase tracking-widest">{t.dataManagement.dropbox}</span>
-                    </button>
-                 </div>
-
                  <label className="w-full flex items-center justify-between px-4 py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
                    <div className="flex items-center gap-2"><Upload size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.restore}</span></div>
                    <input type="file" accept=".json" className="hidden" onChange={handleImport} />
                  </label>
-                 
                  <button onClick={resetAllData} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-all shadow-sm">
                    <Trash2 size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.clearAll}</span>
                  </button>
@@ -785,67 +676,6 @@ export default function App() {
           </button>
         ))}
       </nav>
-
-      {showMyList && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => { setShowMyList(false); setSearchTerm(''); }}>
-           <div className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-black text-slate-800 uppercase">{t.products}</h3>
-                <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors"><X size={24} /></button>
-              </div>
-              <div className="relative mb-6">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all" />
-              </div>
-              <form onSubmit={addCustomOptionCentral} className="space-y-3 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.add}</h4>
-                  <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" required />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="number" placeholder={t.placeholders.gram} value={newProductGram} onChange={e => setNewProductGram(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" />
-                    <input type="number" placeholder={t.kcal} value={newProductKcal} onChange={e => setNewProductKcal(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-black shadow-sm" required />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-600">{t.isDrinkQuestion}</span>
-                    <button type="button" onClick={() => setNewProductIsDrink(!newProductIsDrink)} className={`w-12 h-6 rounded-full transition-all relative ${newProductIsDrink ? 'bg-sky-400' : 'bg-slate-200'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newProductIsDrink ? 'left-7' : 'left-1'}`} /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['Ontbijt','Lunch','Diner','Snacks'].map(cat => <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-2 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${newProductCats.includes(cat) ? 'bg-sky-400 text-white shadow-md' : 'bg-white text-sky-300 border border-sky-100 shadow-sm'}`}>{cat}</button>)}
-                  </div>
-                  <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest mt-2">{t.saveInList}</button>
-              </form>
-              <div className="space-y-8">
-                {MEAL_MOMENTS.map(moment => {
-                  const options = state.customOptions[moment] || [];
-                  const filteredOptions = options.filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()));
-                  if (filteredOptions.length === 0) return null;
-                  return (
-                    <div key={moment} className="space-y-5">
-                      <h4 className="text-[13px] font-black text-sky-600 uppercase tracking-widest border-b-2 border-sky-100 pb-1 flex items-center gap-2">{moment}</h4>
-                      <div className="space-y-2">
-                        {filteredOptions.map(opt => {
-                          const { title, unitInfo } = splitProductName(getTranslatedName(opt.id, opt.name));
-                          return (
-                            <div key={`${moment}-${opt.id}`} className="p-2.5 bg-slate-50/50 rounded-2xl flex justify-between items-center border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
-                              <div className="flex items-center gap-2.5 min-w-0 pr-4">
-                                <div className={`p-1.5 bg-white rounded-xl border border-slate-100 shrink-0 ${opt.isDrink ? 'text-sky-400' : 'text-slate-400'}`}>{opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}</div>
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[13px] font-black text-slate-800 leading-tight truncate">{title}</span>
-                                  <span className="text-[9px] text-slate-400 uppercase font-bold">{unitInfo && `${unitInfo} • `}{opt.kcal} kcal</span>
-                                </div>
-                              </div>
-                              <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-1.5 text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-transform">{t.close}</button>
-           </div>
-        </div>
-      )}
     </div>
   );
 }
