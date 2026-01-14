@@ -29,11 +29,8 @@ export const calculateActivityBurn = (activity: { typeId: string; value: number 
   const type = ACTIVITY_TYPES.find(t => t.id === activity.typeId);
   if (!type) return 0;
 
-  let minutes = activity.value;
-  if (type.unit === 'km') {
-    // Assume average walking speed of 5 km/h -> 12 minutes per km
-    minutes = activity.value * 12;
-  }
+  // Alle activiteiten zijn nu in minuten
+  const minutes = activity.value;
 
   // kcal = MET * weight_kg * (minutes / 60)
   return Math.round(type.met * weight * (minutes / 60));

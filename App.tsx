@@ -15,7 +15,7 @@ import {
   Info,
   Database,
   ListFilter,
-  ShieldCheck,
+  ShieldCheck, 
   CheckCircle2,
   Globe,
   Coffee,
@@ -43,7 +43,8 @@ import {
   MEAL_OPTIONS, 
   ACTIVITY_TYPES, 
   DAILY_KCAL_INTAKE_GOAL,
-  PRODUCT_TRANSLATIONS 
+  PRODUCT_TRANSLATIONS,
+  MEAL_MOMENTS
 } from './constants';
 import { 
   calculateTDEE,
@@ -172,26 +173,33 @@ export default function App() {
 
   const currentLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
   
-  const latestWeight = useMemo(() => {
+  const latestWeight = useMemo((): number => {
     const dates = Object.keys(state.dailyLogs).sort().reverse();
-    if (state.dailyLogs[selectedDate]?.weight) return state.dailyLogs[selectedDate].weight;
-    for (const d of dates) { if (d <= selectedDate && state.dailyLogs[d].weight) return state.dailyLogs[d].weight; }
+    if (state.dailyLogs[selectedDate]?.weight) return state.dailyLogs[selectedDate].weight as number;
+    for (const d of dates) { if (d <= selectedDate && state.dailyLogs[d].weight) return state.dailyLogs[d].weight as number; }
     return state.profile.currentWeight;
   }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
 
+  // Fix error on line 197 by ensuring numeric types and calculating the goal once
   const totals = useMemo(() => {
     const activityBurn = currentLog.activities.reduce((sum, a) => sum + a.burnedKcal, 0);
     const effectiveProfile = { ...state.profile, currentWeight: latestWeight || state.profile.currentWeight };
     const baselineTdee = calculateTDEE(effectiveProfile, 0);
-    const actualIntake = Object.values(currentLog.meals).flat().reduce((sum, m) => sum + m.kcal, 0);
-    const targetDateStr = calculateTargetDate(effectiveProfile, baselineTdee + activityBurn - DAILY_KCAL_INTAKE_GOAL);
-    const weightJourneyTotal = state.profile.startWeight - state.profile.targetWeight;
-    const weightLostSoFar = state.profile.startWeight - (latestWeight || state.profile.currentWeight);
-    const weightProgressPercent = weightJourneyTotal > 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 0;
     
-    const intakePercent = (actualIntake / (DAILY_KCAL_INTAKE_GOAL + activityBurn)) * 100;
+    const actualIntake = Object.values(currentLog.meals).reduce((acc: number, items: unknown) => 
+      acc + (items as LoggedMealItem[]).reduce((sum, m) => sum + m.kcal, 0), 0);
+    
+    // Using explicit Number() ensures left-hand side of arithmetic operations is valid
+    const currentAdjustedGoal = Number(DAILY_KCAL_INTAKE_GOAL) + activityBurn;
+    const targetDateStr = calculateTargetDate(effectiveProfile, baselineTdee + activityBurn - Number(DAILY_KCAL_INTAKE_GOAL));
+    const weightJourneyTotal = Number(state.profile.startWeight) - Number(state.profile.targetWeight);
+    
+    const weightLostSoFar = Number(state.profile.startWeight) - (Number(latestWeight) || Number(state.profile.currentWeight));
+    const weightProgressPercent = weightJourneyTotal > 0 ? (Number(weightLostSoFar) / Number(weightJourneyTotal)) * 100 : 0;
+    
+    const intakePercent = (actualIntake / currentAdjustedGoal) * 100;
     let calorieStatusColor = 'bg-green-500';
-    if (actualIntake > (DAILY_KCAL_INTAKE_GOAL + activityBurn)) calorieStatusColor = 'bg-red-500';
+    if (actualIntake > currentAdjustedGoal) calorieStatusColor = 'bg-red-500';
     else if (intakePercent > 85) calorieStatusColor = 'bg-amber-500';
 
     return { 
@@ -200,7 +208,7 @@ export default function App() {
       actualIntake, 
       targetDate: targetDateStr, 
       weightProgressPercent, 
-      currentAdjustedGoal: DAILY_KCAL_INTAKE_GOAL + activityBurn,
+      currentAdjustedGoal,
       intakePercent,
       calorieStatusColor
     };
@@ -248,19 +256,15 @@ export default function App() {
     
     try {
       const file = new File([dataStr], fileName, { type: 'application/json' });
-      
-      // Controleer op deel-ondersteuning
       if (navigator.share) {
-        // Sommige Android browsers blokkeren .json maar staan .txt of tekst toe
         try {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
               title: 'Doelgewicht Back-up',
-              text: `Back-up voor ${provider}`
+              text: `Back-up for ${provider}`
             });
           } else {
-            // Als file share niet kan, deel de inhoud als tekst
             await navigator.share({
               title: 'Doelgewicht Back-up',
               text: dataStr
@@ -268,15 +272,12 @@ export default function App() {
           }
           setToast({msg: state.language === 'nl' ? "Deelmenu geopend" : "Share menu opened"});
         } catch (shareErr) {
-          // Gebruiker heeft mogelijk geannuleerd of er was een UI issue
-          console.warn("Share API issue", shareErr);
           exportData();
         }
       } else {
         exportData();
       }
     } catch (err) {
-      console.warn("Cloud share hard failure", err);
       exportData();
     }
   };
@@ -387,12 +388,12 @@ export default function App() {
     setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== id) }));
   };
 
-  const removeProductFromLibrary = (name: string) => {
-    setState(prev => {
+  const removeProductFromMomentInLibrary = (moment: MealMoment, productId: string) => {
+    setState((prev: AppState) => {
       const newOptions = { ...prev.customOptions };
-      Object.keys(newOptions).forEach(m => {
-        newOptions[m as MealMoment] = newOptions[m as MealMoment].filter(o => o.name !== name);
-      });
+      if (newOptions[moment]) {
+        newOptions[moment] = newOptions[moment].filter(o => o.id !== productId);
+      }
       return { ...prev, customOptions: newOptions };
     });
   };
@@ -420,14 +421,6 @@ export default function App() {
     setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]);
     setToast({msg: "Product opgeslagen"});
   };
-
-  const allUniqueProducts = useMemo(() => {
-    const unique = new Map<string, MealOption>();
-    Object.values(state.customOptions).forEach(options => {
-      options.forEach(opt => unique.set(opt.name, opt));
-    });
-    return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state.customOptions]);
 
   if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-sky-500 uppercase tracking-widest text-lg">...</div>;
 
@@ -605,10 +598,11 @@ export default function App() {
                           </select>
                           <input 
                             type="number" 
-                            min="1"
+                            min="0"
+                            step="0.1"
                             className="w-14 flex-shrink-0 bg-white border border-sky-100 rounded-xl p-2.5 text-sm font-black text-center shadow-sm"
                             value={currentInput.qty}
-                            onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(1, Number(e.target.value)) } })}
+                            onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })}
                           />
                           <button 
                             className="flex-shrink-0 bg-sky-400 text-white p-2.5 rounded-xl shadow-md disabled:opacity-40"
@@ -771,7 +765,7 @@ export default function App() {
 
       {showMyList && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowMyList(false)}>
-           <div className="bg-white rounded-[28px] p-6 w-full max-w-xs shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
+           <div className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-black text-slate-800 uppercase mb-4">{t.products}</h3>
               <form onSubmit={addCustomOptionCentral} className="space-y-3 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" required />
@@ -786,20 +780,33 @@ export default function App() {
                   </div>
                   <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest">{t.saveInList}</button>
               </form>
-              <div className="space-y-2">
-                {allUniqueProducts.map(opt => (
-                  <div key={opt.id} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm">
-                    <div className="flex flex-col">
-                      <span className="text-slate-800">{getTranslatedName(opt.id, opt.name)}</span>
-                      <span className="text-[10px] text-slate-400 uppercase">{opt.kcal} kcal</span>
+              
+              <div className="space-y-6">
+                {MEAL_MOMENTS.map(moment => {
+                  const options = state.customOptions[moment] || [];
+                  if (options.length === 0) return null;
+                  return (
+                    <div key={moment} className="space-y-2">
+                      <h4 className="text-[10px] font-black text-sky-500 uppercase tracking-widest border-b border-sky-100 pb-1">{t.moments[moment] || moment}</h4>
+                      <div className="space-y-1.5">
+                        {options.map(opt => (
+                          <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm">
+                            <div className="flex flex-col min-w-0 pr-4">
+                              <span className="text-slate-800 truncate">{getTranslatedName(opt.id, opt.name)}</span>
+                              <span className="text-[10px] text-slate-400 uppercase">{opt.kcal} kcal</span>
+                            </div>
+                            <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-300 hover:text-red-500 transition-colors">
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <button onClick={() => removeProductFromLibrary(opt.name)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <button onClick={() => setShowMyList(false)} className="w-full mt-4 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg">{t.close}</button>
+              
+              <button onClick={() => setShowMyList(false)} className="w-full mt-8 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg">{t.close}</button>
            </div>
         </div>
       )}
