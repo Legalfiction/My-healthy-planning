@@ -27,7 +27,9 @@ import {
   Upload,
   Share2,
   Check,
-  AlertCircle
+  AlertCircle,
+  GlassWater,
+  Search
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -139,6 +141,8 @@ export default function App() {
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
+  
+  const [searchTerm, setSearchTerm] = useState('');
 
   const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
 
@@ -146,6 +150,7 @@ export default function App() {
   const [newProductGram, setNewProductGram] = useState('');
   const [newProductKcal, setNewProductKcal] = useState('');
   const [newProductCats, setNewProductCats] = useState<string[]>([]);
+  const [newProductIsDrink, setNewProductIsDrink] = useState(false);
   const [newActivityName, setNewActivityName] = useState('');
   const [newActivityKcalMin, setNewActivityKcalMin] = useState('');
 
@@ -175,29 +180,42 @@ export default function App() {
   
   const latestWeight = useMemo((): number => {
     const dates = Object.keys(state.dailyLogs).sort().reverse();
-    if (state.dailyLogs[selectedDate]?.weight) return state.dailyLogs[selectedDate].weight as number;
-    for (const d of dates) { if (d <= selectedDate && state.dailyLogs[d].weight) return state.dailyLogs[d].weight as number; }
-    return state.profile.currentWeight;
+    const todayWeight = state.dailyLogs[selectedDate]?.weight;
+    if (typeof todayWeight === 'number') return todayWeight;
+    
+    for (const d of dates) { 
+      const weight = state.dailyLogs[d]?.weight;
+      if (d <= selectedDate && typeof weight === 'number') return weight; 
+    }
+    return Number(state.profile.currentWeight) || 0;
   }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
 
-  // Fix error on line 197 by ensuring numeric types and calculating the goal once
   const totals = useMemo(() => {
-    const activityBurn = currentLog.activities.reduce((sum, a) => sum + a.burnedKcal, 0);
-    const effectiveProfile = { ...state.profile, currentWeight: latestWeight || state.profile.currentWeight };
-    const baselineTdee = calculateTDEE(effectiveProfile, 0);
+    const activityBurn = currentLog.activities.reduce((sum: number, a) => sum + (Number(a.burnedKcal) || 0), 0);
+    const startW = Number(state.profile.startWeight) || 0;
+    const targetW = Number(state.profile.targetWeight) || 0;
+    const currentW = Number(latestWeight) || Number(state.profile.currentWeight) || 0;
     
-    const actualIntake = Object.values(currentLog.meals).reduce((acc: number, items: unknown) => 
-      acc + (items as LoggedMealItem[]).reduce((sum, m) => sum + m.kcal, 0), 0);
+    const effectiveProfile: UserProfile = { ...state.profile, currentWeight: currentW };
+    // Fix: Explicitly ensure result of calculateTDEE is treated as number for subsequent calculations
+    const baselineTdee = Number(calculateTDEE(effectiveProfile, 0));
     
-    // Using explicit Number() ensures left-hand side of arithmetic operations is valid
-    const currentAdjustedGoal = Number(DAILY_KCAL_INTAKE_GOAL) + activityBurn;
-    const targetDateStr = calculateTargetDate(effectiveProfile, baselineTdee + activityBurn - Number(DAILY_KCAL_INTAKE_GOAL));
-    const weightJourneyTotal = Number(state.profile.startWeight) - Number(state.profile.targetWeight);
+    const actualIntake = Object.values(currentLog.meals).reduce((acc: number, items: unknown) => {
+      const mealItems = items as LoggedMealItem[];
+      return acc + mealItems.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0);
+    }, 0);
     
-    const weightLostSoFar = Number(state.profile.startWeight) - (Number(latestWeight) || Number(state.profile.currentWeight));
-    const weightProgressPercent = weightJourneyTotal > 0 ? (Number(weightLostSoFar) / Number(weightJourneyTotal)) * 100 : 0;
+    const intakeGoal = Number(DAILY_KCAL_INTAKE_GOAL) || 1800;
+    const currentAdjustedGoal = intakeGoal + activityBurn;
+    // Fix: Simplify deficit calculation to ensure all parts are numeric to prevent arithmetic error
+    const deficit = (baselineTdee + activityBurn) - intakeGoal;
+    const targetDateStr = calculateTargetDate(effectiveProfile, deficit);
     
-    const intakePercent = (actualIntake / currentAdjustedGoal) * 100;
+    const weightJourneyTotal = startW - targetW;
+    const weightLostSoFar = startW - currentW;
+    const weightProgressPercent = weightJourneyTotal > 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 0;
+    
+    const intakePercent = currentAdjustedGoal > 0 ? (actualIntake / currentAdjustedGoal) * 100 : 0;
     let calorieStatusColor = 'bg-green-500';
     if (actualIntake > currentAdjustedGoal) calorieStatusColor = 'bg-red-500';
     else if (intakePercent > 85) calorieStatusColor = 'bg-amber-500';
@@ -404,7 +422,13 @@ export default function App() {
     const kcalValue = Number(newProductKcal);
     const displayName = newProductGram ? `${newProductName} (${newProductGram}g)` : newProductName;
     const newItemId = 'c_' + Math.random().toString(36).substr(2, 9);
-    const newOption: MealOption = { id: newItemId, name: displayName, kcal: kcalValue, isCustom: true };
+    const newOption: MealOption = { 
+      id: newItemId, 
+      name: displayName, 
+      kcal: kcalValue, 
+      isCustom: true,
+      isDrink: newProductIsDrink
+    };
     setState(prev => {
       const customOptions = { ...prev.customOptions };
       const momentsToUpdate: MealMoment[] = [];
@@ -418,7 +442,7 @@ export default function App() {
       });
       return { ...prev, customOptions };
     });
-    setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]);
+    setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]); setNewProductIsDrink(false);
     setToast({msg: "Product opgeslagen"});
   };
 
@@ -525,7 +549,7 @@ export default function App() {
             <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-2 border border-slate-200 shadow-sm overflow-visible">
                <div className="flex justify-between items-center mb-1.5">
                   <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.myJourney}</h3>
-                  <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
+                  <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ (Number(state.profile.startWeight) - Number(latestWeight)).toFixed(1) } KG</span>
                </div>
                
                <div className="relative pt-0.5 pb-0.5">
@@ -610,7 +634,7 @@ export default function App() {
                             onClick={() => {
                               const opt = availableOptions.find(o => o.id === currentInput.mealId);
                               if (opt) {
-                                addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id });
+                                addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id, isDrink: opt.isDrink });
                                 setMealInputs({ ...mealInputs, [moment]: { mealId: '', qty: 1 } });
                               }
                             }}
@@ -622,7 +646,15 @@ export default function App() {
                         <div className="space-y-2">
                           {items.map(item => (
                             <div key={item.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-sky-100 shadow-sm">
-                              <div><p className="text-sm font-black text-slate-800">{getTranslatedName(item.mealId || '', item.name)}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{item.quantity}x • {item.kcal} kcal</p></div>
+                              <div className="flex items-center gap-3">
+                                <div className={`p-1.5 rounded-lg border ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                  {item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black text-slate-800">{getTranslatedName(item.mealId || '', item.name)}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase">{item.quantity}x • {item.kcal} kcal</p>
+                                </div>
+                              </div>
                               <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition-colors"><Trash2 size={16} /></button>
                             </div>
                           ))}
@@ -764,49 +796,122 @@ export default function App() {
       </nav>
 
       {showMyList && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowMyList(false)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => { setShowMyList(false); setSearchTerm(''); }}>
            <div className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-black text-slate-800 uppercase mb-4">{t.products}</h3>
-              <form onSubmit={addCustomOptionCentral} className="space-y-3 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-black text-slate-800 uppercase">{t.products}</h3>
+                <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors"><Trash2 size={20} className="rotate-45" /></button>
+              </div>
+
+              {/* Zoekbalk */}
+              <div className="relative mb-6">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder={t.searchPlaceholder} 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all"
+                />
+              </div>
+
+              <form onSubmit={addCustomOptionCentral} className="space-y-3 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.add}</h4>
                   <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" required />
                   <div className="grid grid-cols-2 gap-2">
                     <input type="number" placeholder={t.placeholders.gram} value={newProductGram} onChange={e => setNewProductGram(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" />
                     <input type="number" placeholder={t.kcal} value={newProductKcal} onChange={e => setNewProductKcal(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-black shadow-sm" required />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-600">{t.isDrinkQuestion}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setNewProductIsDrink(!newProductIsDrink)}
+                      className={`w-12 h-6 rounded-full transition-all relative ${newProductIsDrink ? 'bg-sky-400' : 'bg-slate-200'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newProductIsDrink ? 'left-7' : 'left-1'}`} />
+                    </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {['Ontbijt','Lunch','Diner','Snacks'].map(cat => (
                       <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-2 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${newProductCats.includes(cat) ? 'bg-sky-400 text-white shadow-md' : 'bg-white text-sky-300 border border-sky-100 shadow-sm'}`}>{cat}</button>
                     ))}
                   </div>
-                  <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest">{t.saveInList}</button>
+                  <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest mt-2">{t.saveInList}</button>
               </form>
               
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {MEAL_MOMENTS.map(moment => {
                   const options = state.customOptions[moment] || [];
-                  if (options.length === 0) return null;
+                  const filteredOptions = options.filter(o => 
+                    getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())
+                  );
+
+                  if (filteredOptions.length === 0) return null;
+                  
+                  const foodItems = filteredOptions.filter(o => !o.isDrink);
+                  const drinkItems = filteredOptions.filter(o => o.isDrink);
+                  
                   return (
-                    <div key={moment} className="space-y-2">
-                      <h4 className="text-[10px] font-black text-sky-500 uppercase tracking-widest border-b border-sky-100 pb-1">{t.moments[moment] || moment}</h4>
-                      <div className="space-y-1.5">
-                        {options.map(opt => (
-                          <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm">
-                            <div className="flex flex-col min-w-0 pr-4">
-                              <span className="text-slate-800 truncate">{getTranslatedName(opt.id, opt.name)}</span>
-                              <span className="text-[10px] text-slate-400 uppercase">{opt.kcal} kcal</span>
-                            </div>
-                            <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-300 hover:text-red-500 transition-colors">
-                              <Trash2 size={18} />
-                            </button>
+                    <div key={moment} className="space-y-5">
+                      <h4 className="text-[13px] font-black text-sky-600 uppercase tracking-widest border-b-2 border-sky-100 pb-1 flex items-center gap-2">
+                         {moment === 'Ontbijt' && <Coffee size={16} />}
+                         {moment === 'Lunch' && <Sun size={16} />}
+                         {moment === 'Diner' && <Moon size={16} />}
+                         {t.moments[moment] || moment}
+                      </h4>
+                      
+                      {/* Eten Sectie */}
+                      {foodItems.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><Utensils size={10} /> {t.food}</h5>
+                          <div className="space-y-2">
+                            {foodItems.map(opt => (
+                              <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50/50 rounded-2xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-slate-400"><Utensils size={14} /></div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-slate-800 truncate leading-tight">{getTranslatedName(opt.id, opt.name)}</span>
+                                    <span className="text-[10px] text-slate-400 uppercase font-black">{opt.kcal} kcal</span>
+                                  </div>
+                                </div>
+                                <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-200 hover:text-red-500 transition-colors">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+
+                      {/* Drinken Sectie */}
+                      {drinkItems.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="text-[9px] font-black text-sky-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><GlassWater size={10} /> {t.drink}</h5>
+                          <div className="space-y-2">
+                            {drinkItems.map(opt => (
+                              <div key={`${moment}-${opt.id}`} className="p-3 bg-sky-50/30 rounded-2xl flex justify-between items-center text-sm font-bold border border-sky-100 shadow-sm hover:bg-sky-50 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="p-2 bg-white rounded-xl border border-sky-100 text-sky-400"><GlassWater size={14} /></div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-slate-800 truncate leading-tight">{getTranslatedName(opt.id, opt.name)}</span>
+                                    <span className="text-[10px] text-sky-500 uppercase font-black">{opt.kcal} kcal</span>
+                                  </div>
+                                </div>
+                                <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-sky-200 hover:text-red-500 transition-colors">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
               
-              <button onClick={() => setShowMyList(false)} className="w-full mt-8 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg">{t.close}</button>
+              <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-transform">{t.close}</button>
            </div>
         </div>
       )}
