@@ -6,12 +6,14 @@ export const calculateBMR = (profile: UserProfile): number => {
   const weight = Number(profile.currentWeight) || 0;
   const height = Number(profile.height) || 0;
   const age = Number(profile.age) || 0;
+  // Mifflin-St Jeor Equation for men: (10 * weight) + (6.25 * height) - (5 * age) + 5
+  if (weight === 0 || height === 0 || age === 0) return 1500;
   return (10 * weight) + (6.25 * height) - (5 * age) + 5;
 };
 
 export const calculateTDEE = (profile: UserProfile, loggedActivitiesBurn: number): number => {
   const bmr = calculateBMR(profile);
-  // PAL 1.375 is standard for "Lightly Active"
+  // PAL 1.375 for "Lightly Active" (standard desk job + some movement)
   const baselineMaintenance = bmr * 1.375;
   return baselineMaintenance + loggedActivitiesBurn;
 };
@@ -30,39 +32,58 @@ export const calculateActivityBurn = (activity: { typeId: string; value: number 
 };
 
 /**
- * Returns a suggested target date in YYYY-MM-DD format
+ * Calculates a target date based on a weight delta and a fixed calorie budget.
  */
 export const calculateTargetDate = (profile: UserProfile, dailyIntakeGoal: number): string => {
-  const currentWeight = Number(profile.currentWeight) || 0;
-  const targetWeight = Number(profile.targetWeight) || 0;
+  const currentW = Number(profile.currentWeight) || 0;
+  const targetW = Number(profile.targetWeight) || 0;
   
-  // If goal is already reached or weights are invalid
-  if (currentWeight <= targetWeight || currentWeight === 0 || targetWeight === 0) {
+  if (currentW <= targetW || currentW === 0 || targetW === 0) {
     return new Date().toISOString().split('T')[0];
   }
   
-  const weightToLose = currentWeight - targetWeight;
-  const totalKcalRemaining = weightToLose * KCAL_PER_KG_FAT;
+  const weightToLose = currentW - targetW;
+  const totalKcalToLose = weightToLose * KCAL_PER_KG_FAT; // 7700 kcal per kg fat
   
-  const tdee = calculateTDEE(profile, 0);
-  const deficit = tdee - dailyIntakeGoal;
+  const maintenance = calculateTDEE(profile, 0);
+  const dailyDeficit = maintenance - dailyIntakeGoal;
   
-  // Ensure there is at least a minimal deficit to prevent infinite time
-  const effectiveDeficit = deficit > 0 ? deficit : 100;
+  // Minimal deficit of 50 to prevent infinite loops
+  const effectiveDeficit = dailyDeficit > 50 ? dailyDeficit : 250;
 
-  const daysNeeded = Math.ceil(totalKcalRemaining / effectiveDeficit);
+  const daysNeeded = Math.ceil(totalKcalToLose / effectiveDeficit);
+  
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + daysNeeded);
 
   return targetDate.toISOString().split('T')[0];
 };
 
-export const calculateProgressPercentage = (profile: UserProfile): number => {
-  const totalToLose = Number(profile.startWeight) - Number(profile.targetWeight);
-  if (totalToLose <= 0) return 100;
+/**
+ * Reverse calculation: Given a date, determine the required daily budget.
+ */
+export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateStr: string): number => {
+  const currentW = Number(profile.currentWeight) || 0;
+  const targetW = Number(profile.targetWeight) || 0;
   
-  const currentLost = Number(profile.startWeight) - Number(profile.currentWeight);
-  const percentage = (currentLost / totalToLose) * 100;
+  if (currentW <= targetW) return 1800;
+
+  const targetDate = new Date(targetDateStr);
+  const today = new Date();
+  today.setHours(0,0,0,0);
   
-  return Math.min(Math.max(percentage, 0), 100);
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return 1500;
+
+  const weightToLose = currentW - targetW;
+  const totalKcalDeficitNeeded = weightToLose * KCAL_PER_KG_FAT;
+  const dailyDeficitNeeded = totalKcalDeficitNeeded / diffDays;
+
+  const maintenance = calculateTDEE(profile, 0);
+  const budget = Math.round(maintenance - dailyDeficitNeeded);
+
+  // Safety caps
+  return Math.min(Math.max(budget, 1200), 4000);
 };

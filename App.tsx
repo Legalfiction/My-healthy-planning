@@ -32,7 +32,8 @@ import {
   Footprints,
   Baby,
   Turtle,
-  Flame
+  Flame,
+  Settings2
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -54,6 +55,7 @@ import {
   calculateTDEE,
   calculateActivityBurn, 
   calculateTargetDate,
+  calculateBudgetFromTargetDate,
   calculateBMI
 } from './services/calculator';
 import { translations } from './translations';
@@ -156,7 +158,6 @@ export default function App() {
     const lang = state.language || 'nl';
     const base = translations['nl'];
     const selected = translations[lang] || {};
-    // Ensure all keys from 'nl' exist in 'selected'
     const result = { ...base };
     Object.keys(selected).forEach(key => {
         if (selected[key] && (typeof selected[key] !== 'object' || Object.keys(selected[key]).length > 0)) {
@@ -215,7 +216,12 @@ export default function App() {
     
     const effectiveProfile: UserProfile = { ...state.profile, currentWeight: currentW };
     const intakeGoal = Number(state.profile.dailyBudget) || 1800;
-    const autoTargetDate = calculateTargetDate(effectiveProfile, intakeGoal);
+    
+    const projectionProfile = activeTab === 'profile' 
+      ? { ...state.profile, currentWeight: Number(state.profile.startWeight) } 
+      : effectiveProfile;
+
+    const autoTargetDate = calculateTargetDate(projectionProfile, intakeGoal);
     
     const weightJourneyTotal = Math.max(startW - targetW, 0.1);
     const weightLostSoFar = startW - currentW;
@@ -243,7 +249,7 @@ export default function App() {
       calorieStatusColor,
       baselineTdee: calculateTDEE(effectiveProfile, 0)
     };
-  }, [state.profile, currentLog, latestWeight]);
+  }, [state.profile, currentLog, latestWeight, activeTab]);
 
   const dateParts = useMemo(() => {
     const dateObj = new Date(selectedDate);
@@ -292,10 +298,21 @@ export default function App() {
   };
 
   const setLossSpeed = (speed: WeightLossSpeed) => {
-    const tdee = calculateTDEE({ ...state.profile, currentWeight: latestWeight }, 0);
+    const bmr = (10 * Number(state.profile.startWeight)) + (6.25 * Number(state.profile.height)) - (5 * Number(state.profile.age)) + 5;
+    const tdee = bmr * 1.375;
+    
     let deficit = 500;
     if (speed === 'slow') deficit = 250;
     if (speed === 'fast') deficit = 750;
+
+    if (speed === 'custom') {
+      setState(prev => ({
+        ...prev,
+        profile: { ...prev.profile, weightLossSpeed: 'custom' }
+      }));
+      setToast({ msg: `Planning omgezet naar: ${t.speedCustom}`, type: 'info' });
+      return;
+    }
 
     const newBudget = Math.round(tdee - deficit);
     setState(prev => ({
@@ -485,16 +502,17 @@ export default function App() {
                       <Zap size={14} className="text-amber-400 fill-amber-400" />
                       <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.dailyBudget}</h3>
                     </div>
+                    {/* EQUALIZED FONT SIZES HERE */}
                     <div className="flex items-baseline gap-2">
-                       <span className="text-sm font-bold text-slate-400">{totals.intakeGoal}</span>
-                       <span className="text-[10px] font-black text-emerald-500">+{totals.activityBurn}</span>
+                       <span className="text-2xl font-black text-slate-400">{totals.intakeGoal}</span>
+                       <span className="text-2xl font-black text-emerald-500">+{totals.activityBurn}</span>
                        <span className="text-slate-200 mx-1">=</span>
-                       <span className="text-xl font-black text-slate-800">{totals.currentAdjustedGoal}</span>
+                       <span className="text-2xl font-black text-slate-800">{totals.currentAdjustedGoal}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Verbruikt</span>
-                    <span className={`text-xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-sky-500'}`}>
+                    <span className={`text-2xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-sky-500'}`}>
                       {totals.actualIntake} <span className="text-[10px] opacity-40 uppercase">Kcal</span>
                     </span>
                   </div>
@@ -558,6 +576,21 @@ export default function App() {
                   });
                 }} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-slate-200/50 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-500">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t.estimatedEndDate}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={12} className="text-sky-300" />
+                    <span className="text-[12px] font-black text-sky-600 tabular-nums">
+                      {formatTargetDateDisplay(calculateTargetDate({ ...state.profile, currentWeight: latestWeight }, state.profile.dailyBudget))}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-sky-50 p-1.5 rounded-lg border border-sky-100">
+                  <TrendingDown size={14} className="text-sky-500" />
+                </div>
               </div>
             </div>
           </div>
@@ -634,8 +667,9 @@ export default function App() {
                                 <div className="flex flex-col flex-grow min-w-0 pr-2">
                                   <span className="text-[13px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
                                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 leading-none">
+                                    {<span>{item.quantity}x </span>}
                                     {unit && <span>{unit}</span>}
-                                    {unit && <span className="opacity-30">•</span>}
+                                    {<span> • </span>}
                                     <span className="text-sky-500 font-black">{item.kcal} KCAL</span>
                                   </div>
                                 </div>
@@ -755,7 +789,10 @@ export default function App() {
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none truncate">{t.startWeight}</label>
-                    <input type="number" value={state.profile.startWeight} onChange={e => setState({...state, profile: {...state.profile, startWeight: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    <input type="number" value={state.profile.startWeight} onChange={e => {
+                        const val = Number(e.target.value);
+                        setState({...state, profile: {...state.profile, startWeight: val, currentWeight: val}});
+                    }} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
                   </div>
                 </div>
 
@@ -766,24 +803,33 @@ export default function App() {
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.dailyBudgetLabel}</label>
-                    <input type="number" value={state.profile.dailyBudget} onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-2xl font-black text-sky-500 border border-sky-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    <input 
+                      type="number" 
+                      value={state.profile.dailyBudget} 
+                      readOnly={state.profile.weightLossSpeed === 'custom'}
+                      onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} 
+                      className={`w-full p-3 rounded-2xl font-black border text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none ${state.profile.weightLossSpeed === 'custom' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-sky-50 text-sky-500 border-sky-100'}`} 
+                    />
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">{t.speedSlow} / {t.speedAverage} / {t.speedFast}</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button onClick={() => setLossSpeed('slow')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'slow' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Turtle size={24} className={state.profile.weightLossSpeed === 'slow' ? 'text-sky-500' : ''} />
-                      <span className="text-[9px] font-black uppercase">{t.speedSlow}</span>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button onClick={() => setLossSpeed('slow')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'slow' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Turtle size={20} className={state.profile.weightLossSpeed === 'slow' ? 'text-sky-500' : ''} />
+                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedSlow}</span>
                     </button>
-                    <button onClick={() => setLossSpeed('average')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'average' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Footprints size={24} className={state.profile.weightLossSpeed === 'average' ? 'text-sky-500' : ''} />
-                      <span className="text-[9px] font-black uppercase">{t.speedAverage}</span>
+                    <button onClick={() => setLossSpeed('average')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'average' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Footprints size={20} className={state.profile.weightLossSpeed === 'average' ? 'text-sky-500' : ''} />
+                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedAverage}</span>
                     </button>
-                    <button onClick={() => setLossSpeed('fast')} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'fast' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Zap size={24} className={state.profile.weightLossSpeed === 'fast' ? 'text-amber-400 fill-amber-400' : ''} />
-                      <span className="text-[9px] font-black uppercase">{t.speedFast}</span>
+                    <button onClick={() => setLossSpeed('fast')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'fast' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Zap size={20} className={state.profile.weightLossSpeed === 'fast' ? 'text-amber-400 fill-amber-400' : ''} />
+                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedFast}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('custom')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Settings2 size={20} className={state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : ''} />
+                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedCustom}</span>
                     </button>
                   </div>
                 </div>
@@ -791,22 +837,34 @@ export default function App() {
                 <div className="pt-4 border-t border-slate-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5"><Calendar size={12} className="text-sky-400" /> {t.projectedDate}</label>
                   <div className="relative">
-                    <div className="w-full bg-white p-4 pl-12 rounded-2xl font-black border border-slate-100 text-base shadow-sm flex justify-between items-center">
-                      <span>{formatTargetDateDisplay(totals.targetDate)}</span>
-                      <input 
-                        type="date" 
-                        value={state.profile.customTargetDate || totals.targetDate} 
-                        onChange={e => setState({...state, profile: {...state.profile, customTargetDate: e.target.value}})}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                      <Calendar size={18} className="text-slate-300 mr-1" />
+                    <div className={`w-full p-4 pl-12 rounded-2xl font-black border text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-50 border-sky-400 shadow-lg shadow-sky-100/50' : 'bg-white border-slate-100'}`}>
+                      <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
+                      <div className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="date" 
+                          value={state.profile.customTargetDate || totals.targetDate} 
+                          onChange={e => {
+                            const newDate = e.target.value;
+                            if (state.profile.weightLossSpeed === 'custom') {
+                              const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
+                              setState({...state, profile: {...state.profile, customTargetDate: newDate, dailyBudget: newBudget}});
+                            } else {
+                              setState({...state, profile: {...state.profile, customTargetDate: newDate}});
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                        <Calendar size={18} className={`${state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : 'text-slate-300'} mr-1`} />
+                      </div>
                     </div>
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center bg-sky-100 rounded-lg p-1.5 text-sky-500 pointer-events-none">
-                      <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 transition-colors pointer-events-none ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-500 text-white' : 'bg-sky-100 text-sky-500'}`}>
+                      {state.profile.weightLossSpeed === 'custom' ? <Settings2 size={14} /> : <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />}
                     </div>
                   </div>
                   <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">
-                    {state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tekort"}
+                    {state.profile.weightLossSpeed === 'custom' 
+                      ? "Pas de datum aan om je dagbudget te bepalen" 
+                      : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tekort")}
                   </p>
                 </div>
              </div>
@@ -830,108 +888,6 @@ export default function App() {
           </div>
         )}
       </main>
-
-      {/* MODAL: Mijn Lijst (Voeding & Drank) */}
-      {showMyList && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-0">
-          <div className="w-full max-w-md bg-white h-full flex flex-col p-4 animate-in slide-in-from-bottom duration-300 shadow-2xl relative">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest">{t.myList} - Voeding</h2>
-              <button onClick={() => setShowMyList(false)} className="p-2 bg-slate-100 rounded-xl text-slate-500 hover:bg-slate-200 transition-colors"><X size={20} /></button>
-            </div>
-            
-            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 mb-6 space-y-4">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nieuw product toevoegen</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" placeholder="Naam" value={newMeal.name} onChange={e => setNewMeal({...newMeal, name: e.target.value})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm outline-none focus:ring-2 focus:ring-sky-100" />
-                <input type="number" placeholder="Kcal" value={newMeal.kcal} onChange={e => setNewMeal({...newMeal, kcal: e.target.value})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm outline-none focus:ring-2 focus:ring-sky-100" />
-              </div>
-              <div className="flex gap-3">
-                <select value={newMeal.moment} onChange={e => setNewMeal({...newMeal, moment: e.target.value as MealMoment})} className="flex-grow bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm outline-none focus:ring-2 focus:ring-sky-100">
-                  {MEAL_MOMENTS.map(m => <option key={m} value={m}>{t.moments[m]}</option>)}
-                </select>
-                <button onClick={() => setNewMeal({...newMeal, isDrink: !newMeal.isDrink})} className={`px-4 rounded-2xl font-black border transition-all ${newMeal.isDrink ? 'bg-sky-500 text-white border-sky-400' : 'bg-white text-slate-400 border-slate-100'}`}>{t.drink}</button>
-              </div>
-              <button onClick={saveCustomMeal} className="w-full py-3 bg-sky-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-600 transition-colors">Opslaan</button>
-            </div>
-
-            <div className="flex-grow overflow-y-auto space-y-3 pr-1">
-              {Object.entries(state.customOptions).map(([moment, options]) => {
-                const customs = options.filter(o => o.isCustom);
-                if (customs.length === 0) return null;
-                return (
-                  <div key={moment} className="space-y-2">
-                    <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest px-2">{t.moments[moment as MealMoment]}</h4>
-                    {customs.map(opt => {
-                      const { info, unit } = splitProductName(opt.name);
-                      return (
-                        <div key={opt.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm animate-in slide-in-from-left-4 duration-300">
-                          <div className="flex flex-col min-w-0 pr-2">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              {opt.isDrink ? <GlassWater size={14} className="text-sky-400" /> : <Utensils size={14} className="text-slate-400" />}
-                              <span className="font-black text-slate-800 text-[13px] truncate leading-none">{info}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-sky-500 leading-none">
-                              {unit && <span>{unit}</span>}
-                              {unit && <span className="opacity-30">•</span>}
-                              <span>{opt.kcal} kcal</span>
-                            </div>
-                          </div>
-                          <button onClick={() => setState(prev => {
-                            const customOptions = { ...prev.customOptions };
-                            customOptions[moment] = customOptions[moment].filter(o => o.id !== opt.id);
-                            return { ...prev, customOptions };
-                          })} className="flex-shrink-0 text-red-200 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Mijn Lijst (Beweeg) */}
-      {showMyActivityList && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-0">
-          <div className="w-full max-w-md bg-white h-full flex flex-col p-4 animate-in slide-in-from-bottom duration-300 shadow-2xl relative">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest">{t.myList} - Bewegen</h2>
-              <button onClick={() => setShowMyActivityList(false)} className="p-2 bg-slate-100 rounded-xl text-slate-500 hover:bg-slate-200 transition-colors"><X size={20} /></button>
-            </div>
-            
-            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 mb-6 space-y-4">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eigen activiteit toevoegen</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <input type="text" placeholder="Naam van de activiteit" value={newActivity.name} onChange={e => setNewActivity({...newActivity, name: e.target.value})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm outline-none focus:ring-2 focus:ring-emerald-100" />
-                <input type="number" placeholder="Calorieverbruik per uur" value={newActivity.kcalPerHour} onChange={e => setNewActivity({...newActivity, kcalPerHour: e.target.value})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm outline-none focus:ring-2 focus:ring-emerald-100" />
-              </div>
-              <button onClick={saveCustomActivity} className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-colors">Toevoegen</button>
-            </div>
-
-            <div className="flex-grow overflow-y-auto space-y-2 pr-1">
-              {state.customActivities.map(act => (
-                <div key={act.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm animate-in slide-in-from-left-4 duration-300">
-                  <div className="flex items-center gap-3">
-                    <Activity size={16} className="text-emerald-500" />
-                    <div className="flex flex-col">
-                      <span className="font-black text-slate-800 text-[13px] leading-tight">{act.name}</span>
-                      <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{Math.round(act.met * 70)} kcal/uur</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {act.isCustom && (
-                      <button onClick={() => setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== act.id) }))} className="text-red-200 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-6 py-4 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-2xl">
         {[{ id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, { id: 'meals', icon: Utensils, label: t.tabs.meals }, { id: 'activity', icon: Activity, label: t.tabs.activity }, { id: 'profile', icon: UserIcon, label: t.tabs.profile }].map(tab => (

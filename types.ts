@@ -1,7 +1,7 @@
 
 export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | 'hi' | 'ar';
 
-export type WeightLossSpeed = 'slow' | 'average' | 'fast';
+export type WeightLossSpeed = 'slow' | 'average' | 'fast' | 'custom';
 
 export interface UserProfile {
   age: number;
