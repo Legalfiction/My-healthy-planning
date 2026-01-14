@@ -25,7 +25,8 @@ import {
   Cloud,
   Download,
   Upload,
-  Share2
+  Share2,
+  Check
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -105,6 +106,22 @@ const INITIAL_STATE: AppState = {
   language: 'nl'
 };
 
+const Toast = ({ message, onHide }: { message: string, onHide: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onHide, 3000);
+    return () => clearTimeout(timer);
+  }, [onHide]);
+
+  return (
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700/50 backdrop-blur-md bg-opacity-90">
+        <Check size={18} className="text-emerald-400" />
+        <span className="text-sm font-black uppercase tracking-widest">{message}</span>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -115,6 +132,7 @@ export default function App() {
   const [showMyList, setShowMyList] = useState(false);
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
+  const [toast, setToast] = useState<string | null>(null);
 
   const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
 
@@ -208,6 +226,32 @@ export default function App() {
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+    setToast(t.dataManagement.export + " " + (state.language === 'nl' ? 'gestart' : 'started'));
+  };
+
+  const handleCloudExport = async (provider: string) => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const fileName = `doelgewicht_${provider}_${new Date().toISOString().split('T')[0]}.json`;
+    
+    // Web Share API is de modernste manier om met Cloud apps (Drive/Dropbox) op mobiel te integreren
+    if (navigator.share && navigator.canShare) {
+      const file = new File([dataStr], fileName, { type: 'application/json' });
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Doelgewicht Back-up',
+          text: `Mijn back-up voor ${provider}`
+        });
+        setToast("Back-up gedeeld!");
+      } catch (err) {
+        // Gebruiker heeft mogelijk geannuleerd
+        console.log("Share cancelled or failed", err);
+      }
+    } else {
+      // Fallback voor desktop: gewoon downloaden maar met provider label
+      exportData();
+      setToast(`${provider} export gedownload`);
+    }
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,13 +263,15 @@ export default function App() {
         const json = JSON.parse(e.target?.result as string);
         if (json.profile && json.dailyLogs) {
           setState(json);
-          alert('Gegevens succesvol hersteld!');
+          setToast(state.language === 'nl' ? 'Gegevens hersteld!' : 'Data restored!');
         }
       } catch (err) {
         alert('Ongeldig bestand.');
       }
     };
     reader.readAsText(file);
+    // Reset input zodat hetzelfde bestand opnieuw gekozen kan worden
+    event.target.value = '';
   };
 
   const resetAllData = async () => {
@@ -233,6 +279,7 @@ export default function App() {
       await idb.clear();
       setState(INITIAL_STATE);
       setActiveTab('dashboard');
+      setToast(state.language === 'nl' ? 'Alles gewist' : 'Cleared all');
     }
   };
 
@@ -279,6 +326,9 @@ export default function App() {
       logs[selectedDate] = { ...log, activities: [...log.activities, { id: Math.random().toString(36).substr(2, 9), typeId, value, burnedKcal: burn }] };
       return { ...prev, dailyLogs: logs };
     });
+    // Clear input
+    const input = document.getElementById('act-val') as HTMLInputElement;
+    if (input) input.value = '';
   };
 
   const removeActivity = (id: string) => {
@@ -305,6 +355,7 @@ export default function App() {
     };
     setState(prev => ({ ...prev, customActivities: [newItem, ...prev.customActivities] }));
     setNewActivityName(''); setNewActivityKcalMin('');
+    setToast("Activiteit toegevoegd");
   };
 
   const removeActivityFromLibrary = (id: string) => {
@@ -342,6 +393,7 @@ export default function App() {
       return { ...prev, customOptions };
     });
     setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]);
+    setToast("Product opgeslagen");
   };
 
   const allUniqueProducts = useMemo(() => {
@@ -356,6 +408,8 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
+      {toast && <Toast message={toast} onHide={() => setToast(null)} />}
+      
       <header className="bg-white border-b sticky top-0 z-30 p-3 shadow-sm">
         <div className="flex justify-between items-center mb-2 px-1">
           <div className="flex flex-col">
@@ -402,8 +456,8 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-5 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-4">
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-1.5">
                     <Zap size={14} className="text-amber-400 fill-amber-400" />
                     <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{t.dailyBudget}</h3>
@@ -413,7 +467,7 @@ export default function App() {
                   </span>
                </div>
                
-               <div className="relative pt-4 pb-4">
+               <div className="relative pt-2 pb-2">
                  <div className="flex justify-between items-center mb-2 px-1">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.dailyBudget}</span>
@@ -433,14 +487,14 @@ export default function App() {
                     </div>
                  </div>
                  
-                 <div className="h-5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-3">
+                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
                     <div 
                       className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} 
                       style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} 
                     />
                  </div>
 
-                 <div className="flex justify-center mt-2">
+                 <div className="flex justify-center mt-1">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
                      <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-black'}`}>
@@ -451,13 +505,13 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-5 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-4">
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-3">
                   <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{t.myJourney}</h3>
                   <span className="text-xs font-black text-green-600 bg-white px-2 py-1 rounded-lg border border-green-100">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
                </div>
                
-               <div className="relative pt-4 pb-4">
+               <div className="relative pt-2 pb-2">
                  <div className="flex justify-between items-center mb-2 px-1">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.startWeight}</span>
@@ -469,11 +523,11 @@ export default function App() {
                     </div>
                  </div>
                  
-                 <div className="h-5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-3">
+                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
 
-                 <div className="flex justify-center mt-2">
+                 <div className="flex justify-center mt-1">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.nowWeight}</span>
                      <span className="text-sm font-black text-black">{latestWeight.toFixed(1)} KG</span>
@@ -642,7 +696,7 @@ export default function App() {
                      <ChevronRight size={14} />
                    </button>
                    
-                   <button className="w-full flex items-center justify-between px-4 py-3 bg-white text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-50 transition-all shadow-sm">
+                   <button onClick={() => handleCloudExport('Google Drive')} className="w-full flex items-center justify-between px-4 py-3 bg-white text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-50 transition-all shadow-sm">
                      <div className="flex items-center gap-2">
                        <Cloud size={16} />
                        <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.googleDrive}</span>
@@ -650,7 +704,7 @@ export default function App() {
                      <ChevronRight size={14} />
                    </button>
 
-                   <button className="w-full flex items-center justify-between px-4 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all shadow-sm">
+                   <button onClick={() => handleCloudExport('Dropbox')} className="w-full flex items-center justify-between px-4 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all shadow-sm">
                      <div className="flex items-center gap-2">
                        <Share2 size={16} />
                        <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.dropbox}</span>
