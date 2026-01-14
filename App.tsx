@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
   Utensils, 
@@ -29,7 +29,9 @@ import {
   Check,
   AlertCircle,
   GlassWater,
-  Search
+  Search,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -143,6 +145,8 @@ export default function App() {
   const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
 
@@ -176,6 +180,17 @@ export default function App() {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
 
+  // Sluit picker als je ernaast klikt
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setOpenPickerMoment(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const currentLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
   
   const latestWeight = useMemo((): number => {
@@ -191,28 +206,26 @@ export default function App() {
   }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
 
   const totals = useMemo(() => {
-    const activityBurn = currentLog.activities.reduce((sum: number, a) => sum + (Number(a.burnedKcal) || 0), 0);
+    const activityBurn = Number(currentLog.activities.reduce((sum: number, a) => sum + (Number(a.burnedKcal) || 0), 0));
     const startW = Number(state.profile.startWeight) || 0;
     const targetW = Number(state.profile.targetWeight) || 0;
     const currentW = Number(latestWeight) || Number(state.profile.currentWeight) || 0;
     
     const effectiveProfile: UserProfile = { ...state.profile, currentWeight: currentW };
-    // Fix: Explicitly ensure result of calculateTDEE is treated as number for subsequent calculations
     const baselineTdee = Number(calculateTDEE(effectiveProfile, 0));
     
-    const actualIntake = Object.values(currentLog.meals).reduce((acc: number, items: unknown) => {
+    const actualIntake = Number(Object.values(currentLog.meals).reduce((acc: number, items: any) => {
       const mealItems = items as LoggedMealItem[];
-      return acc + mealItems.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0);
-    }, 0);
+      return acc + Number(mealItems.reduce((sum: number, m: LoggedMealItem) => sum + (Number(m.kcal) || 0), 0));
+    }, 0));
     
     const intakeGoal = Number(DAILY_KCAL_INTAKE_GOAL) || 1800;
-    const currentAdjustedGoal = intakeGoal + activityBurn;
-    // Fix: Simplify deficit calculation to ensure all parts are numeric to prevent arithmetic error
-    const deficit = (baselineTdee + activityBurn) - intakeGoal;
+    const currentAdjustedGoal = Number(intakeGoal + activityBurn);
+    const deficit = Number((baselineTdee + activityBurn) - intakeGoal);
     const targetDateStr = calculateTargetDate(effectiveProfile, deficit);
     
-    const weightJourneyTotal = startW - targetW;
-    const weightLostSoFar = startW - currentW;
+    const weightJourneyTotal = Number(startW - targetW);
+    const weightLostSoFar = Number(startW - currentW);
     const weightProgressPercent = weightJourneyTotal > 0 ? (weightLostSoFar / weightJourneyTotal) * 100 : 0;
     
     const intakePercent = currentAdjustedGoal > 0 ? (actualIntake / currentAdjustedGoal) * 100 : 0;
@@ -331,6 +344,15 @@ export default function App() {
   const getTranslatedName = (id: string, originalName: string) => {
     const lang = state.language || 'nl';
     return PRODUCT_TRANSLATIONS[lang]?.[id] || originalName;
+  };
+
+  // Helper om productnaam te splitsen voor twee regels
+  const splitProductName = (fullName: string) => {
+    const match = fullName.match(/^(.*?)\s*\((.*?)\)$/);
+    if (match) {
+      return { title: match[1], details: match[2] };
+    }
+    return { title: fullName, details: '' };
   };
 
   const setDailyWeight = (weight: number | undefined) => {
@@ -607,19 +629,90 @@ export default function App() {
                     const availableOptions = state.customOptions[moment] || [];
                     const currentInput = mealInputs[moment] || { mealId: '', qty: 1 };
                     
+                    const selectedOption = availableOptions.find(o => o.id === currentInput.mealId);
+
                     return (
                       <div key={moment} className="bg-sky-50 rounded-[20px] p-4 shadow-sm border border-sky-100">
                         <h4 className="font-black text-[10px] text-sky-400 uppercase mb-3 tracking-widest">{t.moments[moment]}</h4>
                         
-                        <div className="flex gap-2 mb-3 items-center flex-nowrap">
-                          <select 
-                            className="flex-grow bg-white border border-sky-100 rounded-xl p-2.5 text-sm font-bold shadow-sm min-w-0"
-                            value={currentInput.mealId}
-                            onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: e.target.value } })}
-                          >
-                            <option value="">{t.placeholders.select}</option>
-                            {availableOptions.map(o => <option key={o.id} value={o.id}>{getTranslatedName(o.id, o.name)}</option>)}
-                          </select>
+                        <div className="flex gap-2 mb-3 items-center flex-nowrap relative">
+                          {/* Custom Picker Button */}
+                          <div className="flex-grow min-w-0 relative" ref={openPickerMoment === moment ? pickerRef : null}>
+                            <button 
+                              onClick={() => {
+                                setOpenPickerMoment(openPickerMoment === moment ? null : moment);
+                                setSearchTerm('');
+                              }}
+                              className="w-full bg-white border border-sky-100 rounded-xl p-2.5 text-sm font-bold shadow-sm flex items-center justify-between min-w-0"
+                            >
+                              <span className="truncate">
+                                {selectedOption ? getTranslatedName(selectedOption.id, selectedOption.name) : t.placeholders.select}
+                              </span>
+                              <ChevronDown size={14} className={`text-sky-300 transition-transform ${openPickerMoment === moment ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {openPickerMoment === moment && (
+                              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[320px] animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                                  <Search size={14} className="text-slate-400" />
+                                  <input 
+                                    autoFocus
+                                    className="bg-transparent border-none text-sm w-full focus:ring-0 font-bold"
+                                    placeholder={t.searchPlaceholder}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                  />
+                                </div>
+                                <div className="overflow-y-auto py-2">
+                                  {['Eten', 'Drinken'].map(type => {
+                                    const isDrinkSection = type === 'Drinken';
+                                    const sectionItems = availableOptions.filter(o => 
+                                      !!o.isDrink === isDrinkSection &&
+                                      getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())
+                                    );
+
+                                    if (sectionItems.length === 0) return null;
+
+                                    return (
+                                      <div key={type} className="mb-2">
+                                        <div className="px-3 py-1 flex items-center gap-1.5">
+                                          {isDrinkSection ? <GlassWater size={10} className="text-sky-400" /> : <Utensils size={10} className="text-slate-400" />}
+                                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">{isDrinkSection ? t.drink : t.food}</span>
+                                        </div>
+                                        {sectionItems.map(opt => {
+                                          const info = splitProductName(getTranslatedName(opt.id, opt.name));
+                                          return (
+                                            <button
+                                              key={opt.id}
+                                              onClick={() => {
+                                                setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } });
+                                                setOpenPickerMoment(null);
+                                              }}
+                                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-sky-50 transition-colors ${currentInput.mealId === opt.id ? 'bg-sky-50' : ''}`}
+                                            >
+                                              <div className="flex items-center gap-3 min-w-0 pr-4">
+                                                <div className={`p-1.5 rounded-lg border ${opt.isDrink ? 'bg-sky-100/50 border-sky-200 text-sky-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
+                                                  {opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                  <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
+                                                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
                           <input 
                             type="number" 
                             min="0"
@@ -644,20 +737,25 @@ export default function App() {
                         </div>
 
                         <div className="space-y-2">
-                          {items.map(item => (
-                            <div key={item.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-sky-100 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-1.5 rounded-lg border ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-                                  {item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
+                          {items.map(item => {
+                            const info = splitProductName(getTranslatedName(item.mealId || '', item.name));
+                            return (
+                              <div key={item.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-sky-100 shadow-sm animate-in slide-in-from-right-4 duration-300">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-1.5 rounded-lg border ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                    {item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <p className="text-sm font-black text-slate-800 leading-tight">{info.title}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                      {item.quantity}x {info.details ? '• ' + info.details : ''} • {item.kcal} kcal
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-black text-slate-800">{getTranslatedName(item.mealId || '', item.name)}</p>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase">{item.quantity}x • {item.kcal} kcal</p>
-                                </div>
+                                <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition-colors"><Trash2 size={16} /></button>
                               </div>
-                              <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition-colors"><Trash2 size={16} /></button>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {items.length === 0 && <p className="text-[10px] text-slate-300 font-bold uppercase text-center py-2">{t.nothingPlanned}</p>}
                         </div>
                       </div>
@@ -800,7 +898,7 @@ export default function App() {
            <div className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-black text-slate-800 uppercase">{t.products}</h3>
-                <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors"><Trash2 size={20} className="rotate-45" /></button>
+                <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors"><X size={24} /></button>
               </div>
 
               {/* Zoekbalk */}
@@ -866,20 +964,25 @@ export default function App() {
                         <div className="space-y-3">
                           <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><Utensils size={10} /> {t.food}</h5>
                           <div className="space-y-2">
-                            {foodItems.map(opt => (
-                              <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50/50 rounded-2xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-slate-400"><Utensils size={14} /></div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-slate-800 truncate leading-tight">{getTranslatedName(opt.id, opt.name)}</span>
-                                    <span className="text-[10px] text-slate-400 uppercase font-black">{opt.kcal} kcal</span>
+                            {foodItems.map(opt => {
+                              const info = splitProductName(getTranslatedName(opt.id, opt.name));
+                              return (
+                                <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50/50 rounded-2xl flex justify-between items-center border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                                  <div className="flex items-center gap-3 min-w-0 pr-4">
+                                    <div className="p-2 bg-white rounded-xl border border-slate-100 text-slate-400 shrink-0"><Utensils size={14} /></div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
+                                      <span className="text-[10px] text-slate-400 uppercase font-bold">
+                                        {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
+                                      </span>
+                                    </div>
                                   </div>
+                                  <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-200 hover:text-red-500 transition-colors">
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
-                                <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-200 hover:text-red-500 transition-colors">
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -889,20 +992,25 @@ export default function App() {
                         <div className="space-y-3">
                           <h5 className="text-[9px] font-black text-sky-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><GlassWater size={10} /> {t.drink}</h5>
                           <div className="space-y-2">
-                            {drinkItems.map(opt => (
-                              <div key={`${moment}-${opt.id}`} className="p-3 bg-sky-50/30 rounded-2xl flex justify-between items-center text-sm font-bold border border-sky-100 shadow-sm hover:bg-sky-50 transition-colors">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="p-2 bg-white rounded-xl border border-sky-100 text-sky-400"><GlassWater size={14} /></div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-slate-800 truncate leading-tight">{getTranslatedName(opt.id, opt.name)}</span>
-                                    <span className="text-[10px] text-sky-500 uppercase font-black">{opt.kcal} kcal</span>
+                            {drinkItems.map(opt => {
+                              const info = splitProductName(getTranslatedName(opt.id, opt.name));
+                              return (
+                                <div key={`${moment}-${opt.id}`} className="p-3 bg-sky-50/30 rounded-2xl flex justify-between items-center border border-sky-100 shadow-sm hover:bg-sky-50 transition-colors">
+                                  <div className="flex items-center gap-3 min-w-0 pr-4">
+                                    <div className="p-2 bg-white rounded-xl border border-slate-100 text-sky-400 shrink-0"><GlassWater size={14} /></div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
+                                      <span className="text-[10px] text-sky-500 uppercase font-bold">
+                                        {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
+                                      </span>
+                                    </div>
                                   </div>
+                                  <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-sky-200 hover:text-red-500 transition-colors">
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
-                                <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-sky-200 hover:text-red-500 transition-colors">
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
