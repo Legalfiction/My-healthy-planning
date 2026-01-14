@@ -5,10 +5,20 @@ import { ACTIVITY_TYPES, KCAL_PER_KG_FAT } from '../constants';
 export const calculateBMR = (profile: UserProfile): number => {
   const weight = Number(profile.currentWeight) || 0;
   const height = Number(profile.height) || 0;
-  const age = Number(profile.age) || 0;
-  // Mifflin-St Jeor Equation for men: (10 * weight) + (6.25 * height) - (5 * age) + 5
-  if (weight === 0 || height === 0 || age === 0) return 1500;
-  return (10 * weight) + (6.25 * height) - (5 * age) + 5;
+  const currentYear = new Date().getFullYear();
+  const age = profile.birthYear ? (currentYear - profile.birthYear) : (profile.age || 40);
+  
+  if (weight === 0 || height === 0) return 1500;
+
+  // Mifflin-St Jeor Equation
+  // Men: (10 * weight) + (6.25 * height) - (5 * age) + 5
+  // Women: (10 * weight) + (6.25 * height) - (5 * age) - 161
+  const base = (10 * weight) + (6.25 * height) - (5 * age);
+  
+  if (profile.gender === 'woman') {
+    return base - 161;
+  }
+  return base + 5;
 };
 
 export const calculateTDEE = (profile: UserProfile, loggedActivitiesBurn: number): number => {

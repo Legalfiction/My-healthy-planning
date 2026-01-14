@@ -108,12 +108,34 @@ const idb = {
 };
 
 const INITIAL_STATE: AppState = {
-  profile: { age: 44, height: 170, startWeight: 86, currentWeight: 86, targetWeight: 78, dailyBudget: 1800, weightLossSpeed: 'average' },
+  profile: { 
+    gender: 'man',
+    birthYear: 1980,
+    height: 170, 
+    startWeight: 86, 
+    currentWeight: 86, 
+    targetWeight: 78, 
+    dailyBudget: 1800, 
+    weightLossSpeed: 'average' 
+  },
   dailyLogs: {},
   customOptions: MEAL_OPTIONS,
   customActivities: ACTIVITY_TYPES,
   language: 'nl'
 };
+
+const languages: { code: Language; name: string; flag: string }[] = [
+  { code: 'nl', name: 'NL', flag: '🇳🇱' },
+  { code: 'en', name: 'EN', flag: '🇬🇧' },
+  { code: 'es', name: 'ES', flag: '🇪🇸' },
+  { code: 'de', name: 'DE', flag: '🇩🇪' },
+  { code: 'pt', name: 'PT', flag: '🇵🇹' },
+  { code: 'zh', name: 'ZH', flag: '🇨🇳' },
+  { code: 'ja', name: 'JA', flag: '🇯🇵' },
+  { code: 'ko', name: 'KO', flag: '🇰🇷' },
+  { code: 'hi', name: 'HI', flag: '🇮🇳' },
+  { code: 'ar', name: 'AR', flag: '🇸🇦' },
+];
 
 const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 'success' | 'error' | 'info', onHide: () => void }) => {
   useEffect(() => {
@@ -148,7 +170,6 @@ export default function App() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
   const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string; qty: number }>>({});
 
   const [newMeal, setNewMeal] = useState({ name: '', kcal: '', isDrink: false, moment: 'Ontbijt' as MealMoment });
@@ -170,9 +191,15 @@ export default function App() {
   useEffect(() => {
     idb.get().then(saved => {
       if (saved) {
+        const updatedProfile = { 
+          ...INITIAL_STATE.profile, 
+          ...saved.profile,
+          gender: saved.profile.gender || 'man',
+          birthYear: saved.profile.birthYear || (saved.profile.age ? (new Date().getFullYear() - saved.profile.age) : 1980)
+        };
         setState({
           ...saved,
-          profile: { ...INITIAL_STATE.profile, ...saved.profile },
+          profile: updatedProfile,
           customActivities: (saved.customActivities && saved.customActivities.length > 0) ? saved.customActivities : ACTIVITY_TYPES,
           language: saved.language || 'nl'
         });
@@ -180,6 +207,35 @@ export default function App() {
       setIsLoaded(true);
     });
   }, []);
+
+  // AUTOMATIC RECALCULATION OF BUDGET
+  // This effect ensures that changing profile variables updates the budget for non-custom speeds.
+  useEffect(() => {
+    if (!isLoaded || state.profile.weightLossSpeed === 'custom') return;
+
+    // We calculate based on start weight for the initial plan budget
+    const baselineTdee = calculateTDEE({ ...state.profile, currentWeight: state.profile.startWeight }, 0);
+    
+    let deficit = 500;
+    if (state.profile.weightLossSpeed === 'slow') deficit = 250;
+    else if (state.profile.weightLossSpeed === 'fast') deficit = 750;
+
+    const calculatedBudget = Math.round(baselineTdee - deficit);
+    
+    if (calculatedBudget !== state.profile.dailyBudget) {
+      setState(prev => ({
+        ...prev,
+        profile: { ...prev.profile, dailyBudget: calculatedBudget }
+      }));
+    }
+  }, [
+    isLoaded, 
+    state.profile.gender, 
+    state.profile.birthYear, 
+    state.profile.height, 
+    state.profile.startWeight, 
+    state.profile.weightLossSpeed
+  ]);
 
   useEffect(() => {
     if (isLoaded) idb.set(state);
@@ -298,33 +354,13 @@ export default function App() {
   };
 
   const setLossSpeed = (speed: WeightLossSpeed) => {
-    const bmr = (10 * Number(state.profile.startWeight)) + (6.25 * Number(state.profile.height)) - (5 * Number(state.profile.age)) + 5;
-    const tdee = bmr * 1.375;
-    
-    let deficit = 500;
-    if (speed === 'slow') deficit = 250;
-    if (speed === 'fast') deficit = 750;
-
-    if (speed === 'custom') {
-      setState(prev => ({
-        ...prev,
-        profile: { ...prev.profile, weightLossSpeed: 'custom' }
-      }));
-      setToast({ msg: `Planning omgezet naar: ${t.speedCustom}`, type: 'info' });
-      return;
-    }
-
-    const newBudget = Math.round(tdee - deficit);
     setState(prev => ({
       ...prev,
-      profile: {
-        ...prev.profile,
-        weightLossSpeed: speed,
-        dailyBudget: newBudget,
-        customTargetDate: undefined 
-      }
+      profile: { ...prev.profile, weightLossSpeed: speed, customTargetDate: speed === 'custom' ? prev.profile.customTargetDate : undefined }
     }));
-    setToast({ msg: `Planning bijgewerkt naar: ${speed === 'slow' ? t.speedSlow : speed === 'average' ? t.speedAverage : t.speedFast}`, type: 'info' });
+    
+    const label = speed === 'slow' ? t.speedSlow : speed === 'average' ? t.speedAverage : speed === 'fast' ? t.speedFast : t.speedCustom;
+    setToast({ msg: `Planning: ${label}`, type: 'info' });
   };
 
   const addMealItem = (moment: MealMoment, item: Omit<LoggedMealItem, 'id'>) => {
@@ -394,51 +430,14 @@ export default function App() {
     }
   };
 
-  const saveCustomMeal = () => {
-    if (!newMeal.name || !newMeal.kcal) return;
-    const item: MealOption = {
-      id: 'custom_' + Math.random().toString(36).substr(2, 9),
-      name: newMeal.name,
-      kcal: Number(newMeal.kcal),
-      isCustom: true,
-      isDrink: newMeal.isDrink
-    };
-    setState(prev => {
-      const customOptions = { ...prev.customOptions };
-      customOptions[newMeal.moment] = [...(customOptions[newMeal.moment] || []), item];
-      return { ...prev, customOptions };
-    });
-    setNewMeal({ ...newMeal, name: '', kcal: '' });
-    setToast({ msg: 'Product opgeslagen' });
-  };
-
-  const saveCustomActivity = () => {
-    if (!newActivity.name || !newActivity.kcalPerHour) return;
-    const met = Number(newActivity.kcalPerHour) / 70;
-    const item: ActivityType = {
-      id: 'custom_act_' + Math.random().toString(36).substr(2, 9),
-      name: newActivity.name,
-      met: met,
-      unit: 'minuten',
-      isCustom: true
-    };
-    setState(prev => ({ ...prev, customActivities: [...prev.customActivities, item] }));
-    setNewActivity({ name: '', kcalPerHour: '' });
-    setToast({ msg: 'Activiteit opgeslagen' });
-  };
-
-  const languages: { code: Language, flag: string, name: string }[] = [
-    { code: 'nl', flag: '🇳🇱', name: 'NL' },
-    { code: 'en', flag: '🇺🇸', name: 'EN' },
-    { code: 'es', flag: '🇪🇸', name: 'ES' },
-    { code: 'de', flag: '🇩🇪', name: 'DE' },
-    { code: 'pt', flag: '🇵🇹', name: 'PT' },
-    { code: 'zh', flag: '🇨🇳', name: 'ZH' },
-    { code: 'ja', flag: '🇯🇵', name: 'JA' },
-    { code: 'ko', flag: '🇰🇷', name: 'KO' },
-    { code: 'hi', flag: '🇮🇳', name: 'HI' },
-    { code: 'ar', flag: '🇸🇦', name: 'AR' },
-  ];
+  const birthYears = useMemo(() => {
+    const years = [];
+    const currentYear = new Date().getFullYear();
+    for (let i = currentYear - 5; i >= currentYear - 100; i--) {
+      years.push(i);
+    }
+    return years;
+  }, []);
 
   if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-sky-500 uppercase tracking-widest text-lg">...</div>;
 
@@ -502,7 +501,6 @@ export default function App() {
                       <Zap size={14} className="text-amber-400 fill-amber-400" />
                       <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.dailyBudget}</h3>
                     </div>
-                    {/* EQUALIZED FONT SIZES HERE */}
                     <div className="flex items-baseline gap-2">
                        <span className="text-2xl font-black text-slate-400">{totals.intakeGoal}</span>
                        <span className="text-2xl font-black text-emerald-500">+{totals.activityBurn}</span>
@@ -778,15 +776,44 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{t.gender}</label>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                    <button 
+                      onClick={() => setState({ ...state, profile: { ...state.profile, gender: 'man' } })}
+                      className={`py-2.5 rounded-xl font-black uppercase text-xs transition-all ${state.profile.gender === 'man' ? 'bg-white text-sky-500 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      {t.man}
+                    </button>
+                    <button 
+                      onClick={() => setState({ ...state, profile: { ...state.profile, gender: 'woman' } })}
+                      className={`py-2.5 rounded-xl font-black uppercase text-xs transition-all ${state.profile.gender === 'woman' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-400'}`}
+                    >
+                      {t.woman}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.age}</label>
-                    <input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    <select 
+                      value={state.profile.birthYear} 
+                      onChange={e => setState({...state, profile: {...state.profile, birthYear: Number(e.target.value)}})} 
+                      className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none"
+                    >
+                      {birthYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.height}</label>
                     <input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none truncate">{t.startWeight}</label>
                     <input type="number" value={state.profile.startWeight} onChange={e => {
@@ -794,23 +821,24 @@ export default function App() {
                         setState({...state, profile: {...state.profile, startWeight: val, currentWeight: val}});
                     }} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label>
                     <input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-2xl font-black text-sky-500 border border-sky-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.dailyBudgetLabel}</label>
-                    <input 
-                      type="number" 
-                      value={state.profile.dailyBudget} 
-                      readOnly={state.profile.weightLossSpeed === 'custom'}
-                      onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} 
-                      className={`w-full p-3 rounded-2xl font-black border text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none ${state.profile.weightLossSpeed === 'custom' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-sky-50 text-sky-500 border-sky-100'}`} 
-                    />
-                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.dailyBudgetLabel}</label>
+                  <input 
+                    type="number" 
+                    value={state.profile.dailyBudget} 
+                    readOnly={state.profile.weightLossSpeed !== 'custom'}
+                    onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} 
+                    className={`w-full p-3 rounded-2xl font-black border text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none ${state.profile.weightLossSpeed !== 'custom' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-sky-50 text-sky-500 border-sky-100'}`} 
+                  />
+                  {state.profile.weightLossSpeed !== 'custom' && (
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight text-center">Budget is automatisch gekoppeld aan je tempo</p>
+                  )}
                 </div>
 
                 <div className="pt-2">
@@ -836,35 +864,33 @@ export default function App() {
 
                 <div className="pt-4 border-t border-slate-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5"><Calendar size={12} className="text-sky-400" /> {t.projectedDate}</label>
-                  <div className="relative">
+                  <div className="relative group">
                     <div className={`w-full p-4 pl-12 rounded-2xl font-black border text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-50 border-sky-400 shadow-lg shadow-sky-100/50' : 'bg-white border-slate-100'}`}>
                       <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
-                      <div className="flex items-center gap-2 cursor-pointer">
-                        <input 
-                          type="date" 
-                          value={state.profile.customTargetDate || totals.targetDate} 
-                          onChange={e => {
-                            const newDate = e.target.value;
-                            if (state.profile.weightLossSpeed === 'custom') {
-                              const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
-                              setState({...state, profile: {...state.profile, customTargetDate: newDate, dailyBudget: newBudget}});
-                            } else {
-                              setState({...state, profile: {...state.profile, customTargetDate: newDate}});
-                            }
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
+                      <div className="flex items-center gap-2">
                         <Calendar size={18} className={`${state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : 'text-slate-300'} mr-1`} />
                       </div>
                     </div>
-                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 transition-colors pointer-events-none ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-500 text-white' : 'bg-sky-100 text-sky-500'}`}>
+                    {/* The date input should overlay everything inside the relative container to capture clicks */}
+                    <input 
+                      type="date" 
+                      value={state.profile.customTargetDate || totals.targetDate} 
+                      disabled={state.profile.weightLossSpeed !== 'custom'}
+                      onChange={e => {
+                        const newDate = e.target.value;
+                        const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
+                        setState({...state, profile: {...state.profile, customTargetDate: newDate, dailyBudget: newBudget}});
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full disabled:cursor-default"
+                    />
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 transition-colors pointer-events-none z-10 ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-500 text-white' : 'bg-sky-100 text-sky-500'}`}>
                       {state.profile.weightLossSpeed === 'custom' ? <Settings2 size={14} /> : <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />}
                     </div>
                   </div>
                   <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">
                     {state.profile.weightLossSpeed === 'custom' 
                       ? "Pas de datum aan om je dagbudget te bepalen" 
-                      : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tekort")}
+                      : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tempo")}
                   </p>
                 </div>
              </div>

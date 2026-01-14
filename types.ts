@@ -4,7 +4,8 @@ export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | '
 export type WeightLossSpeed = 'slow' | 'average' | 'fast' | 'custom';
 
 export interface UserProfile {
-  age: number;
+  gender: 'man' | 'woman';
+  birthYear: number;
   height: number;
   startWeight: number;
   currentWeight: number;
@@ -12,6 +13,7 @@ export interface UserProfile {
   dailyBudget: number;
   customTargetDate?: string;
   weightLossSpeed?: WeightLossSpeed;
+  age?: number; // Legacy support
 }
 
 export type MealMoment = 'Ontbijt' | 'Ochtend snack' | 'Lunch' | 'Middag snack' | 'Diner' | 'Avondsnack';
