@@ -9,18 +9,12 @@ import {
   ChevronRight, 
   Plus, 
   Trash2, 
-  Bookmark,
   Scale,
-  Flame,
   Target,
   TrendingDown,
-  X,
-  Upload,
-  Download,
   Info,
   Database,
   ListFilter,
-  Check,
   ShieldCheck,
   CheckCircle2,
   Globe,
@@ -28,7 +22,9 @@ import {
   Sun,
   Moon,
   Zap,
-  Cloud
+  Cloud,
+  Download,
+  Upload
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -41,7 +37,6 @@ import {
   Language
 } from './types';
 import { 
-  MEAL_MOMENTS, 
   MEAL_OPTIONS, 
   ACTIVITY_TYPES, 
   DAILY_KCAL_INTAKE_GOAL,
@@ -92,6 +87,12 @@ const idb = {
         tx.oncomplete = () => resolve();
       });
     } catch (e) { console.error("DB Save Fail", e); }
+  },
+  clear: async (): Promise<void> => {
+    const db = await idb.open();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    return new Promise(resolve => tx.oncomplete = () => resolve());
   }
 };
 
@@ -114,7 +115,7 @@ export default function App() {
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
 
-  const t = useMemo(() => translations[state.language || 'nl'], [state.language]);
+  const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
 
   const [newProductName, setNewProductName] = useState('');
   const [newProductGram, setNewProductGram] = useState('');
@@ -192,7 +193,6 @@ export default function App() {
     };
   }, [selectedDate, state.language]);
 
-  // Cloud/File Storage Logic
   const exportData = () => {
     const dataStr = JSON.stringify(state, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -219,6 +219,15 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const resetAllData = async () => {
+    if (confirm('Weet je zeker dat je alle gegevens wilt wissen? Dit kan niet ongedaan worden gemaakt.')) {
+      await idb.clear();
+      setState(INITIAL_STATE);
+      setActiveTab('dashboard');
+      alert('Alle gegevens zijn gewist. Je begint nu met een schone lei.');
+    }
   };
 
   const getTranslatedName = (id: string, originalName: string) => {
@@ -347,80 +356,80 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
-      <header className="bg-white border-b sticky top-0 z-30 p-3 shadow-sm">
-        <div className="flex justify-between items-center mb-1.5">
+      <header className="bg-white border-b sticky top-0 z-30 p-2.5 shadow-sm">
+        <div className="flex justify-between items-center mb-1.5 px-1">
           <div className="flex flex-col">
              <h1 className="text-base font-black text-sky-500 leading-none tracking-tight">{t.title}</h1>
-             <span className="text-[8px] font-black text-slate-400 tracking-[0.2em]">{t.subtitle}</span>
+             <span className="text-[7px] font-black text-slate-400 tracking-[0.2em]">{t.subtitle}</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setShowInfo(true)} className="p-1 text-sky-400 hover:bg-sky-50 rounded-xl transition-all"><Info size={16} /></button>
+            <button onClick={() => setShowInfo(true)} className="p-1 text-sky-400 hover:bg-sky-50 rounded-xl transition-all"><Info size={14} /></button>
             <div className="bg-white border border-sky-100 px-2 py-0.5 rounded-2xl flex items-center gap-1 shadow-sm">
               <TrendingDown size={10} className="text-sky-400" />
-              <span className="text-[10px] font-black text-sky-600">{latestWeight.toFixed(1)} <span className="text-[7px] opacity-60">KG</span></span>
+              <span className="text-[9px] font-black text-sky-600">{latestWeight.toFixed(1)} <span className="text-[7px] opacity-60">KG</span></span>
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between bg-white rounded-[16px] p-1 border border-sky-50 shadow-sm">
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-sky-50 rounded-lg transition-colors"><ChevronLeft size={18} className="text-slate-400"/></button>
+        <div className="flex items-center justify-between bg-white rounded-[14px] p-1 border border-sky-50 shadow-sm mx-1">
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1.5 hover:bg-sky-50 rounded-lg transition-colors"><ChevronLeft size={16} className="text-slate-400"/></button>
           <div className="flex items-center gap-2">
-             <span className="text-2xl font-black text-sky-500 tabular-nums leading-none tracking-tighter">{dateParts.day}</span>
+             <span className="text-xl font-black text-sky-500 tabular-nums leading-none tracking-tighter">{dateParts.day}</span>
              <div className="flex flex-col">
-               <span className="text-[8px] font-black text-sky-300 uppercase tracking-widest">{dateParts.weekday}</span>
-               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{dateParts.month}</span>
+               <span className="text-[7px] font-black text-sky-300 uppercase tracking-widest leading-none">{dateParts.weekday}</span>
+               <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none mt-0.5">{dateParts.month}</span>
              </div>
           </div>
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-sky-50 rounded-lg transition-colors"><ChevronRight size={18} className="text-slate-400"/></button>
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1.5 hover:bg-sky-50 rounded-lg transition-colors"><ChevronRight size={16} className="text-slate-400"/></button>
         </div>
       </header>
 
-      <main className="p-2.5 flex-grow space-y-2.5">
+      <main className="p-2 flex-grow space-y-2">
         {activeTab === 'dashboard' && (
-          <div className="space-y-2.5 animate-in fade-in duration-500">
+          <div className="space-y-2 animate-in fade-in duration-500">
             {/* Target Card */}
-            <div className="bg-[#e0f2fe] rounded-[24px] p-4 text-slate-800 shadow-xl relative overflow-hidden">
-               <Target size={60} className="absolute -right-3 -top-3 text-sky-200/40" />
-               <p className="text-sky-500 text-[8px] font-black uppercase tracking-widest mb-0.5">{t.targetReached}</p>
-               <h2 className="text-lg font-black mb-3 text-slate-800">{totals.targetDate || '...'}</h2>
+            <div className="bg-[#e0f2fe] rounded-[22px] p-3.5 text-slate-800 relative overflow-hidden">
+               <Target size={50} className="absolute -right-2 -top-2 text-sky-200/30" />
+               <p className="text-sky-500 text-[7px] font-black uppercase tracking-widest mb-0.5">{t.targetReached}</p>
+               <h2 className="text-base font-black mb-2.5 text-slate-800">{totals.targetDate || '...'}</h2>
                <div className="grid grid-cols-2 gap-2">
-                 <div className="bg-white/50 backdrop-blur-md rounded-xl p-2.5 border border-white/60">
-                   <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-0.5" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
-                   <p className="text-sm font-black text-slate-700">{Math.round(totals.baselineTdee)} <span className="text-[8px] font-normal">kcal</span></p>
+                 <div className="bg-white/50 backdrop-blur-md rounded-xl p-2 border border-white/60">
+                   <p className="text-[6px] font-black uppercase tracking-widest text-slate-400 mb-0.5" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
+                   <p className="text-xs font-black text-slate-700">{Math.round(totals.baselineTdee)} <span className="text-[8px] font-normal">kcal</span></p>
                  </div>
-                 <div className="bg-white/50 backdrop-blur-md rounded-xl p-2.5 border border-white/60">
-                   <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-0.5" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
-                   <p className="text-sm font-black text-slate-700">{DAILY_KCAL_INTAKE_GOAL} <span className="text-[8px] font-normal">kcal</span></p>
+                 <div className="bg-white/50 backdrop-blur-md rounded-xl p-2 border border-white/60">
+                   <p className="text-[6px] font-black uppercase tracking-widest text-slate-400 mb-0.5" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
+                   <p className="text-xs font-black text-slate-700">{DAILY_KCAL_INTAKE_GOAL} <span className="text-[8px] font-normal">kcal</span></p>
                  </div>
                </div>
             </div>
 
             {/* Calorie Tracker Card */}
-            <div className="bg-white rounded-[24px] p-4 border border-sky-50 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-3">
+            <div className="bg-white rounded-[22px] p-3.5 border border-sky-50 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-2.5">
                   <div className="flex items-center gap-1">
-                    <Zap size={12} className="text-amber-400 fill-amber-400" />
-                    <h3 className="font-black text-slate-800 text-[9px] uppercase tracking-widest">Dagbudget</h3>
+                    <Zap size={10} className="text-amber-400 fill-amber-400" />
+                    <h3 className="font-black text-slate-800 text-[8px] uppercase tracking-widest">Dagbudget</h3>
                   </div>
-                  <span className={`text-[7px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest ${totals.actualIntake > DAILY_KCAL_INTAKE_GOAL ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50'}`}>
+                  <span className={`text-[6px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest ${totals.actualIntake > DAILY_KCAL_INTAKE_GOAL ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50'}`}>
                     {totals.actualIntake > DAILY_KCAL_INTAKE_GOAL ? 'Overschreden' : `${Math.round(DAILY_KCAL_INTAKE_GOAL - totals.actualIntake)} kcal over`}
                   </span>
                </div>
                
-               <div className="relative pt-3 pb-12">
+               <div className="relative pt-2.5 pb-14">
                  <div className="flex justify-between items-center mb-1.5 px-1">
                     <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Start</span>
-                      <span className="text-[10px] font-black text-slate-600">1800 kcal</span>
+                      <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Start</span>
+                      <span className="text-[9px] font-black text-slate-600">1800 kcal</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Gegeten</span>
-                      <span className={`text-[10px] font-black ${totals.actualIntake > DAILY_KCAL_INTAKE_GOAL ? 'text-red-500' : 'text-slate-600'}`}>
+                      <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Gegeten</span>
+                      <span className={`text-[9px] font-black ${totals.actualIntake > DAILY_KCAL_INTAKE_GOAL ? 'text-red-500' : 'text-slate-600'}`}>
                         {Math.round(totals.actualIntake)} kcal
                       </span>
                     </div>
                  </div>
                  
-                 <div className="h-5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200 relative">
+                 <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200 relative">
                     <div 
                       className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} 
                       style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} 
@@ -428,15 +437,15 @@ export default function App() {
                  </div>
 
                  <div 
-                   className="absolute top-[58px] transition-all duration-1000 z-10" 
+                   className="absolute top-[64px] transition-all duration-1000 z-10" 
                    style={{ 
-                     left: `${Math.min(totals.intakePercent, 100)}%`, 
+                     left: `${Math.min(Math.max(totals.intakePercent, 8), 92)}%`, 
                      transform: 'translateX(-50%)'
                    }}
                  >
-                   <div className="flex items-center gap-1 whitespace-nowrap">
-                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
-                     <span className={`text-[10px] font-black ${totals.intakePercent > 100 ? 'text-red-600' : 'text-black'}`}>
+                   <div className="flex items-center gap-1.5 whitespace-nowrap bg-slate-50/50 px-2 py-0.5 rounded-lg border border-slate-100/50">
+                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
+                     <span className={`text-[9px] font-black ${totals.intakePercent > 100 ? 'text-red-600' : 'text-black'}`}>
                         {Math.round(totals.intakePercent)}%
                      </span>
                    </div>
@@ -445,80 +454,80 @@ export default function App() {
             </div>
 
             {/* Weight Journey Card */}
-            <div className="bg-white rounded-[24px] p-4 border border-sky-50 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-black text-slate-800 text-[9px] uppercase tracking-widest">{t.myJourney}</h3>
-                  <span className="text-[8px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
+            <div className="bg-white rounded-[22px] p-3.5 border border-sky-50 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-2.5">
+                  <h3 className="font-black text-slate-800 text-[8px] uppercase tracking-widest">{t.myJourney}</h3>
+                  <span className="text-[7px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
                </div>
                
-               <div className="relative pt-3 pb-12">
+               <div className="relative pt-2.5 pb-14">
                  <div className="flex justify-between items-center mb-1.5 px-1">
                     <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Start</span>
-                      <span className="text-[10px] font-black text-slate-600">{state.profile.startWeight} KG</span>
+                      <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Start</span>
+                      <span className="text-[9px] font-black text-slate-600">{state.profile.startWeight} KG</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[7px] font-black text-sky-400 uppercase tracking-widest">{t.goalWeight}</span>
-                      <span className="text-[10px] font-black text-sky-500">{state.profile.targetWeight} KG</span>
+                      <span className="text-[6px] font-black text-sky-400 uppercase tracking-widest">{t.goalWeight}</span>
+                      <span className="text-[9px] font-black text-sky-500">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
                  
-                 <div className="h-5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200 relative">
+                 <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200 relative">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
 
                  <div 
-                   className="absolute top-[58px] transition-all duration-1000 z-10" 
+                   className="absolute top-[64px] transition-all duration-1000 z-10" 
                    style={{ 
-                     left: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%`, 
+                     left: `${Math.min(Math.max(totals.weightProgressPercent, 8), 92)}%`, 
                      transform: 'translateX(-50%)'
                    }}
                  >
-                   <div className="flex items-center gap-1 whitespace-nowrap">
-                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">NU</span>
-                     <span className="text-[10px] font-black text-black">{latestWeight.toFixed(1)} KG</span>
+                   <div className="flex items-center gap-1.5 whitespace-nowrap bg-slate-50/50 px-2 py-0.5 rounded-lg border border-slate-100/50">
+                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">NU</span>
+                     <span className="text-[9px] font-black text-black">{latestWeight.toFixed(1)} KG</span>
                    </div>
                  </div>
                </div>
             </div>
 
             <div className="bg-white rounded-[16px] p-3 border border-sky-50 shadow-sm">
-              <h3 className="font-black text-slate-800 text-[9px] uppercase tracking-widest mb-1.5 flex items-center gap-1"><Scale size={12} className="text-sky-400" /> {t.weighMoment}</h3>
-              <div className="flex items-center gap-2 bg-[#e0f2fe]/50 p-2.5 rounded-xl border border-sky-100">
-                <input type="number" step="0.1" placeholder="00.0" value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
-                <span className="text-sm font-black text-slate-400 uppercase">kg</span>
+              <h3 className="font-black text-slate-800 text-[8px] uppercase tracking-widest mb-1.5 flex items-center gap-1"><Scale size={12} className="text-sky-400" /> {t.weighMoment}</h3>
+              <div className="flex items-center gap-2 bg-[#e0f2fe]/50 p-2 rounded-xl border border-sky-100">
+                <input type="number" step="0.1" placeholder="00.0" value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-xl font-black text-sky-500 focus:ring-0" />
+                <span className="text-xs font-black text-slate-400 uppercase">kg</span>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'meals' && (
-          <div className="space-y-3 pb-12 animate-in fade-in duration-300">
+          <div className="space-y-2 pb-12 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
-              <div><h2 className="text-lg font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
-              <button onClick={() => setShowMyList(true)} className="flex items-center gap-1 bg-white text-sky-500 border border-sky-100 shadow-sm px-2.5 py-1 rounded-xl font-black text-[8px] uppercase"><ListFilter size={14} /> {t.myList}</button>
+              <div><h2 className="text-base font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
+              <button onClick={() => setShowMyList(true)} className="flex items-center gap-1 bg-white text-sky-500 border border-sky-100 shadow-sm px-2 py-0.5 rounded-xl font-black text-[7px] uppercase"><ListFilter size={12} /> {t.myList}</button>
             </div>
 
             {mealGroups.map((group) => (
-              <div key={group.label} className="bg-[#e0f2fe]/40 rounded-[20px] p-3 border border-sky-100/30 space-y-2">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="p-1 bg-white rounded-lg shadow-sm"><group.icon size={12} className="text-sky-400" /></div>
-                  <h3 className="font-black text-slate-800 text-[9px] uppercase tracking-widest">{group.label}</h3>
+              <div key={group.label} className="bg-[#e0f2fe]/40 rounded-[18px] p-2.5 border border-sky-100/30 space-y-1.5">
+                <div className="flex items-center gap-1.5 px-1">
+                  <div className="p-0.5 bg-white rounded-md shadow-sm"><group.icon size={10} className="text-sky-400" /></div>
+                  <h3 className="font-black text-slate-800 text-[8px] uppercase tracking-widest">{group.label}</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-1.5">
                   {group.moments.map(moment => {
                     const items = currentLog.meals[moment] || [];
                     const availableOptions = state.customOptions[moment] || [];
                     const currentInput = mealInputs[moment] || { mealId: '', qty: 1 };
                     
                     return (
-                      <div key={moment} className="bg-white rounded-[16px] p-3 shadow-sm border border-white">
-                        <h4 className="font-black text-[7px] text-sky-400 uppercase mb-2 tracking-widest">{t.moments[moment]}</h4>
+                      <div key={moment} className="bg-white rounded-[14px] p-2.5 shadow-sm border border-white">
+                        <h4 className="font-black text-[6px] text-sky-400 uppercase mb-1.5 tracking-widest">{t.moments[moment]}</h4>
                         
-                        <div className="flex gap-1 mb-2">
+                        <div className="flex gap-1 mb-1.5">
                           <select 
-                            className="flex-grow bg-slate-50 border-none rounded-lg p-2 text-[9px] font-bold"
+                            className="flex-grow bg-slate-50 border-none rounded-lg p-1.5 text-[8px] font-bold"
                             value={currentInput.mealId}
                             onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: e.target.value } })}
                           >
@@ -528,12 +537,12 @@ export default function App() {
                           <input 
                             type="number" 
                             min="1"
-                            className="w-10 bg-slate-50 border-none rounded-lg p-2 text-[9px] font-black text-center"
+                            className="w-8 bg-slate-50 border-none rounded-lg p-1.5 text-[8px] font-black text-center"
                             value={currentInput.qty}
                             onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(1, Number(e.target.value)) } })}
                           />
                           <button 
-                            className="bg-sky-400 text-white p-2 rounded-lg disabled:opacity-40"
+                            className="bg-sky-400 text-white p-1.5 rounded-lg disabled:opacity-40"
                             disabled={!currentInput.mealId}
                             onClick={() => {
                               const opt = availableOptions.find(o => o.id === currentInput.mealId);
@@ -543,15 +552,15 @@ export default function App() {
                               }
                             }}
                           >
-                            <Plus size={14} strokeWidth={3} />
+                            <Plus size={12} strokeWidth={3} />
                           </button>
                         </div>
 
                         <div className="space-y-1">
                           {items.map(item => (
-                            <div key={item.id} className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg">
-                              <div><p className="text-[9px] font-black text-slate-800">{getTranslatedName(item.mealId || '', item.name)}</p><p className="text-[7px] font-bold text-slate-400 uppercase">{item.quantity}x • {item.kcal} kcal</p></div>
-                              <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-0.5"><Trash2 size={10} /></button>
+                            <div key={item.id} className="flex justify-between items-center bg-slate-50 p-1 rounded-md">
+                              <div><p className="text-[8px] font-black text-slate-800">{getTranslatedName(item.mealId || '', item.name)}</p><p className="text-[6px] font-bold text-slate-400 uppercase">{item.quantity}x • {item.kcal} kcal</p></div>
+                              <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-0.5"><Trash2 size={8} /></button>
                             </div>
                           ))}
                         </div>
@@ -565,28 +574,28 @@ export default function App() {
         )}
 
         {activeTab === 'activity' && (
-           <div className="space-y-3 animate-in fade-in duration-300">
+           <div className="space-y-2 animate-in fade-in duration-300">
              <div className="flex justify-between items-center px-1">
-                <div><h2 className="text-lg font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
-                <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1 bg-white text-sky-500 border border-sky-100 shadow-sm px-2.5 py-1 rounded-xl font-black text-[8px] uppercase"><ListFilter size={14} /> {t.myList}</button>
+                <div><h2 className="text-base font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
+                <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1 bg-white text-sky-500 border border-sky-100 shadow-sm px-2 py-0.5 rounded-xl font-black text-[7px] uppercase"><ListFilter size={12} /> {t.myList}</button>
              </div>
-             <div className="bg-white border border-sky-100 rounded-[16px] p-3 text-slate-800 shadow-sm">
-                <select className="w-full bg-sky-50 border border-sky-100 rounded-lg p-2 text-[10px] font-bold mb-2" value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)}>
+             <div className="bg-white border border-sky-100 rounded-[14px] p-2.5 text-slate-800 shadow-sm">
+                <select className="w-full bg-sky-50 border border-sky-100 rounded-lg p-1.5 text-[8px] font-bold mb-1.5" value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)}>
                    {state.customActivities.map(act => <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>)}
                 </select>
                 <div className="flex gap-1">
-                   <input type="number" id="act-val" placeholder={t.amount} className="flex-grow bg-sky-50 border border-sky-100 rounded-lg p-2 text-[10px] font-black" />
+                   <input type="number" id="act-val" placeholder={t.amount} className="flex-grow bg-sky-50 border border-sky-100 rounded-lg p-1.5 text-[8px] font-black" />
                    <button onClick={() => {
                      const val = Number((document.getElementById('act-val') as HTMLInputElement).value);
                      if (val > 0) addActivity(selectedActivityId, val);
-                   }} className="bg-sky-400 text-white px-3 rounded-lg font-black"><Plus size={16} strokeWidth={3}/></button>
+                   }} className="bg-sky-400 text-white px-2.5 rounded-lg font-black"><Plus size={14} strokeWidth={3}/></button>
                 </div>
              </div>
              <div className="space-y-1">
                {currentLog.activities.map(a => (
-                 <div key={a.id} className="bg-white rounded-lg p-2 border border-sky-50 shadow-sm flex justify-between items-center">
-                   <div><p className="font-black text-slate-800 text-[10px]">{getTranslatedName(a.typeId, state.customActivities.find(x => x.id === a.typeId)?.name || '')}</p><p className="text-[7px] font-bold text-slate-400 uppercase">{a.value} {state.customActivities.find(x => x.id === a.typeId)?.unit} • <span className="text-green-600">+{a.burnedKcal} kcal</span></p></div>
-                   <button onClick={() => removeActivity(a.id)} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                 <div key={a.id} className="bg-white rounded-lg p-1.5 border border-sky-50 shadow-sm flex justify-between items-center">
+                   <div><p className="font-black text-slate-800 text-[9px]">{getTranslatedName(a.typeId, state.customActivities.find(x => x.id === a.typeId)?.name || '')}</p><p className="text-[6px] font-bold text-slate-400 uppercase">{a.value} {state.customActivities.find(x => x.id === a.typeId)?.unit} • <span className="text-green-600">+{a.burnedKcal} kcal</span></p></div>
+                   <button onClick={() => removeActivity(a.id)} className="text-slate-300 hover:text-red-500 p-0.5"><Trash2 size={12}/></button>
                  </div>
                ))}
              </div>
@@ -594,170 +603,167 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="space-y-3 animate-in fade-in duration-300">
-             <h2 className="text-lg font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
+          <div className="space-y-2 animate-in fade-in duration-300">
+             <h2 className="text-base font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
              
-             <div className="bg-white rounded-[16px] p-3 border border-sky-50 shadow-sm space-y-1.5">
-               <h3 className="text-[8px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1"><Globe size={12} className="text-sky-400" /> {t.language}</h3>
+             <div className="bg-white rounded-[14px] p-2.5 border border-sky-50 shadow-sm space-y-1">
+               <h3 className="text-[7px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1"><Globe size={10} className="text-sky-400" /> {t.language}</h3>
                <div className="grid grid-cols-5 gap-1" dir="ltr">
                  {(Object.keys(flagEmojis) as Language[]).map(lang => (
-                   <button key={lang} onClick={() => setState(prev => ({ ...prev, language: lang }))} className={`text-lg p-1 rounded-lg transition-all border-2 ${state.language === lang ? 'border-sky-400 bg-sky-50' : 'border-transparent hover:bg-slate-50'}`}>{flagEmojis[lang]}</button>
+                   <button key={lang} onClick={() => setState(prev => ({ ...prev, language: lang }))} className={`text-base p-0.5 rounded-lg transition-all border-2 ${state.language === lang ? 'border-sky-400 bg-sky-50' : 'border-transparent hover:bg-slate-50'}`}>{flagEmojis[lang]}</button>
                  ))}
                </div>
              </div>
 
-             <div className="bg-white rounded-[16px] p-4 border border-sky-50 shadow-sm space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.age}</label><input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-slate-50 p-2 rounded-lg font-black border-none text-[10px]" /></div>
-                  <div><label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.height}</label><input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-slate-50 p-2 rounded-lg font-black border-none text-[10px]" /></div>
+             <div className="bg-white rounded-[14px] p-3 border border-sky-50 shadow-sm space-y-2">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div><label className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.age}</label><input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-slate-50 p-1.5 rounded-lg font-black border-none text-[9px]" /></div>
+                  <div><label className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.height}</label><input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-slate-50 p-1.5 rounded-lg font-black border-none text-[9px]" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.startWeight}</label><input type="number" value={state.profile.startWeight} onChange={e => setState({...state, profile: {...state.profile, startWeight: Number(e.target.value)}})} className="w-full bg-slate-50 p-2 rounded-lg font-black border-none text-[10px]" /></div>
-                  <div><label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.targetWeight}</label><input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-2 rounded-lg font-black text-sky-500 border-none text-[10px]" /></div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div><label className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.startWeight}</label><input type="number" value={state.profile.startWeight} onChange={e => setState({...state, profile: {...state.profile, startWeight: Number(e.target.value)}})} className="w-full bg-slate-50 p-1.5 rounded-lg font-black border-none text-[9px]" /></div>
+                  <div><label className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block">{t.targetWeight}</label><input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-1.5 rounded-lg font-black text-sky-500 border-none text-[9px]" /></div>
                 </div>
              </div>
              
              {/* Extended Data Management Section */}
-             <div className="bg-white rounded-[16px] p-4 border border-sky-50 shadow-sm space-y-3">
-               <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Database size={14} className="text-sky-400" /> Data & Opslag</h3>
+             <div className="bg-white rounded-[14px] p-3 border border-sky-50 shadow-sm space-y-2">
+               <h3 className="text-[8px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5"><Database size={12} className="text-sky-400" /> Data & Opslag</h3>
                
-               <div className="space-y-2">
-                 {/* Local Storage Info */}
-                 <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                       <CheckCircle2 size={12} className="text-emerald-500" />
-                       <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">Lokale Opslag Actief</span>
+               <div className="space-y-1.5">
+                 <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
+                    <div className="flex flex-col">
+                       <div className="flex items-center gap-1 mb-0.5">
+                          <CheckCircle2 size={10} className="text-emerald-500" />
+                          <span className="text-[7px] font-black uppercase tracking-wider text-slate-700">Lokaal Actief</span>
+                       </div>
+                       <p className="text-[6px] text-slate-400">Automatische opslag (IndexedDB)</p>
                     </div>
-                    <p className="text-[8px] text-slate-500 leading-tight">Gegevens worden automatisch bewaard in de database van uw browser (IndexedDB).</p>
                  </div>
 
-                 {/* Cloud / Backup Actions */}
-                 <div className="grid grid-cols-1 gap-1.5">
-                   <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-sky-600 border border-sky-100 rounded-xl hover:bg-sky-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Cloud size={14} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Exporteer naar Cloud/Backup</span>
+                 <div className="grid grid-cols-1 gap-1">
+                   <button onClick={exportData} className="w-full flex items-center justify-between px-3 py-2 bg-white text-sky-600 border border-sky-100 rounded-xl hover:bg-sky-50 transition-all shadow-sm">
+                     <div className="flex items-center gap-1.5">
+                       <Cloud size={12} />
+                       <span className="text-[7px] font-black uppercase tracking-widest">Exporteer (Backup)</span>
                      </div>
-                     <Download size={12} />
+                     <Download size={10} />
                    </button>
                    
-                   <label className="w-full flex items-center justify-between px-4 py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Upload size={14} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Herstel van bestand</span>
+                   <label className="w-full flex items-center justify-between px-3 py-2 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
+                     <div className="flex items-center gap-1.5">
+                       <Upload size={12} />
+                       <span className="text-[7px] font-black uppercase tracking-widest">Herstel bestand</span>
                      </div>
                      <input type="file" accept=".json" className="hidden" onChange={handleImport} />
                    </label>
+
+                   <button onClick={resetAllData} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-all shadow-sm">
+                     <Trash2 size={12} />
+                     <span className="text-[7px] font-black uppercase tracking-widest">Gegevens volledig wissen</span>
+                   </button>
                  </div>
-                 
-                 <p className="text-[7px] text-slate-400 text-center uppercase tracking-widest px-2 italic">
-                   Sla het backup-bestand op in Google Drive of Dropbox voor cloud-toegang op andere apparaten.
-                 </p>
                </div>
              </div>
 
-             <div className="space-y-1">
-               <button onClick={() => setShowLegal(true)} className="w-full flex items-center justify-center gap-1 bg-white text-slate-400 text-[8px] font-black uppercase py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all shadow-sm">
-                 <ShieldCheck size={12} /> {t.legal}
-               </button>
-             </div>
+             <button onClick={() => setShowLegal(true)} className="w-full flex items-center justify-center gap-1 bg-white text-slate-400 text-[7px] font-black uppercase py-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all shadow-sm">
+                 <ShieldCheck size={10} /> {t.legal}
+             </button>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-sky-100 px-6 py-3 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[24px] shadow-2xl">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-sky-100 px-6 py-2.5 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[20px] shadow-2xl">
         {[{ id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, { id: 'meals', icon: Utensils, label: t.tabs.meals }, { id: 'activity', icon: Activity, label: t.tabs.activity }, { id: 'profile', icon: UserIcon, label: t.tabs.profile }].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeTab === tab.id ? 'text-sky-500 scale-105' : 'text-slate-300'}`}>
-            <tab.icon size={18} strokeWidth={activeTab === tab.id ? 3 : 2} /><span className="text-[7px] font-black uppercase tracking-widest">{tab.label}</span>
+            <tab.icon size={16} strokeWidth={activeTab === tab.id ? 3 : 2} /><span className="text-[6px] font-black uppercase tracking-widest">{tab.label}</span>
           </button>
         ))}
       </nav>
 
-      {/* Product Library Modal */}
       {showMyList && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowMyList(false)}>
-           <div className="bg-white rounded-[24px] p-4 w-full max-w-xs shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-sm font-black text-slate-800 uppercase mb-2.5">{t.products}</h3>
-              <form onSubmit={addCustomOptionCentral} className="space-y-2 mb-5 bg-sky-50 p-3 rounded-xl">
-                  <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-bold" required />
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <input type="number" placeholder="Gram" value={newProductGram} onChange={e => setNewProductGram(e.target.value)} className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-bold" />
-                    <input type="number" placeholder={t.kcal} value={newProductKcal} onChange={e => setNewProductKcal(e.target.value)} className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-black" required />
+           <div className="bg-white rounded-[20px] p-4 w-full max-w-xs shadow-2xl overflow-y-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
+              <h3 className="text-xs font-black text-slate-800 uppercase mb-2">{t.products}</h3>
+              <form onSubmit={addCustomOptionCentral} className="space-y-1.5 mb-4 bg-sky-50 p-2.5 rounded-xl">
+                  <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border-none rounded-lg p-1.5 text-[8px] font-bold" required />
+                  <div className="grid grid-cols-2 gap-1">
+                    <input type="number" placeholder="Gram" value={newProductGram} onChange={e => setNewProductGram(e.target.value)} className="w-full bg-white border-none rounded-lg p-1.5 text-[8px] font-bold" />
+                    <input type="number" placeholder={t.kcal} value={newProductKcal} onChange={e => setNewProductKcal(e.target.value)} className="w-full bg-white border-none rounded-lg p-1.5 text-[8px] font-black" required />
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1">
                     {['Ontbijt','Lunch','Diner','Snacks'].map(cat => (
-                      <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-1 py-0.5 rounded-lg text-[6px] font-black uppercase ${newProductCats.includes(cat) ? 'bg-sky-400 text-white' : 'bg-white text-sky-300 border border-sky-100'}`}>{cat}</button>
+                      <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-1 py-0.5 rounded-md text-[6px] font-black uppercase ${newProductCats.includes(cat) ? 'bg-sky-400 text-white' : 'bg-white text-sky-300 border border-sky-100'}`}>{cat}</button>
                     ))}
                   </div>
                   <button type="submit" className="w-full bg-sky-400 text-white py-1.5 rounded-lg font-black uppercase text-[7px]">{t.saveInList}</button>
               </form>
               <div className="space-y-1">
                 {allUniqueProducts.map(opt => (
-                  <div key={opt.id} className="p-2 bg-slate-50 rounded-lg flex justify-between items-center text-[9px] font-bold border border-slate-100">
+                  <div key={opt.id} className="p-1.5 bg-slate-50 rounded-lg flex justify-between items-center text-[8px] font-bold border border-slate-100">
                     <div className="flex flex-col">
-                      <span className="text-slate-800">{opt.name}</span>
-                      <span className="text-[7px] text-slate-400 uppercase">{opt.kcal} kcal</span>
+                      <span className="text-slate-800">{getTranslatedName(opt.id, opt.name)}</span>
+                      <span className="text-[6px] text-slate-400 uppercase">{opt.kcal} kcal</span>
                     </div>
-                    {opt.isCustom && (
-                      <button onClick={() => removeProductFromLibrary(opt.name)} className="p-1 text-slate-300 hover:text-red-500"><Trash2 size={12} /></button>
-                    )}
+                    <button onClick={() => removeProductFromLibrary(opt.name)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setShowMyList(false)} className="w-full mt-2.5 py-2.5 bg-slate-900 text-white font-black rounded-lg uppercase text-[7px]">{t.close}</button>
+              <button onClick={() => setShowMyList(false)} className="w-full mt-2 py-2 bg-slate-900 text-white font-black rounded-lg uppercase text-[7px]">{t.close}</button>
            </div>
         </div>
       )}
 
-      {/* Activity Library Modal */}
       {showMyActivityList && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowMyActivityList(false)}>
-           <div className="bg-white rounded-[24px] p-4 w-full max-w-xs shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-sm font-black text-slate-800 uppercase mb-2.5">{t.myList} ({t.movement})</h3>
-              <form onSubmit={addCustomActivityCentral} className="space-y-2 mb-5 bg-sky-50 p-3 rounded-xl">
-                  <input type="text" placeholder={t.activityName} value={newActivityName} onChange={e => setNewActivityName(e.target.value)} className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-bold" required />
+           <div className="bg-white rounded-[20px] p-4 w-full max-w-xs shadow-2xl overflow-y-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
+              <h3 className="text-xs font-black text-slate-800 uppercase mb-2">{t.myList} ({t.movement})</h3>
+              <form onSubmit={addCustomActivityCentral} className="space-y-1.5 mb-4 bg-sky-50 p-2.5 rounded-xl">
+                  <input type="text" placeholder={t.activityName} value={newActivityName} onChange={e => setNewActivityName(e.target.value)} className="w-full bg-white border-none rounded-lg p-1.5 text-[8px] font-bold" required />
                   <div className="space-y-0.5">
                     <label className="text-[6px] font-black text-sky-400 uppercase tracking-widest ml-1">{t.kcalPerMin}</label>
-                    <input type="number" step="0.1" value={newActivityKcalMin} onChange={e => setNewActivityKcalMin(e.target.value)} placeholder="0" className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-black" required />
+                    <input type="number" step="0.1" value={newActivityKcalMin} onChange={e => setNewActivityKcalMin(e.target.value)} placeholder="0" className="w-full bg-white border-none rounded-lg p-1.5 text-[8px] font-black" required />
                   </div>
                   <button type="submit" className="w-full bg-sky-400 text-white py-1.5 rounded-lg font-black uppercase text-[7px]">{t.add}</button>
               </form>
               <div className="space-y-1">
                 {state.customActivities.map(act => (
-                  <div key={act.id} className="p-2 bg-slate-50 rounded-lg flex justify-between items-center text-[9px] font-bold border border-slate-100">
+                  <div key={act.id} className="p-1.5 bg-slate-50 rounded-lg flex justify-between items-center text-[8px] font-bold border border-slate-100">
                     <span className="text-slate-800">{getTranslatedName(act.id, act.name)}</span>
-                    {act.isCustom && (
-                      <button onClick={() => removeActivityFromLibrary(act.id)} className="p-1 text-slate-300 hover:text-red-500"><Trash2 size={12}/></button>
-                    )}
+                    <button onClick={() => removeActivityFromLibrary(act.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={12}/>
+                    </button>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setShowMyActivityList(false)} className="w-full mt-2.5 py-2.5 bg-slate-900 text-white font-black rounded-lg uppercase text-[7px]">{t.close}</button>
+              <button onClick={() => setShowMyActivityList(false)} className="w-full mt-2 py-2 bg-slate-900 text-white font-black rounded-lg uppercase text-[7px]">{t.close}</button>
            </div>
         </div>
       )}
 
       {showLegal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowLegal(false)}>
-          <div className="bg-white rounded-[24px] p-4 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-black text-slate-800 uppercase mb-2 flex items-center gap-1.5"><ShieldCheck size={16} className="text-sky-400" /> {t.legal}</h3>
-            <div className="space-y-2 text-[8px] text-slate-500 leading-relaxed mb-4">
+          <div className="bg-white rounded-[20px] p-4 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 uppercase mb-2 flex items-center gap-1"><ShieldCheck size={14} className="text-sky-400" /> {t.legal}</h3>
+            <div className="space-y-1.5 text-[7px] text-slate-500 SEleading-relaxed mb-4">
               <p className="font-bold text-slate-800">{t.legalText}</p>
               <div className="h-px bg-slate-100" />
               <p>Privacy & Data: Al uw gegevens worden lokaal op dit apparaat opgeslagen (IndexedDB). Wij hebben geen toegang tot uw gewicht of eetpatroon.</p>
               <p>Geen medisch advies: Deze app biedt enkel schattingen en vervangt geen diëtist of arts.</p>
             </div>
-            <button onClick={() => setShowLegal(false)} className="w-full py-2.5 bg-sky-400 text-white font-black rounded-lg uppercase text-[7px] tracking-widest">{t.close}</button>
+            <button onClick={() => setShowLegal(false)} className="w-full py-2 bg-sky-400 text-white font-black rounded-lg uppercase text-[7px] tracking-widest">{t.close}</button>
           </div>
         </div>
       )}
 
       {showInfo && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowInfo(false)}>
-          <div className="bg-white rounded-[24px] p-4 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-black text-slate-800 uppercase mb-2 flex items-center gap-1.5"><Info size={16} className="text-sky-400" /> {t.info}</h3>
-            <p className="text-[10px] text-slate-600 leading-relaxed mb-4">{t.infoText}</p>
-            <button onClick={() => setShowInfo(false)} className="w-full py-2.5 bg-sky-400 text-white font-black rounded-lg uppercase text-[7px] tracking-widest">{t.close}</button>
+          <div className="bg-white rounded-[20px] p-4 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 uppercase mb-2 flex items-center gap-1"><Info size={14} className="text-sky-400" /> {t.info}</h3>
+            <p className="text-[9px] text-slate-600 leading-relaxed mb-4">{t.infoText}</p>
+            <button onClick={() => setShowInfo(false)} className="w-full py-2 bg-sky-400 text-white font-black rounded-lg uppercase text-[7px] tracking-widest">{t.close}</button>
           </div>
         </div>
       )}
