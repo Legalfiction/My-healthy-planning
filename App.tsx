@@ -26,7 +26,8 @@ import {
   Download,
   Upload,
   Share2,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -106,17 +107,21 @@ const INITIAL_STATE: AppState = {
   language: 'nl'
 };
 
-const Toast = ({ message, onHide }: { message: string, onHide: () => void }) => {
+const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 'success' | 'error' | 'info', onHide: () => void }) => {
   useEffect(() => {
     const timer = setTimeout(onHide, 3000);
     return () => clearTimeout(timer);
   }, [onHide]);
 
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700/50 backdrop-blur-md bg-opacity-90">
-        <Check size={18} className="text-emerald-400" />
-        <span className="text-sm font-black uppercase tracking-widest">{message}</span>
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[90vw]">
+      <div className={`px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-md bg-opacity-95 ${
+        type === 'error' ? 'bg-red-900 border-red-700 text-white' : 
+        type === 'info' ? 'bg-sky-900 border-sky-700 text-white' :
+        'bg-slate-900 border-slate-700 text-white'
+      }`}>
+        {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
+        <span className="text-xs font-black uppercase tracking-widest">{message}</span>
       </div>
     </div>
   );
@@ -132,7 +137,7 @@ export default function App() {
   const [showMyList, setShowMyList] = useState(false);
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
 
   const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
 
@@ -219,38 +224,60 @@ export default function App() {
   ], [t]);
 
   const exportData = () => {
-    const dataStr = JSON.stringify(state, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = `doelgewicht_backup_${new Date().toISOString().split('T')[0]}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    setToast(t.dataManagement.export + " " + (state.language === 'nl' ? 'gestart' : 'started'));
+    try {
+      const dataStr = JSON.stringify(state, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportFileDefaultName = `doelgewicht_backup_${new Date().toISOString().split('T')[0]}.json`;
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      document.body.appendChild(linkElement);
+      linkElement.click();
+      document.body.removeChild(linkElement);
+      setToast({msg: state.language === 'nl' ? "Download gestart" : "Download started"});
+    } catch (e) {
+      setToast({msg: "Download mislukt", type: 'error'});
+    }
   };
 
   const handleCloudExport = async (provider: string) => {
     const dataStr = JSON.stringify(state, null, 2);
-    const fileName = `doelgewicht_${provider}_${new Date().toISOString().split('T')[0]}.json`;
+    const fileName = `doelgewicht_backup.json`;
     
-    // Web Share API is de modernste manier om met Cloud apps (Drive/Dropbox) op mobiel te integreren
-    if (navigator.share && navigator.canShare) {
+    setToast({msg: "Back-up menu laden...", type: 'info'});
+    
+    try {
       const file = new File([dataStr], fileName, { type: 'application/json' });
-      try {
-        await navigator.share({
-          files: [file],
-          title: 'Doelgewicht Back-up',
-          text: `Mijn back-up voor ${provider}`
-        });
-        setToast("Back-up gedeeld!");
-      } catch (err) {
-        // Gebruiker heeft mogelijk geannuleerd
-        console.log("Share cancelled or failed", err);
+      
+      // Controleer op deel-ondersteuning
+      if (navigator.share) {
+        // Sommige Android browsers blokkeren .json maar staan .txt of tekst toe
+        try {
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Doelgewicht Back-up',
+              text: `Back-up voor ${provider}`
+            });
+          } else {
+            // Als file share niet kan, deel de inhoud als tekst
+            await navigator.share({
+              title: 'Doelgewicht Back-up',
+              text: dataStr
+            });
+          }
+          setToast({msg: state.language === 'nl' ? "Deelmenu geopend" : "Share menu opened"});
+        } catch (shareErr) {
+          // Gebruiker heeft mogelijk geannuleerd of er was een UI issue
+          console.warn("Share API issue", shareErr);
+          exportData();
+        }
+      } else {
+        exportData();
       }
-    } else {
-      // Fallback voor desktop: gewoon downloaden maar met provider label
+    } catch (err) {
+      console.warn("Cloud share hard failure", err);
       exportData();
-      setToast(`${provider} export gedownload`);
     }
   };
 
@@ -263,14 +290,13 @@ export default function App() {
         const json = JSON.parse(e.target?.result as string);
         if (json.profile && json.dailyLogs) {
           setState(json);
-          setToast(state.language === 'nl' ? 'Gegevens hersteld!' : 'Data restored!');
+          setToast({msg: state.language === 'nl' ? 'Gegevens hersteld!' : 'Data restored!'});
         }
       } catch (err) {
-        alert('Ongeldig bestand.');
+        setToast({msg: "Herstel mislukt: ongeldig bestand", type: 'error'});
       }
     };
     reader.readAsText(file);
-    // Reset input zodat hetzelfde bestand opnieuw gekozen kan worden
     event.target.value = '';
   };
 
@@ -279,7 +305,7 @@ export default function App() {
       await idb.clear();
       setState(INITIAL_STATE);
       setActiveTab('dashboard');
-      setToast(state.language === 'nl' ? 'Alles gewist' : 'Cleared all');
+      setToast({msg: state.language === 'nl' ? 'Alles gewist' : 'Cleared all'});
     }
   };
 
@@ -326,7 +352,6 @@ export default function App() {
       logs[selectedDate] = { ...log, activities: [...log.activities, { id: Math.random().toString(36).substr(2, 9), typeId, value, burnedKcal: burn }] };
       return { ...prev, dailyLogs: logs };
     });
-    // Clear input
     const input = document.getElementById('act-val') as HTMLInputElement;
     if (input) input.value = '';
   };
@@ -355,7 +380,7 @@ export default function App() {
     };
     setState(prev => ({ ...prev, customActivities: [newItem, ...prev.customActivities] }));
     setNewActivityName(''); setNewActivityKcalMin('');
-    setToast("Activiteit toegevoegd");
+    setToast({msg: "Activiteit toegevoegd"});
   };
 
   const removeActivityFromLibrary = (id: string) => {
@@ -393,7 +418,7 @@ export default function App() {
       return { ...prev, customOptions };
     });
     setNewProductName(''); setNewProductGram(''); setNewProductKcal(''); setNewProductCats([]);
-    setToast("Product opgeslagen");
+    setToast({msg: "Product opgeslagen"});
   };
 
   const allUniqueProducts = useMemo(() => {
@@ -408,7 +433,7 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
-      {toast && <Toast message={toast} onHide={() => setToast(null)} />}
+      {toast && <Toast message={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
       
       <header className="bg-white border-b sticky top-0 z-30 p-3 shadow-sm">
         <div className="flex justify-between items-center mb-2 px-1">
@@ -456,47 +481,46 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-3">
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-2 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <Zap size={14} className="text-amber-400 fill-amber-400" />
-                    <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{t.dailyBudget}</h3>
+                    <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.dailyBudget}</h3>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-white shadow-xs border border-slate-100'}`}>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-white shadow-xs border border-slate-100'}`}>
                     {totals.actualIntake > totals.currentAdjustedGoal ? '!' : `${Math.round(totals.currentAdjustedGoal - totals.actualIntake)} kcal`}
                   </span>
                </div>
                
-               <div className="relative pt-2 pb-2">
-                 <div className="flex justify-between items-center mb-2 px-1">
+               <div className="relative pt-0.5 pb-0.5">
+                 <div className="flex justify-between items-center mb-1 px-1">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.dailyBudget}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.dailyBudget}</span>
                       <div className="flex items-center gap-1">
                         <span className="text-sm font-black text-slate-600">1800</span>
                         {totals.activityBurn > 0 && (
                           <span className="text-sm font-black text-emerald-500">+ {Math.round(totals.activityBurn)}</span>
                         )}
-                        <span className="text-xs font-normal text-slate-400">kcal</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.tabs.meals}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.tabs.meals}</span>
                       <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-slate-600'}`}>
-                        {Math.round(totals.actualIntake)} kcal
+                        {Math.round(totals.actualIntake)} <span className="text-[9px] font-normal opacity-50">kcal</span>
                       </span>
                     </div>
                  </div>
                  
-                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
+                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
                     <div 
                       className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} 
                       style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} 
                     />
                  </div>
 
-                 <div className="flex justify-center mt-1">
-                   <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
+                 <div className="flex justify-center mb-1">
+                   <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
+                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
                      <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-black'}`}>
                         {Math.round(totals.intakePercent)}%
                      </span>
@@ -505,40 +529,40 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
-               <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{t.myJourney}</h3>
-                  <span className="text-xs font-black text-green-600 bg-white px-2 py-1 rounded-lg border border-green-100">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
+            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-2 border border-slate-200 shadow-sm overflow-visible">
+               <div className="flex justify-between items-center mb-1.5">
+                  <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.myJourney}</h3>
+                  <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ (state.profile.startWeight - latestWeight).toFixed(1) } KG</span>
                </div>
                
-               <div className="relative pt-2 pb-2">
-                 <div className="flex justify-between items-center mb-2 px-1">
+               <div className="relative pt-0.5 pb-0.5">
+                 <div className="flex justify-between items-center mb-1 px-1">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.startWeight}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.startWeight}</span>
                       <span className="text-sm font-black text-slate-600">{state.profile.startWeight} KG</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{t.goalWeight}</span>
+                      <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest leading-none">{t.goalWeight}</span>
                       <span className="text-sm font-black text-sky-500">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
                  
-                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
+                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
 
-                 <div className="flex justify-center mt-1">
-                   <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.nowWeight}</span>
+                 <div className="flex justify-center mb-1">
+                   <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
+                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.nowWeight}</span>
                      <span className="text-sm font-black text-black">{latestWeight.toFixed(1)} KG</span>
                    </div>
                  </div>
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm">
-              <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest mb-3 flex items-center gap-1.5"><Scale size={16} className="text-sky-400" /> {t.weighMoment}</h3>
-              <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-inner">
+            <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm">
+              <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest mb-2.5 flex items-center gap-1.5"><Scale size={15} className="text-sky-400" /> {t.weighMoment}</h3>
+              <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-inner">
                 <input type="number" step="0.1" placeholder={t.placeholders.weight} value={currentLog.weight || ''} onChange={(e) => setDailyWeight(e.target.value ? Number(e.target.value) : undefined)} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
               </div>
