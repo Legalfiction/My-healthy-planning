@@ -156,7 +156,14 @@ export default function App() {
     const lang = state.language || 'nl';
     const base = translations['nl'];
     const selected = translations[lang] || {};
-    return { ...base, ...selected };
+    // Ensure all keys from 'nl' exist in 'selected'
+    const result = { ...base };
+    Object.keys(selected).forEach(key => {
+        if (selected[key] && (typeof selected[key] !== 'object' || Object.keys(selected[key]).length > 0)) {
+            result[key] = selected[key];
+        }
+    });
+    return result;
   }, [state.language]);
 
   useEffect(() => {
@@ -165,7 +172,8 @@ export default function App() {
         setState({
           ...saved,
           profile: { ...INITIAL_STATE.profile, ...saved.profile },
-          customActivities: (saved.customActivities && saved.customActivities.length > 0) ? saved.customActivities : ACTIVITY_TYPES
+          customActivities: (saved.customActivities && saved.customActivities.length > 0) ? saved.customActivities : ACTIVITY_TYPES,
+          language: saved.language || 'nl'
         });
       }
       setIsLoaded(true);
@@ -239,7 +247,7 @@ export default function App() {
 
   const dateParts = useMemo(() => {
     const dateObj = new Date(selectedDate);
-    const locale = state.language === 'en' ? 'en-US' : (state.language === 'es' ? 'es-ES' : (state.language === 'de' ? 'de-DE' : 'nl-NL'));
+    const locale = state.language === 'en' ? 'en-US' : (state.language === 'es' ? 'es-ES' : (state.language === 'de' ? 'de-DE' : (state.language === 'pt' ? 'pt-PT' : 'nl-NL')));
     const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(dateObj);
     return {
       day: parts.find(p => p.type === 'day')?.value || '',
@@ -258,25 +266,19 @@ export default function App() {
     return PRODUCT_TRANSLATIONS[state.language]?.[id] || PRODUCT_TRANSLATIONS['en']?.[id] || originalName;
   };
 
-  /**
-   * Refined splitting logic for 2nd line display.
-   * Splits (Description, Unit) into Line 1: Name (Description) and Line 2: Unit
-   */
   const splitProductName = (fullName: string) => {
     const match = fullName.match(/^(.*?)\s*\((.*)\)$/);
     if (match) {
       const namePart = match[1];
       const bracketContent = match[2];
       
-      // If bracket content has a comma, like "Regular, 250 ml"
       if (bracketContent.includes(',')) {
         const parts = bracketContent.split(',');
-        const unitPart = parts[parts.length - 1].trim(); // Take the last part as unit
-        const descPart = parts.slice(0, parts.length - 1).join(',').trim(); // Take everything else as desc
+        const unitPart = parts[parts.length - 1].trim();
+        const descPart = parts.slice(0, parts.length - 1).join(',').trim();
         return { info: `${namePart} (${descPart})`, unit: unitPart };
       }
       
-      // If it's just unit like "(250 ml)"
       const unitKeywords = ['ml', 'gr', 'g', 'st', 'pk', 'gram', 'mililiter'];
       const isLikelyUnit = unitKeywords.some(k => bracketContent.toLowerCase().includes(k));
       
@@ -334,7 +336,8 @@ export default function App() {
   const formatTargetDateDisplay = (isoDate: string) => {
     if (!isoDate) return "...";
     const date = new Date(isoDate);
-    return date.toLocaleDateString(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    const locale = state.language === 'en' ? 'en-US' : (state.language === 'es' ? 'es-ES' : (state.language === 'de' ? 'de-DE' : (state.language === 'pt' ? 'pt-PT' : 'nl-NL')));
+    return date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   const exportData = () => {
@@ -406,6 +409,19 @@ export default function App() {
     setNewActivity({ name: '', kcalPerHour: '' });
     setToast({ msg: 'Activiteit opgeslagen' });
   };
+
+  const languages: { code: Language, flag: string, name: string }[] = [
+    { code: 'nl', flag: '🇳🇱', name: 'NL' },
+    { code: 'en', flag: '🇺🇸', name: 'EN' },
+    { code: 'es', flag: '🇪🇸', name: 'ES' },
+    { code: 'de', flag: '🇩🇪', name: 'DE' },
+    { code: 'pt', flag: '🇵🇹', name: 'PT' },
+    { code: 'zh', flag: '🇨🇳', name: 'ZH' },
+    { code: 'ja', flag: '🇯🇵', name: 'JA' },
+    { code: 'ko', flag: '🇰🇷', name: 'KO' },
+    { code: 'hi', flag: '🇮🇳', name: 'HI' },
+    { code: 'ar', flag: '🇸🇦', name: 'AR' },
+  ];
 
   if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-sky-500 uppercase tracking-widest text-lg">...</div>;
 
@@ -708,10 +724,26 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="space-y-4 animate-in fade-in duration-300 pb-10">
              <h2 className="text-xl font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
              
              <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-6">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.language}</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {languages.map(lang => (
+                      <button 
+                        key={lang.code} 
+                        onClick={() => setState(prev => ({ ...prev, language: lang.code }))}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${state.language === lang.code ? 'bg-white border-sky-400 scale-105 shadow-sm' : 'bg-slate-100 border-transparent grayscale opacity-60'}`}
+                      >
+                        <span className="text-xl mb-1">{lang.flag}</span>
+                        <span className="text-[8px] font-black">{lang.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.age}</label>
