@@ -208,25 +208,38 @@ export default function App() {
     });
   }, []);
 
-  // AUTOMATIC RECALCULATION OF BUDGET
-  // This effect ensures that changing profile variables updates the budget for non-custom speeds.
+  /**
+   * REACTIVE BUDGET CONTROLLER
+   * Recalculates the budget whenever profile data changes, except in 'custom' mode.
+   * In 'custom' mode, changing weight/height will keep the date fixed but update the budget.
+   */
   useEffect(() => {
-    if (!isLoaded || state.profile.weightLossSpeed === 'custom') return;
+    if (!isLoaded) return;
 
-    // We calculate based on start weight for the initial plan budget
-    const baselineTdee = calculateTDEE({ ...state.profile, currentWeight: state.profile.startWeight }, 0);
-    
-    let deficit = 500;
-    if (state.profile.weightLossSpeed === 'slow') deficit = 250;
-    else if (state.profile.weightLossSpeed === 'fast') deficit = 750;
+    if (state.profile.weightLossSpeed === 'custom') {
+      if (state.profile.customTargetDate) {
+        const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, state.profile.customTargetDate);
+        if (newBudget !== state.profile.dailyBudget) {
+          setState(prev => ({
+            ...prev,
+            profile: { ...prev.profile, dailyBudget: newBudget }
+          }));
+        }
+      }
+    } else {
+      const baselineTdee = calculateTDEE({ ...state.profile, currentWeight: state.profile.startWeight }, 0);
+      let deficit = 500;
+      if (state.profile.weightLossSpeed === 'slow') deficit = 250;
+      else if (state.profile.weightLossSpeed === 'fast') deficit = 750;
 
-    const calculatedBudget = Math.round(baselineTdee - deficit);
-    
-    if (calculatedBudget !== state.profile.dailyBudget) {
-      setState(prev => ({
-        ...prev,
-        profile: { ...prev.profile, dailyBudget: calculatedBudget }
-      }));
+      const calculatedBudget = Math.round(baselineTdee - deficit);
+      
+      if (calculatedBudget !== state.profile.dailyBudget) {
+        setState(prev => ({
+          ...prev,
+          profile: { ...prev.profile, dailyBudget: calculatedBudget }
+        }));
+      }
     }
   }, [
     isLoaded, 
@@ -234,7 +247,8 @@ export default function App() {
     state.profile.birthYear, 
     state.profile.height, 
     state.profile.startWeight, 
-    state.profile.weightLossSpeed
+    state.profile.weightLossSpeed,
+    state.profile.targetWeight
   ]);
 
   useEffect(() => {
@@ -864,8 +878,8 @@ export default function App() {
 
                 <div className="pt-4 border-t border-slate-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5"><Calendar size={12} className="text-sky-400" /> {t.projectedDate}</label>
-                  <div className="relative group">
-                    <div className={`w-full p-4 pl-12 rounded-2xl font-black border text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-50 border-sky-400 shadow-lg shadow-sky-100/50' : 'bg-white border-slate-100'}`}>
+                  <div className="relative group overflow-hidden rounded-2xl border">
+                    <div className={`w-full p-4 pl-12 font-black text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-50 border-sky-400 shadow-lg shadow-sky-100/50' : 'bg-white border-slate-100'}`}>
                       <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
                       <div className="flex items-center gap-2">
                         <Calendar size={18} className={`${state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : 'text-slate-300'} mr-1`} />
@@ -878,8 +892,16 @@ export default function App() {
                       disabled={state.profile.weightLossSpeed !== 'custom'}
                       onChange={e => {
                         const newDate = e.target.value;
+                        if (!newDate) return;
                         const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
-                        setState({...state, profile: {...state.profile, customTargetDate: newDate, dailyBudget: newBudget}});
+                        setState(prev => ({
+                          ...prev,
+                          profile: {
+                            ...prev.profile,
+                            customTargetDate: newDate,
+                            dailyBudget: newBudget
+                          }
+                        }));
                       }}
                       className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full disabled:cursor-default"
                     />

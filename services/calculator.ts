@@ -78,9 +78,12 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   
   if (currentW <= targetW) return 1800;
 
-  const targetDate = new Date(targetDateStr);
+  // Use local midnight for both dates to calculate true day difference
+  const [year, month, day] = targetDateStr.split('-').map(Number);
+  const targetDate = new Date(year, month - 1, day);
+  
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
   
   const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -94,6 +97,6 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   const maintenance = calculateTDEE(profile, 0);
   const budget = Math.round(maintenance - dailyDeficitNeeded);
 
-  // Safety caps
+  // Safety caps: 1200 kcal is the common minimum for safe dieting
   return Math.min(Math.max(budget, 1200), 4000);
 };
