@@ -33,7 +33,10 @@ import {
   Baby,
   Turtle,
   Flame,
-  Settings2
+  Settings2,
+  Laptop,
+  Hammer,
+  Briefcase
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -43,7 +46,8 @@ import {
   MealOption,
   ActivityType,
   Language,
-  WeightLossSpeed
+  WeightLossSpeed,
+  ActivityLevel
 } from './types';
 import { 
   MEAL_OPTIONS, 
@@ -116,7 +120,8 @@ const INITIAL_STATE: AppState = {
     currentWeight: 86, 
     targetWeight: 78, 
     dailyBudget: 1800, 
-    weightLossSpeed: 'average' 
+    weightLossSpeed: 'average',
+    activityLevel: 'light'
   },
   dailyLogs: {},
   customOptions: MEAL_OPTIONS,
@@ -147,7 +152,7 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
     <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[90vw]">
       <div className={`px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-md bg-opacity-95 ${
         type === 'error' ? 'bg-red-900 border-red-700 text-white' : 
-        type === 'info' ? 'bg-sky-900 border-sky-700 text-white' :
+        type === 'info' ? 'bg-orange-900 border-orange-700 text-white' :
         'bg-slate-900 border-slate-700 text-white'
       }`}>
         {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
@@ -195,7 +200,8 @@ export default function App() {
           ...INITIAL_STATE.profile, 
           ...saved.profile,
           gender: saved.profile.gender || 'man',
-          birthYear: saved.profile.birthYear || (saved.profile.age ? (new Date().getFullYear() - saved.profile.age) : 1980)
+          birthYear: saved.profile.birthYear || (saved.profile.age ? (new Date().getFullYear() - saved.profile.age) : 1980),
+          activityLevel: saved.profile.activityLevel || 'light'
         };
         setState({
           ...saved,
@@ -208,11 +214,6 @@ export default function App() {
     });
   }, []);
 
-  /**
-   * REACTIVE BUDGET CONTROLLER
-   * Recalculates the budget whenever profile data changes, except in 'custom' mode.
-   * In 'custom' mode, changing weight/height will keep the date fixed but update the budget.
-   */
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -227,17 +228,19 @@ export default function App() {
         }
       }
     } else {
-      const baselineTdee = calculateTDEE({ ...state.profile, currentWeight: state.profile.startWeight }, 0);
-      let deficit = 500;
-      if (state.profile.weightLossSpeed === 'slow') deficit = 250;
-      else if (state.profile.weightLossSpeed === 'fast') deficit = 750;
+      // Calculate budget based on maintenance calories at target weight, 
+      // adjusted by the chosen speed to provide a more intuitive 'goal-oriented' budget.
+      const targetMaintenance = calculateTDEE(state.profile, 0, Number(state.profile.targetWeight));
+      let adjustment = 0;
+      if (state.profile.weightLossSpeed === 'slow') adjustment = 200;
+      else if (state.profile.weightLossSpeed === 'fast') adjustment = -250;
 
-      const calculatedBudget = Math.round(baselineTdee - deficit);
+      const calculatedBudget = Math.round(targetMaintenance + adjustment);
       
       if (calculatedBudget !== state.profile.dailyBudget) {
         setState(prev => ({
           ...prev,
-          profile: { ...prev.profile, dailyBudget: calculatedBudget }
+          profile: { ...prev.profile, dailyBudget: Math.max(calculatedBudget, 1200) }
         }));
       }
     }
@@ -248,7 +251,8 @@ export default function App() {
     state.profile.height, 
     state.profile.startWeight, 
     state.profile.weightLossSpeed,
-    state.profile.targetWeight
+    state.profile.targetWeight,
+    state.profile.activityLevel
   ]);
 
   useEffect(() => {
@@ -272,7 +276,7 @@ export default function App() {
   const bmi = useMemo(() => calculateBMI(latestWeight, state.profile.height), [latestWeight, state.profile.height]);
 
   const bmiColor = useMemo(() => {
-    if (bmi < 18.5) return 'text-sky-400';
+    if (bmi < 18.5) return 'text-orange-400';
     if (bmi < 25) return 'text-green-500';
     if (bmi < 30) return 'text-amber-500';
     return 'text-red-500';
@@ -377,6 +381,15 @@ export default function App() {
     setToast({ msg: `Planning: ${label}`, type: 'info' });
   };
 
+  const setActivityLevel = (level: ActivityLevel) => {
+    setState(prev => ({
+      ...prev,
+      profile: { ...prev.profile, activityLevel: level }
+    }));
+    const label = level === 'light' ? t.levelLight : level === 'moderate' ? t.levelModerate : level === 'heavy';
+    setToast({ msg: `Daginvulling: ${label}`, type: 'info' });
+  };
+
   const addMealItem = (moment: MealMoment, item: Omit<LoggedMealItem, 'id'>) => {
     setState(prev => {
       const logs = { ...prev.dailyLogs };
@@ -453,7 +466,7 @@ export default function App() {
     return years;
   }, []);
 
-  if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-sky-500 uppercase tracking-widest text-lg">...</div>;
+  if (!isLoaded) return <div className="max-w-md mx-auto min-h-screen bg-white flex items-center justify-center font-black text-orange-500 uppercase tracking-widest text-lg">...</div>;
 
   return (
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
@@ -462,16 +475,16 @@ export default function App() {
       <header className="bg-white border-b sticky top-0 z-30 p-3 shadow-sm">
         <div className="flex justify-between items-center mb-2 px-1">
           <div className="flex flex-col">
-             <h1 className="text-xl font-black text-sky-500 leading-none tracking-tight">{t.title}</h1>
-             <h2 className="text-[10px] font-black text-slate-400 tracking-[0.2em]">{t.subtitle}</h2>
+             <h1 className="text-xl font-black text-orange-500 leading-none tracking-tight">{t.title}</h1>
+             <h2 className="text-[12px] font-black text-slate-400 tracking-[0.2em] uppercase">{t.subtitle}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowInfo(true)} className="p-1.5 text-sky-400 hover:bg-sky-50 rounded-xl transition-all"><Info size={20} /></button>
+            <button onClick={() => setShowInfo(true)} className="p-1.5 text-orange-400 hover:bg-orange-50 rounded-xl transition-all"><Info size={20} /></button>
             <div className="bg-slate-50 border border-slate-200 px-3 py-1 rounded-2xl flex items-center gap-1.5 shadow-sm">
-              <TrendingDown size={14} className="text-sky-400" />
+              <TrendingDown size={14} className="text-orange-400" />
               <div className="flex flex-col">
-                <span className="text-sm font-black text-sky-600 leading-tight">{latestWeight.toFixed(1)} <span className="text-[10px] opacity-60 font-bold">KG</span></span>
-                <span className={`text-[9px] font-black uppercase ${bmiColor} leading-none tracking-tighter`}>BMI: {bmi}</span>
+                <span className="text-sm font-black text-black leading-tight">{latestWeight.toFixed(1)} <span className="text-[10px] opacity-60 font-bold">KG</span></span>
+                <span className={`text-[10px] font-black uppercase ${bmiColor} leading-none tracking-tighter`}>BMI: {bmi}</span>
               </div>
             </div>
           </div>
@@ -479,10 +492,10 @@ export default function App() {
         <div className="flex items-center justify-between bg-slate-50 rounded-[18px] p-1.5 border border-slate-200 shadow-sm mx-1">
           <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm"><ChevronLeft size={20} className="text-slate-400"/></button>
           <div className="flex items-center gap-3">
-             <span className="text-3xl font-black text-sky-500 tabular-nums leading-none tracking-tighter">{dateParts.day}</span>
+             <span className="text-3xl font-black text-orange-500 tabular-nums leading-none tracking-tighter">{dateParts.day}</span>
              <div className="flex flex-col">
-               <span className="text-[10px] font-black text-sky-300 uppercase tracking-widest leading-none">{dateParts.weekday}</span>
-               <span className="text-xs font-black text-slate-600 uppercase tracking-widest leading-none mt-1">{dateParts.month}</span>
+               <span className="text-[11px] font-black text-orange-300 uppercase tracking-widest leading-none">{dateParts.weekday}</span>
+               <span className="text-[12px] font-black text-slate-600 uppercase tracking-widest leading-none mt-1">{dateParts.month}</span>
              </div>
           </div>
           <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm"><ChevronRight size={20} className="text-slate-400"/></button>
@@ -492,17 +505,17 @@ export default function App() {
       <main className="p-3 flex-grow space-y-3">
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="bg-[#e0f2fe] rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-sky-100 shadow-sm">
-               <Target size={60} className="absolute -right-2 -top-2 text-sky-200/30" />
-               <p className="text-sky-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.targetReached}</p>
+            <div className="bg-orange-50 rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-orange-100 shadow-sm">
+               <Target size={60} className="absolute -right-2 -top-2 text-orange-200/30" />
+               <p className="text-orange-500 text-[11px] font-black uppercase tracking-widest mb-1">{t.targetReached}</p>
                <h2 className="text-xl font-black mb-4 text-slate-800">{formatTargetDateDisplay(totals.targetDate)}</h2>
                <div className="grid grid-cols-2 gap-3">
                  <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
+                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
                    <p className="text-sm font-black text-slate-700">{Math.round(totals.baselineTdee)} <span className="text-xs font-normal">kcal</span></p>
                  </div>
                  <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
+                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
                    <p className="text-sm font-black text-slate-700">{state.profile.dailyBudget} <span className="text-xs font-normal">kcal</span></p>
                  </div>
                </div>
@@ -513,7 +526,7 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <Zap size={14} className="text-amber-400 fill-amber-400" />
-                      <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.dailyBudget}</h3>
+                      <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.dailyBudget}</h3>
                     </div>
                     <div className="flex items-baseline gap-2">
                        <span className="text-2xl font-black text-slate-400">{totals.intakeGoal}</span>
@@ -523,26 +536,26 @@ export default function App() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Verbruikt</span>
-                    <span className={`text-2xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-sky-500'}`}>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Verbruikt</span>
+                    <span className={`text-2xl font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-orange-500'}`}>
                       {totals.actualIntake} <span className="text-[10px] opacity-40 uppercase">Kcal</span>
                     </span>
                   </div>
                </div>
                
                <div className="relative pt-0.5 pb-0.5">
-                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-3">
+                 <div className="h-5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-3">
                     <div className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                  </div>
                  <div className="flex justify-between items-center px-1">
                     <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Budget Over</span>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Aantal calorieën over vandaag</span>
                       <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-slate-800'}`}>
                         {Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                       <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${totals.intakePercent > 100 ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-500'}`}>
+                       <span className={`text-[16px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${totals.intakePercent > 100 ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'}`}>
                          {Math.round(totals.intakePercent)}%
                        </span>
                     </div>
@@ -552,32 +565,32 @@ export default function App() {
 
             <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
                <div className="flex justify-between items-center mb-4 px-1">
-                  <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.myJourney}</h3>
-                  <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ Math.max(0, (Number(state.profile.startWeight) - latestWeight)).toFixed(1) } KG</span>
+                  <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.myJourney}</h3>
+                  <span className="text-[11px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ Math.max(0, (Number(state.profile.startWeight) - latestWeight)).toFixed(1) } KG</span>
                </div>
                <div className="relative pt-0.5 pb-0.5 px-1">
                  <div className="flex justify-between items-center mb-2">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.startWeight}</span>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.startWeight}</span>
                       <span className="text-sm font-black text-slate-600">{state.profile.startWeight} KG</span>
                     </div>
                     <div className="flex flex-col items-center">
-                       <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest leading-none">{t.nowWeight}</span>
+                       <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none">{t.nowWeight}</span>
                        <span className="text-sm font-black text-black">{latestWeight.toFixed(1)} KG</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest leading-none">{t.goalWeight}</span>
-                      <span className="text-sm font-black text-sky-500">{state.profile.targetWeight} KG</span>
+                      <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none">{t.goalWeight}</span>
+                      <span className="text-sm font-black text-orange-500">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
-                 <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
+                 <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
                </div>
             </div>
 
             <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm">
-              <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest mb-4 flex items-center gap-1.5"><Scale size={15} className="text-sky-400" /> {t.weighMoment}</h3>
+              <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest mb-4 flex items-center gap-1.5"><Scale size={15} className="text-orange-400" /> {t.weighMoment}</h3>
               <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-inner">
                 <input type="number" step="0.1" placeholder={t.placeholders.weight} value={state.dailyLogs[selectedDate]?.weight || ''} onChange={(e) => {
                   const val = e.target.value ? Number(e.target.value) : undefined;
@@ -586,22 +599,22 @@ export default function App() {
                     logs[selectedDate] = { ...(logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }), weight: val };
                     return { ...prev, dailyLogs: logs };
                   });
-                }} className="w-full bg-transparent border-none p-0 text-2xl font-black text-sky-500 focus:ring-0" />
+                }} className="w-full bg-transparent border-none p-0 text-2xl font-black text-orange-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
               </div>
               
               <div className="mt-3 pt-3 border-t border-slate-200/50 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-500">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t.estimatedEndDate}</span>
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t.estimatedEndDate}</span>
                   <div className="flex items-center gap-1.5">
-                    <Calendar size={12} className="text-sky-300" />
-                    <span className="text-[12px] font-black text-sky-600 tabular-nums">
+                    <Calendar size={12} className="text-orange-300" />
+                    <span className="text-[13px] font-black text-orange-600 tabular-nums">
                       {formatTargetDateDisplay(calculateTargetDate({ ...state.profile, currentWeight: latestWeight }, state.profile.dailyBudget))}
                     </span>
                   </div>
                 </div>
-                <div className="bg-sky-50 p-1.5 rounded-lg border border-sky-100">
-                  <TrendingDown size={14} className="text-sky-500" />
+                <div className="bg-orange-50 p-1.5 rounded-lg border border-orange-100">
+                  <TrendingDown size={14} className="text-orange-500" />
                 </div>
               </div>
             </div>
@@ -611,14 +624,14 @@ export default function App() {
         {activeTab === 'meals' && (
           <div className="space-y-4 pb-12 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
-              <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
-              <button onClick={() => setShowMyList(true)} className="flex items-center gap-1.5 bg-slate-50 text-sky-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
+              <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
+              <button onClick={() => setShowMyList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
             </div>
             {mealGroups.map((group) => (
               <div key={group.label} className="bg-slate-100/40 rounded-[24px] p-4 border border-slate-200/50 space-y-3">
                 <div className="flex items-center gap-2 px-1">
-                  <div className="p-1 bg-white rounded-lg shadow-sm border border-slate-100"><group.icon size={12} className="text-sky-400" /></div>
-                  <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-widest">{group.label}</h3>
+                  <div className="p-1 bg-white rounded-lg shadow-sm border border-slate-100"><group.icon size={12} className="text-orange-400" /></div>
+                  <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{group.label}</h3>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   {group.moments.map(moment => {
@@ -629,32 +642,32 @@ export default function App() {
                     const title = selectedOption ? selectedOption.name : t.placeholders.select;
 
                     return (
-                      <div key={moment} className="bg-sky-50 rounded-[20px] p-3 shadow-sm border border-sky-100">
-                        <h4 className="font-black text-[9px] text-sky-400 uppercase mb-2.5 tracking-widest">{t.moments[moment]}</h4>
+                      <div key={moment} className="bg-orange-50 rounded-[20px] p-3 shadow-sm border border-orange-100">
+                        <h4 className="font-black text-[11px] text-orange-400 uppercase mb-2.5 tracking-widest">{t.moments[moment]}</h4>
                         <div className="flex gap-1.5 mb-2.5 items-center flex-nowrap relative">
                           <div className="flex-grow min-w-0 relative">
-                            <button onClick={() => { setOpenPickerMoment(openPickerMoment === moment ? null : moment); setSearchTerm(''); }} className="w-full bg-white border border-sky-100 rounded-xl p-2 text-[13px] font-bold shadow-sm flex items-center justify-between min-w-0">
+                            <button onClick={() => { setOpenPickerMoment(openPickerMoment === moment ? null : moment); setSearchTerm(''); }} className="w-full bg-white border border-orange-100 rounded-xl p-2 text-[14px] font-bold shadow-sm flex items-center justify-between min-w-0">
                               <span className="truncate">{title}</span>
-                              <ChevronDown size={14} className={`text-sky-300 transition-transform ${openPickerMoment === moment ? 'rotate-180' : ''}`} />
+                              <ChevronDown size={14} className={`text-orange-300 transition-transform ${openPickerMoment === moment ? 'rotate-180' : ''}`} />
                             </button>
                             {openPickerMoment === moment && (
                               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[320px] animate-in fade-in duration-200">
                                 <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
                                   <Search size={14} className="text-slate-400" />
-                                  <input autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-bold" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                  <input autoFocus className="bg-transparent border-none text-[14px] w-full focus:ring-0 font-bold" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 </div>
                                 <div className="overflow-y-auto py-2">
                                   {availableOptions.filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())).map(opt => {
                                     const { info, unit } = splitProductName(getTranslatedName(opt.id, opt.name));
                                     return (
-                                      <button key={opt.id} onClick={() => { setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } }); setOpenPickerMoment(null); }} className="w-full text-left px-4 py-3 hover:bg-sky-50 transition-colors flex items-start gap-3 border-b border-slate-50">
-                                        <div className="pt-1">{opt.isDrink ? <GlassWater size={14} className="text-sky-400" /> : <Utensils size={14} className="text-slate-400" />}</div>
+                                      <button key={opt.id} onClick={() => { setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } }); setOpenPickerMoment(null); }} className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors flex items-start gap-3 border-b border-slate-50">
+                                        <div className="pt-1">{opt.isDrink ? <GlassWater size={14} className="text-orange-400" /> : <Utensils size={14} className="text-slate-400" />}</div>
                                         <div className="flex flex-col min-w-0">
-                                          <span className="text-[13px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
-                                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 leading-none uppercase tracking-widest">
+                                          <span className="text-[14px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
+                                          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 leading-none uppercase tracking-widest">
                                             {unit && <span>{unit}</span>}
                                             {unit && <span className="opacity-30">•</span>}
-                                            <span className="text-sky-500">{opt.kcal} kcal</span>
+                                            <span className="text-orange-500">{opt.kcal} kcal</span>
                                           </div>
                                         </div>
                                       </button>
@@ -664,8 +677,8 @@ export default function App() {
                               </div>
                             )}
                           </div>
-                          <input type="number" min="0" step="0.1" className="w-12 flex-shrink-0 bg-white border border-sky-100 rounded-xl p-2 text-[13px] font-black text-center shadow-sm" value={currentInput.qty} onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })} />
-                          <button className="flex-shrink-0 bg-sky-400 text-white p-2 rounded-xl shadow-md" disabled={!currentInput.mealId} onClick={() => {
+                          <input type="number" min="0" step="0.1" className="w-12 flex-shrink-0 bg-white border border-orange-100 rounded-xl p-2 text-[14px] font-black text-center shadow-sm" value={currentInput.qty} onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })} />
+                          <button className="flex-shrink-0 bg-orange-400 text-white p-2 rounded-xl shadow-md" disabled={!currentInput.mealId} onClick={() => {
                               const opt = availableOptions.find(o => o.id === currentInput.mealId);
                               if (opt) addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id, isDrink: opt.isDrink });
                               setMealInputs({ ...mealInputs, [moment]: { mealId: '', qty: 1 } });
@@ -675,14 +688,14 @@ export default function App() {
                           {items.map(item => {
                             const { info, unit } = splitProductName(getTranslatedName(item.mealId || '', item.name));
                             return (
-                              <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-sky-100 shadow-sm animate-in fade-in duration-300">
+                              <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-orange-100 shadow-sm animate-in fade-in duration-300">
                                 <div className="flex flex-col flex-grow min-w-0 pr-2">
-                                  <span className="text-[13px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
-                                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 leading-none">
+                                  <span className="text-[14px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
+                                  <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 leading-none">
                                     {<span>{item.quantity}x </span>}
                                     {unit && <span>{unit}</span>}
                                     {<span> • </span>}
-                                    <span className="text-sky-500 font-black">{item.kcal} KCAL</span>
+                                    <span className="text-orange-500 font-black">{item.kcal} KCAL</span>
                                   </div>
                                 </div>
                                 <button onClick={() => setState(prev => {
@@ -708,14 +721,14 @@ export default function App() {
         {activeTab === 'activity' && (
           <div className="space-y-4 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
-              <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
-              <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1.5 bg-slate-50 text-sky-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
+              <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
+              <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
             </div>
             
             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.activity}</label>
-                <select value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none appearance-none">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.activity}</label>
+                <select value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none appearance-none">
                   {state.customActivities.map(act => (
                     <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>
                   ))}
@@ -723,20 +736,20 @@ export default function App() {
               </div>
               <div className="flex gap-3">
                 <div className="flex-grow space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.amount}</label>
-                  <input id="act-val" type="number" placeholder="0" className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.amount}</label>
+                  <input id="act-val" type="number" placeholder="0" className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none" />
                 </div>
                 <div className="flex items-end">
                   <button onClick={() => {
                     const val = (document.getElementById('act-val') as HTMLInputElement).value;
                     if (val) addActivity(selectedActivityId, Number(val));
-                  }} className="bg-sky-500 text-white p-4 rounded-2xl shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all"><Plus size={24} strokeWidth={3} /></button>
+                  }} className="bg-orange-500 text-white p-4 rounded-2xl shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all"><Plus size={24} strokeWidth={3} /></button>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3 px-1 pt-2">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</h3>
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</h3>
               {currentLog.activities.length === 0 ? (
                 <div className="bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-3xl py-10 flex flex-col items-center justify-center text-slate-400 gap-2">
                   <Activity size={32} strokeWidth={1.5} className="opacity-30" />
@@ -749,8 +762,8 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500"><Zap size={18} fill="currentColor" /></div>
                         <div className="flex flex-col">
-                          <span className="text-[13px] font-black text-slate-800">{getTranslatedName(act.typeId, state.customActivities.find(t => t.id === act.typeId)?.name || '')}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">{act.value} {state.customActivities.find(t => t.id === act.typeId)?.unit}</span>
+                          <span className="text-[14px] font-black text-slate-800">{getTranslatedName(act.typeId, state.customActivities.find(t => t.id === act.typeId)?.name || '')}</span>
+                          <span className="text-[11px] font-bold text-slate-400 uppercase">{act.value} {state.customActivities.find(t => t.id === act.typeId)?.unit}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -771,31 +784,33 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="space-y-4 animate-in fade-in duration-300 pb-10">
-             <h2 className="text-xl font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
+             <h2 className="text-xl font-black text-orange-500 px-1 tracking-tight">{t.settings}</h2>
              
-             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-6">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.language}</label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {languages.map(lang => (
-                      <button 
-                        key={lang.code} 
-                        onClick={() => setState(prev => ({ ...prev, language: lang.code }))}
-                        className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${state.language === lang.code ? 'bg-white border-sky-400 scale-105 shadow-sm' : 'bg-slate-100 border-transparent grayscale opacity-60'}`}
-                      >
-                        <span className="text-xl mb-1">{lang.flag}</span>
-                        <span className="text-[8px] font-black">{lang.name}</span>
-                      </button>
-                    ))}
-                  </div>
+             {/* Cadre 1: Taal Selectie */}
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm">
+                <label className="text-[11px] font-black text-black uppercase tracking-widest mb-3 block leading-none">{t.language}</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {languages.map(lang => (
+                    <button 
+                      key={lang.code} 
+                      onClick={() => setState(prev => ({ ...prev, language: lang.code }))}
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${state.language === lang.code ? 'bg-white border-orange-400 scale-105 shadow-sm' : 'bg-slate-100 border-transparent grayscale opacity-60'}`}
+                    >
+                      <span className="text-xl mb-1">{lang.flag}</span>
+                      <span className="text-[9px] font-black">{lang.name}</span>
+                    </button>
+                  ))}
                 </div>
+             </div>
 
+             {/* Cadre 2: Gebruiker Instellingen */}
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-5">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{t.gender}</label>
+                  <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.gender}</label>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
                     <button 
                       onClick={() => setState({ ...state, profile: { ...state.profile, gender: 'man' } })}
-                      className={`py-2.5 rounded-xl font-black uppercase text-xs transition-all ${state.profile.gender === 'man' ? 'bg-white text-sky-500 shadow-sm' : 'text-slate-400'}`}
+                      className={`py-2.5 rounded-xl font-black uppercase text-xs transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`}
                     >
                       {t.man}
                     </button>
@@ -810,11 +825,11 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.age}</label>
+                    <label className="text-[11px] font-black text-black uppercase tracking-widest mb-1.5 block leading-none">{t.age}</label>
                     <select 
                       value={state.profile.birthYear} 
                       onChange={e => setState({...state, profile: {...state.profile, birthYear: Number(e.target.value)}})} 
-                      className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none"
+                      className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none"
                     >
                       {birthYears.map(year => (
                         <option key={year} value={year}>{year}</option>
@@ -822,114 +837,137 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none">{t.height}</label>
-                    <input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    <label className="text-[11px] font-black text-black uppercase tracking-widest mb-1.5 block leading-none">{t.height}</label>
+                    <input type="number" value={state.profile.height} onChange={e => setState({...state, profile: {...state.profile, height: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block leading-none truncate">{t.startWeight}</label>
+                    <label className="text-[11px] font-black text-black uppercase tracking-widest mb-1.5 block leading-none truncate">{t.startWeight}</label>
                     <input type="number" value={state.profile.startWeight} onChange={e => {
                         const val = Number(e.target.value);
                         setState({...state, profile: {...state.profile, startWeight: val, currentWeight: val}});
-                    }} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    }} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label>
-                    <input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-2xl font-black text-sky-500 border border-sky-100 text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none" />
+                    <label className="text-[11px] font-black text-black uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label>
+                    <input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-orange-50 p-3 rounded-2xl font-black text-orange-500 border border-orange-100 text-base shadow-sm focus:ring-2 focus:ring-orange-100 outline-none" />
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1.5 block">{t.dailyBudgetLabel}</label>
-                  <input 
-                    type="number" 
-                    value={state.profile.dailyBudget} 
-                    readOnly={state.profile.weightLossSpeed !== 'custom'}
-                    onChange={e => setState({...state, profile: {...state.profile, dailyBudget: Number(e.target.value)}})} 
-                    className={`w-full p-3 rounded-2xl font-black border text-base shadow-sm focus:ring-2 focus:ring-sky-100 outline-none ${state.profile.weightLossSpeed !== 'custom' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-sky-50 text-sky-500 border-sky-100'}`} 
-                  />
-                  {state.profile.weightLossSpeed !== 'custom' && (
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight text-center">Budget is automatisch gekoppeld aan je tempo</p>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <div className="grid grid-cols-4 gap-2">
-                    <button onClick={() => setLossSpeed('slow')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'slow' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Turtle size={20} className={state.profile.weightLossSpeed === 'slow' ? 'text-sky-500' : ''} />
-                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedSlow}</span>
-                    </button>
-                    <button onClick={() => setLossSpeed('average')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'average' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Footprints size={20} className={state.profile.weightLossSpeed === 'average' ? 'text-sky-500' : ''} />
-                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedAverage}</span>
-                    </button>
-                    <button onClick={() => setLossSpeed('fast')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'fast' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Zap size={20} className={state.profile.weightLossSpeed === 'fast' ? 'text-amber-400 fill-amber-400' : ''} />
-                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedFast}</span>
-                    </button>
-                    <button onClick={() => setLossSpeed('custom')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-sky-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
-                      <Settings2 size={20} className={state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : ''} />
-                      <span className="text-[8px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedCustom}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-1.5"><Calendar size={12} className="text-sky-400" /> {t.projectedDate}</label>
-                  <div className="relative group overflow-hidden rounded-2xl border">
-                    <div className={`w-full p-4 pl-12 font-black text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-50 border-sky-400 shadow-lg shadow-sky-100/50' : 'bg-white border-slate-100'}`}>
-                      <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={18} className={`${state.profile.weightLossSpeed === 'custom' ? 'text-sky-500' : 'text-slate-300'} mr-1`} />
-                      </div>
-                    </div>
-                    {/* The date input should overlay everything inside the relative container to capture clicks */}
-                    <input 
-                      type="date" 
-                      value={state.profile.customTargetDate || totals.targetDate} 
-                      disabled={state.profile.weightLossSpeed !== 'custom'}
-                      onChange={e => {
-                        const newDate = e.target.value;
-                        if (!newDate) return;
-                        const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
-                        setState(prev => ({
-                          ...prev,
-                          profile: {
-                            ...prev.profile,
-                            customTargetDate: newDate,
-                            dailyBudget: newBudget
-                          }
-                        }));
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full disabled:cursor-default"
-                    />
-                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 transition-colors pointer-events-none z-10 ${state.profile.weightLossSpeed === 'custom' ? 'bg-sky-500 text-white' : 'bg-sky-100 text-sky-500'}`}>
-                      {state.profile.weightLossSpeed === 'custom' ? <Settings2 size={14} /> : <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />}
-                    </div>
-                  </div>
-                  <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">
-                    {state.profile.weightLossSpeed === 'custom' 
-                      ? "Pas de datum aan om je dagbudget te bepalen" 
-                      : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tempo")}
-                  </p>
                 </div>
              </div>
 
+             {/* Cadre 2.5: Dagelijkse Activiteit (basis) */}
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.activityLevelLabel}</label>
+                  <p className="text-[10px] font-bold text-orange-500 leading-tight uppercase tracking-tight">{t.activityLevelDesc}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => setActivityLevel('light')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.activityLevel === 'light' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                    <Laptop size={20} className={state.profile.activityLevel === 'light' ? 'text-orange-500' : ''} />
+                    <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.levelLight}</span>
+                  </button>
+                  <button onClick={() => setActivityLevel('moderate')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.activityLevel === 'moderate' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                    <Briefcase size={20} className={state.profile.activityLevel === 'moderate' ? 'text-orange-500' : ''} />
+                    <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.levelModerate}</span>
+                  </button>
+                  <button onClick={() => setActivityLevel('heavy')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.activityLevel === 'heavy' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                    <Hammer size={20} className={state.profile.activityLevel === 'heavy' ? 'text-orange-500' : ''} />
+                    <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.levelHeavy}</span>
+                  </button>
+                </div>
+             </div>
+
+             {/* Cadre 3: Calorie Budget & Tempo */}
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.dailyBudgetLabel}</label>
+                  <input 
+                    type="number" 
+                    value={state.profile.dailyBudget} 
+                    readOnly
+                    className="w-full p-3 rounded-2xl font-black border text-base shadow-sm bg-slate-100 text-slate-500 border-slate-200 outline-none cursor-default" 
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-[11px] font-black text-orange-500 uppercase tracking-widest mb-3 text-left">{t.chooseSpeed}</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button onClick={() => setLossSpeed('slow')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'slow' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Turtle size={20} className={state.profile.weightLossSpeed === 'slow' ? 'text-orange-500' : ''} />
+                      <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedSlow}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('average')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'average' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Footprints size={20} className={state.profile.weightLossSpeed === 'average' ? 'text-orange-500' : ''} />
+                      <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedAverage}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('fast')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'fast' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Zap size={20} className={state.profile.weightLossSpeed === 'fast' ? 'text-amber-400 fill-amber-400' : ''} />
+                      <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedFast}</span>
+                    </button>
+                    <button onClick={() => setLossSpeed('custom')} className={`flex flex-col items-center gap-2 p-2.5 rounded-2xl border-2 transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-400 shadow-md' : 'bg-slate-50 border-transparent text-slate-300'}`}>
+                      <Settings2 size={20} className={state.profile.weightLossSpeed === 'custom' ? 'text-orange-500' : ''} />
+                      <span className="text-[9px] font-black uppercase text-center leading-tight whitespace-nowrap">{t.speedCustom}</span>
+                    </button>
+                  </div>
+                </div>
+             </div>
+
+             {/* Cadre 4: Voorgestelde Einddatum */}
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm">
+                <label className="text-[11px] font-black text-black uppercase tracking-widest mb-3 block flex items-center gap-1.5"><Calendar size={12} className="text-orange-400" /> {t.projectedDate}</label>
+                <div className="relative group overflow-hidden rounded-2xl border">
+                  <div className={`w-full p-4 pl-12 font-black text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-orange-50 border-orange-400 shadow-lg shadow-orange-100/50' : 'bg-white border-slate-100'}`}>
+                    <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={18} className={`${state.profile.weightLossSpeed === 'custom' ? 'text-orange-500' : 'text-slate-300'} mr-1`} />
+                    </div>
+                  </div>
+                  <input 
+                    type="date" 
+                    value={state.profile.customTargetDate || totals.targetDate} 
+                    disabled={state.profile.weightLossSpeed !== 'custom'}
+                    onChange={e => {
+                      const newDate = e.target.value;
+                      if (!newDate) return;
+                      const newBudget = calculateBudgetFromTargetDate({ ...state.profile, currentWeight: state.profile.startWeight }, newDate);
+                      setState(prev => ({
+                        ...prev,
+                        profile: {
+                          ...prev.profile,
+                          customTargetDate: newDate,
+                          dailyBudget: newBudget
+                        }
+                      }));
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full disabled:cursor-default"
+                  />
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg p-1.5 transition-colors pointer-events-none z-10 ${state.profile.weightLossSpeed === 'custom' ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-500'}`}>
+                    {state.profile.weightLossSpeed === 'custom' ? <Settings2 size={14} /> : <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />}
+                  </div>
+                </div>
+                <p className="text-[11px] font-black text-black mt-2 uppercase tracking-widest">
+                  {state.profile.weightLossSpeed === 'custom' 
+                    ? "Pas de datum aan om je dagbudget te bepalen" 
+                    : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tempo")}
+                </p>
+             </div>
+
+             {/* Cadre 5: Data & Opslag */}
              <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
-               <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-sky-400" /> {t.dataManagement.title}</h3>
+               <h3 className="text-sm font-black text-black uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-orange-400" /> {t.dataManagement.title}</h3>
                <div className="grid grid-cols-1 gap-2">
-                 <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-sky-600 border border-sky-100 rounded-xl hover:bg-sky-50 transition-all shadow-sm">
-                   <div className="flex items-center gap-2"><Download size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.export}</span></div>
+                 <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-orange-600 border border-orange-100 rounded-xl hover:bg-orange-50 transition-all shadow-sm">
+                   <div className="flex items-center gap-2"><Download size={16} /><span className="text-xs font-black uppercase tracking-widest text-black">{t.dataManagement.export}</span></div>
                    <ChevronRight size={14} />
                  </button>
                  <label className="w-full flex items-center justify-between px-4 py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
-                   <div className="flex items-center gap-2"><Upload size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.restore}</span></div>
+                   <div className="flex items-center gap-2"><Upload size={16} /><span className="text-xs font-black uppercase tracking-widest text-black">{t.dataManagement.restore}</span></div>
                    <input type="file" accept=".json" className="hidden" onChange={handleImport} />
                  </label>
                  <button onClick={resetAllData} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-all shadow-sm">
-                   <Trash2 size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.clearAll}</span>
+                   <Trash2 size={16} /><span className="text-xs font-black uppercase tracking-widest text-black">{t.dataManagement.clearAll}</span>
                  </button>
                </div>
              </div>
@@ -939,8 +977,8 @@ export default function App() {
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-6 py-4 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-2xl">
         {[{ id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, { id: 'meals', icon: Utensils, label: t.tabs.meals }, { id: 'activity', icon: Activity, label: t.tabs.activity }, { id: 'profile', icon: UserIcon, label: t.tabs.profile }].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'text-sky-500 scale-110' : 'text-slate-300'}`}>
-            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 3 : 2} /><span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'text-orange-500 scale-110' : 'text-slate-300'}`}>
+            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 3 : 2} /><span className="text-[11px] font-black uppercase tracking-widest">{tab.label}</span>
           </button>
         ))}
       </nav>

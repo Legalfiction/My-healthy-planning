@@ -2,8 +2,14 @@
 import { UserProfile, LoggedActivity, ActivityType } from '../types';
 import { ACTIVITY_TYPES, KCAL_PER_KG_FAT } from '../constants';
 
-export const calculateBMR = (profile: UserProfile): number => {
-  const weight = Number(profile.currentWeight) || 0;
+const PAL_VALUES: Record<string, number> = {
+  light: 1.3,
+  moderate: 1.55,
+  heavy: 1.725
+};
+
+export const calculateBMR = (profile: UserProfile, weightOverride?: number): number => {
+  const weight = weightOverride !== undefined ? weightOverride : (Number(profile.currentWeight) || 0);
   const height = Number(profile.height) || 0;
   const currentYear = new Date().getFullYear();
   const age = profile.birthYear ? (currentYear - profile.birthYear) : (profile.age || 40);
@@ -11,8 +17,6 @@ export const calculateBMR = (profile: UserProfile): number => {
   if (weight === 0 || height === 0) return 1500;
 
   // Mifflin-St Jeor Equation
-  // Men: (10 * weight) + (6.25 * height) - (5 * age) + 5
-  // Women: (10 * weight) + (6.25 * height) - (5 * age) - 161
   const base = (10 * weight) + (6.25 * height) - (5 * age);
   
   if (profile.gender === 'woman') {
@@ -21,10 +25,10 @@ export const calculateBMR = (profile: UserProfile): number => {
   return base + 5;
 };
 
-export const calculateTDEE = (profile: UserProfile, loggedActivitiesBurn: number): number => {
-  const bmr = calculateBMR(profile);
-  // PAL 1.375 for "Lightly Active" (standard desk job + some movement)
-  const baselineMaintenance = bmr * 1.375;
+export const calculateTDEE = (profile: UserProfile, loggedActivitiesBurn: number, weightOverride?: number): number => {
+  const bmr = calculateBMR(profile, weightOverride);
+  const pal = PAL_VALUES[profile.activityLevel || 'light'] || 1.3;
+  const baselineMaintenance = bmr * pal;
   return baselineMaintenance + loggedActivitiesBurn;
 };
 

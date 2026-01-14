@@ -3,6 +3,8 @@ export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | '
 
 export type WeightLossSpeed = 'slow' | 'average' | 'fast' | 'custom';
 
+export type ActivityLevel = 'light' | 'moderate' | 'heavy';
+
 export interface UserProfile {
   gender: 'man' | 'woman';
   birthYear: number;
@@ -13,6 +15,7 @@ export interface UserProfile {
   dailyBudget: number;
   customTargetDate?: string;
   weightLossSpeed?: WeightLossSpeed;
+  activityLevel?: ActivityLevel;
   age?: number; // Legacy support
 }
 
