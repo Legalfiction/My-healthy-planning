@@ -68,10 +68,18 @@ const DB_NAME = 'GezondPlanningDB';
 const STORE_NAME = 'appState';
 const STATE_KEY = 'mainState';
 
+// Helper for generating truly unique IDs
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 const idb = {
   open: (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 3);
+      const request = indexedDB.open(DB_NAME, 4); // Increment version for schema stability
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE_NAME)) {
           request.result.createObjectStore(STORE_NAME);
@@ -118,8 +126,8 @@ const INITIAL_STATE: AppState = {
     height: 170, 
     startWeight: 86, 
     currentWeight: 86, 
-    targetWeight: 78, 
-    dailyBudget: 1800, 
+    targetWeight: 80, 
+    dailyBudget: 2058, 
     weightLossSpeed: 'average',
     activityLevel: 'light'
   },
@@ -177,9 +185,6 @@ export default function App() {
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string; qty: number }>>({});
 
-  const [newMeal, setNewMeal] = useState({ name: '', kcal: '', isDrink: false, moment: 'Ontbijt' as MealMoment });
-  const [newActivity, setNewActivity] = useState({ name: '', kcalPerHour: '' });
-
   const t = useMemo(() => {
     const lang = state.language || 'nl';
     const base = translations['nl'];
@@ -196,6 +201,26 @@ export default function App() {
   useEffect(() => {
     idb.get().then(saved => {
       if (saved) {
+        // Migration logic: merge new default activities and meal options into saved state
+        const mergedActivities = [...(saved.customActivities || [])];
+        ACTIVITY_TYPES.forEach(defAct => {
+          if (!mergedActivities.find(a => a.id === defAct.id)) {
+            mergedActivities.push(defAct);
+          }
+        });
+
+        const mergedOptions = { ...(saved.customOptions || MEAL_OPTIONS) };
+        MEAL_MOMENTS.forEach(moment => {
+          const savedForMoment = mergedOptions[moment] || [];
+          const defaultsForMoment = MEAL_OPTIONS[moment] || [];
+          defaultsForMoment.forEach(defOpt => {
+            if (!savedForMoment.find(o => o.id === defOpt.id)) {
+              savedForMoment.push(defOpt);
+            }
+          });
+          mergedOptions[moment] = savedForMoment;
+        });
+
         const updatedProfile = { 
           ...INITIAL_STATE.profile, 
           ...saved.profile,
@@ -203,12 +228,17 @@ export default function App() {
           birthYear: saved.profile.birthYear || (saved.profile.age ? (new Date().getFullYear() - saved.profile.age) : 1980),
           activityLevel: saved.profile.activityLevel || 'light'
         };
+
         setState({
           ...saved,
           profile: updatedProfile,
-          customActivities: (saved.customActivities && saved.customActivities.length > 0) ? saved.customActivities : ACTIVITY_TYPES,
+          customOptions: mergedOptions,
+          customActivities: mergedActivities,
           language: saved.language || 'nl'
         });
+      } else {
+          // If no saved data, ensure initial data is properly formatted
+          setSelectedDate(new Date().toISOString().split('T')[0]);
       }
       setIsLoaded(true);
     });
@@ -228,8 +258,6 @@ export default function App() {
         }
       }
     } else {
-      // Calculate budget based on maintenance calories at target weight, 
-      // adjusted by the chosen speed to provide a more intuitive 'goal-oriented' budget.
       const targetMaintenance = calculateTDEE(state.profile, 0, Number(state.profile.targetWeight));
       let adjustment = 0;
       if (state.profile.weightLossSpeed === 'slow') adjustment = 200;
@@ -395,7 +423,7 @@ export default function App() {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
       const meals = { ...log.meals };
-      meals[moment] = [...(meals[moment] || []), { ...item, id: Math.random().toString(36).substr(2, 9) }];
+      meals[moment] = [...(meals[moment] || []), { ...item, id: generateId() }];
       logs[selectedDate] = { ...log, meals };
       return { ...prev, dailyLogs: logs };
     });
@@ -406,7 +434,7 @@ export default function App() {
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
-      logs[selectedDate] = { ...log, activities: [...log.activities, { id: Math.random().toString(36).substr(2, 9), typeId, value, burnedKcal: burn }] };
+      logs[selectedDate] = { ...log, activities: [...log.activities, { id: generateId(), typeId, value, burnedKcal: burn }] };
       return { ...prev, dailyLogs: logs };
     });
     const input = document.getElementById('act-val') as HTMLInputElement;
@@ -504,21 +532,11 @@ export default function App() {
 
       <main className="p-3 flex-grow space-y-3">
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="space-y-3 animate-in fade-in duration-500">
             <div className="bg-orange-50 rounded-[24px] p-5 text-slate-800 relative overflow-hidden border border-orange-100 shadow-sm">
                <Target size={60} className="absolute -right-2 -top-2 text-orange-200/30" />
                <p className="text-orange-500 text-[11px] font-black uppercase tracking-widest mb-1">{t.targetReached}</p>
-               <h2 className="text-xl font-black mb-4 text-slate-800">{formatTargetDateDisplay(totals.targetDate)}</h2>
-               <div className="grid grid-cols-2 gap-3">
-                 <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
-                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.oldIntake }} />
-                   <p className="text-sm font-black text-slate-700">{Math.round(totals.baselineTdee)} <span className="text-xs font-normal">kcal</span></p>
-                 </div>
-                 <div className="bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60">
-                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1" dangerouslySetInnerHTML={{ __html: t.newIntake }} />
-                   <p className="text-sm font-black text-slate-700">{state.profile.dailyBudget} <span className="text-xs font-normal">kcal</span></p>
-                 </div>
-               </div>
+               <h2 className="text-xl font-black mb-1 text-slate-800">{formatTargetDateDisplay(totals.targetDate)}</h2>
             </div>
 
             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm">
@@ -528,11 +546,10 @@ export default function App() {
                       <Zap size={14} className="text-amber-400 fill-amber-400" />
                       <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.dailyBudget}</h3>
                     </div>
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline">
                        <span className="text-2xl font-black text-slate-400">{totals.intakeGoal}</span>
-                       <span className="text-2xl font-black text-emerald-500">+{totals.activityBurn}</span>
-                       <span className="text-slate-200 mx-1">=</span>
-                       <span className="text-2xl font-black text-slate-800">{totals.currentAdjustedGoal}</span>
+                       <span className="text-2xl font-black text-green-500">+{totals.activityBurn}</span>
+                       <span className="text-2xl font-black text-orange-500">={totals.currentAdjustedGoal}</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -547,15 +564,28 @@ export default function App() {
                  <div className="h-5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-3">
                     <div className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                  </div>
-                 <div className="flex justify-between items-center px-1">
-                    <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Aantal calorieën over vandaag</span>
-                      <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-slate-800'}`}>
-                        {Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}
-                      </span>
+                 <div className="grid grid-cols-2 gap-y-4 gap-x-3 px-0.5 mt-2">
+                    <div className="flex flex-col">
+                       <span className="text-[13px] font-black text-slate-500 uppercase tracking-tighter leading-tight whitespace-normal min-h-[2.1em] mb-0">{t.remainingToday}</span>
+                       <span className={`text-[20px] font-black text-orange-500 leading-none`}>
+                         {Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}
+                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                       <span className={`text-[16px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${totals.intakePercent > 100 ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'}`}>
+                    <div className="flex flex-col text-right">
+                       <span className="text-[13px] font-black text-slate-500 uppercase tracking-tighter leading-tight whitespace-normal min-h-[2.1em] mb-0">{t.caloriesPerDay}</span>
+                       <span className="text-[20px] font-black text-orange-500 leading-none">
+                         {totals.intakeGoal}
+                       </span>
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[13px] font-black text-slate-500 uppercase tracking-tighter leading-tight whitespace-normal min-h-[2.1em] mb-0">{t.activityCalories}</span>
+                       <span className="text-[20px] font-black text-orange-500 leading-none">
+                         {totals.activityBurn}
+                       </span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                       <span className="text-[13px] font-black text-slate-500 uppercase tracking-tighter leading-tight whitespace-normal min-h-[2.1em] mb-0">{t.consumedTodayLabel}</span>
+                       <span className={`text-[20px] font-black uppercase tracking-widest text-orange-500 leading-none`}>
                          {Math.round(totals.intakePercent)}%
                        </span>
                     </div>
@@ -563,10 +593,10 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[24px] pt-4 px-5 pb-3 border border-slate-200 shadow-sm overflow-visible">
+            <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm overflow-visible">
                <div className="flex justify-between items-center mb-4 px-1">
                   <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.myJourney}</h3>
-                  <span className="text-[11px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ Math.max(0, (Number(state.profile.startWeight) - latestWeight)).toFixed(1) } KG</span>
+                  <span className="text-[11px] font-black text-green-600 px-2 py-0.5">-{ Math.max(0, (Number(state.profile.startWeight) - latestWeight)).toFixed(1) } KG</span>
                </div>
                <div className="relative pt-0.5 pb-0.5 px-1">
                  <div className="flex justify-between items-center mb-2">
@@ -575,12 +605,12 @@ export default function App() {
                       <span className="text-sm font-black text-slate-600">{state.profile.startWeight} KG</span>
                     </div>
                     <div className="flex flex-col items-center">
-                       <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none">{t.nowWeight}</span>
-                       <span className="text-sm font-black text-black">{latestWeight.toFixed(1)} KG</span>
+                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.nowWeight}</span>
+                       <span className="text-sm font-black text-slate-600">{latestWeight.toFixed(1)} KG</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none">{t.goalWeight}</span>
-                      <span className="text-sm font-black text-orange-500">{state.profile.targetWeight} KG</span>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.goalWeight}</span>
+                      <span className="text-sm font-black text-slate-600">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
                  <div className="h-4 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-2">
@@ -589,7 +619,7 @@ export default function App() {
                </div>
             </div>
 
-            <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm">
+            <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm">
               <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest mb-4 flex items-center gap-1.5"><Scale size={15} className="text-orange-400" /> {t.weighMoment}</h3>
               <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-inner">
                 <input type="number" step="0.1" placeholder={t.placeholders.weight} value={state.dailyLogs[selectedDate]?.weight || ''} onChange={(e) => {
@@ -602,27 +632,12 @@ export default function App() {
                 }} className="w-full bg-transparent border-none p-0 text-2xl font-black text-orange-500 focus:ring-0" />
                 <span className="text-sm font-black text-slate-400 uppercase">kg</span>
               </div>
-              
-              <div className="mt-3 pt-3 border-t border-slate-200/50 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-500">
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t.estimatedEndDate}</span>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar size={12} className="text-orange-300" />
-                    <span className="text-[13px] font-black text-orange-600 tabular-nums">
-                      {formatTargetDateDisplay(calculateTargetDate({ ...state.profile, currentWeight: latestWeight }, state.profile.dailyBudget))}
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-orange-50 p-1.5 rounded-lg border border-orange-100">
-                  <TrendingDown size={14} className="text-orange-500" />
-                </div>
-              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'meals' && (
-          <div className="space-y-4 pb-12 animate-in fade-in duration-300">
+          <div className="space-y-3 pb-12 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
               <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
               <button onClick={() => setShowMyList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
@@ -693,7 +708,7 @@ export default function App() {
                                   <span className="text-[14px] font-black text-slate-800 truncate leading-tight mb-1">{info}</span>
                                   <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 leading-none">
                                     {<span>{item.quantity}x </span>}
-                                    {unit && <span>{unit}</span>}
+                                    {unit && <span>{item.quantity} {unit}</span>}
                                     {<span> • </span>}
                                     <span className="text-orange-500 font-black">{item.kcal} KCAL</span>
                                   </div>
@@ -719,13 +734,13 @@ export default function App() {
         )}
 
         {activeTab === 'activity' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="space-y-3 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
               <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.movement}</h2><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.planActivities}</span></div>
               <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
             </div>
             
-            <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-3">
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.activity}</label>
                 <select value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-white p-3 rounded-2xl font-black border border-slate-100 text-sm shadow-sm focus:ring-2 focus:ring-orange-100 outline-none appearance-none">
@@ -783,10 +798,9 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="space-y-4 animate-in fade-in duration-300 pb-10">
+          <div className="space-y-3 animate-in fade-in duration-300 pb-10">
              <h2 className="text-xl font-black text-orange-500 px-1 tracking-tight">{t.settings}</h2>
              
-             {/* Cadre 1: Taal Selectie */}
              <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm">
                 <label className="text-[11px] font-black text-black uppercase tracking-widest mb-3 block leading-none">{t.language}</label>
                 <div className="grid grid-cols-5 gap-2">
@@ -803,8 +817,7 @@ export default function App() {
                 </div>
              </div>
 
-             {/* Cadre 2: Gebruiker Instellingen */}
-             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-5">
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-3">
                 <div className="space-y-3">
                   <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.gender}</label>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
@@ -857,8 +870,7 @@ export default function App() {
                 </div>
              </div>
 
-             {/* Cadre 2.5: Dagelijkse Activiteit (basis) */}
-             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-3">
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.activityLevelLabel}</label>
                   <p className="text-[10px] font-bold text-orange-500 leading-tight uppercase tracking-tight">{t.activityLevelDesc}</p>
@@ -879,8 +891,7 @@ export default function App() {
                 </div>
              </div>
 
-             {/* Cadre 3: Calorie Budget & Tempo */}
-             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-4">
+             <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm space-y-3">
                 <div className="space-y-3">
                   <label className="text-[11px] font-black text-black uppercase tracking-widest block">{t.dailyBudgetLabel}</label>
                   <input 
@@ -914,9 +925,8 @@ export default function App() {
                 </div>
              </div>
 
-             {/* Cadre 4: Voorgestelde Einddatum */}
              <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-200 shadow-sm">
-                <label className="text-[11px] font-black text-black uppercase tracking-widest mb-3 block flex items-center gap-1.5"><Calendar size={12} className="text-orange-400" /> {t.projectedDate}</label>
+                <label className="text-[11px] font-black text-black uppercase tracking-widest mb-3 block flex items-center gap-1.5"><Calendar size={12} className="text-orange-400" /></label>
                 <div className="relative group overflow-hidden rounded-2xl border">
                   <div className={`w-full p-4 pl-12 font-black text-base shadow-sm flex justify-between items-center transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-orange-50 border-orange-400 shadow-lg shadow-orange-100/50' : 'bg-white border-slate-100'}`}>
                     <span className="truncate">{formatTargetDateDisplay(totals.targetDate)}</span>
@@ -947,15 +957,9 @@ export default function App() {
                     {state.profile.weightLossSpeed === 'custom' ? <Settings2 size={14} /> : <Zap size={14} className={state.profile.customTargetDate ? "opacity-30" : "fill-current"} />}
                   </div>
                 </div>
-                <p className="text-[11px] font-black text-black mt-2 uppercase tracking-widest">
-                  {state.profile.weightLossSpeed === 'custom' 
-                    ? "Pas de datum aan om je dagbudget te bepalen" 
-                    : (state.profile.customTargetDate ? "Handmatig aangepast" : "Automatische projectie op basis van tempo")}
-                </p>
              </div>
 
-             {/* Cadre 5: Data & Opslag */}
-             <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
+             <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-3">
                <h3 className="text-sm font-black text-black uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-orange-400" /> {t.dataManagement.title}</h3>
                <div className="grid grid-cols-1 gap-2">
                  <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-orange-600 border border-orange-100 rounded-xl hover:bg-orange-50 transition-all shadow-sm">
