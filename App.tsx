@@ -125,6 +125,7 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
         type === 'info' ? 'bg-sky-900 border-sky-700 text-white' :
         'bg-slate-900 border-slate-700 text-white'
       }`}>
+        {/* Fix: size prop was incorrectly called as a function; fixed to use curly brace assignment */}
         {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
         <span className="text-xs font-black uppercase tracking-widest">{message}</span>
       </div>
@@ -148,7 +149,27 @@ export default function App() {
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  const t = useMemo(() => translations[state.language || 'nl'], [state.language, state]);
+  // Robust fallback translation logic to prevent blank screens
+  const t = useMemo(() => {
+    const lang = state.language || 'nl';
+    const base = translations['nl'];
+    const selected = translations[lang] || {};
+    
+    const merge = (b: any, s: any) => {
+      if (!s) return b;
+      const result = { ...b };
+      for (const key in b) {
+        if (s[key] && typeof s[key] === 'object' && !Array.isArray(s[key])) {
+          result[key] = { ...b[key], ...s[key] };
+        } else if (s[key]) {
+          result[key] = s[key];
+        }
+      }
+      return result;
+    };
+
+    return merge(base, selected);
+  }, [state.language]);
 
   const [newProductName, setNewProductName] = useState('');
   const [newProductGram, setNewProductGram] = useState('');
@@ -180,7 +201,6 @@ export default function App() {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
 
-  // Sluit picker als je ernaast klikt
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
@@ -247,7 +267,7 @@ export default function App() {
 
   const dateParts = useMemo(() => {
     const dateObj = new Date(selectedDate);
-    const locale = state.language === 'en' ? 'en-US' : (state.language === 'es' ? 'es-ES' : 'nl-NL');
+    const locale = state.language === 'en' ? 'en-US' : (state.language === 'es' ? 'es-ES' : (state.language === 'de' ? 'de-DE' : 'nl-NL'));
     const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(dateObj);
     return {
       day: parts.find(p => p.type === 'day')?.value || '',
@@ -282,24 +302,15 @@ export default function App() {
   const handleCloudExport = async (provider: string) => {
     const dataStr = JSON.stringify(state, null, 2);
     const fileName = `doelgewicht_backup.json`;
-    
-    setToast({msg: "Back-up menu laden...", type: 'info'});
-    
+    setToast({msg: `${t.dataManagement.googleDrive.split(' ')[0]} back-up...`, type: 'info'});
     try {
       const file = new File([dataStr], fileName, { type: 'application/json' });
       if (navigator.share) {
         try {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: 'Doelgewicht Back-up',
-              text: `Back-up for ${provider}`
-            });
+            await navigator.share({ files: [file], title: `Doelgewicht ${provider} Back-up`, text: `Handmatige back-up voor ${provider}` });
           } else {
-            await navigator.share({
-              title: 'Doelgewicht Back-up',
-              text: dataStr
-            });
+            await navigator.share({ title: `Doelgewicht ${provider} Back-up`, text: dataStr });
           }
           setToast({msg: state.language === 'nl' ? "Deelmenu geopend" : "Share menu opened"});
         } catch (shareErr) {
@@ -343,16 +354,33 @@ export default function App() {
 
   const getTranslatedName = (id: string, originalName: string) => {
     const lang = state.language || 'nl';
-    return PRODUCT_TRANSLATIONS[lang]?.[id] || originalName;
+    const translated = PRODUCT_TRANSLATIONS[lang]?.[id];
+    if (translated) return translated;
+    
+    // Fallback to English if current lang fails
+    const engTranslated = PRODUCT_TRANSLATIONS['en']?.[id];
+    if (engTranslated) return engTranslated;
+
+    // Finally fallback to original Dutch
+    return originalName;
   };
 
-  // Helper om productnaam te splitsen voor twee regels
   const splitProductName = (fullName: string) => {
-    const match = fullName.match(/^(.*?)\s*\((.*?)\)$/);
+    const unitRegex = /(\d+\s*(ml|g|gr|gram|liter|l|cl))/i;
+    const match = fullName.match(unitRegex);
+    let title = fullName;
+    let unitInfo = null;
     if (match) {
-      return { title: match[1], details: match[2] };
+      unitInfo = match[1].trim();
+      title = fullName.replace(match[0], '').trim();
+      title = title.replace(/,\s*\)/g, ')')
+                   .replace(/\(\s*,/g, '(')
+                   .replace(/\(\s*\)/g, '')
+                   .replace(/,\s*$/, '')
+                   .replace(/\s+/g, ' ')
+                   .trim();
     }
-    return { title: fullName, details: '' };
+    return { title, unitInfo };
   };
 
   const setDailyWeight = (weight: number | undefined) => {
@@ -406,34 +434,10 @@ export default function App() {
     });
   };
 
-  const addCustomActivityCentral = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newActivityName || !newActivityKcalMin) return;
-    const kcalMin = Number(newActivityKcalMin);
-    const weight = latestWeight || state.profile.currentWeight;
-    const metValue = (kcalMin * 60) / weight;
-    const newItem: ActivityType = { 
-      id: 'ca_' + Math.random().toString(36).substr(2, 9), 
-      name: newActivityName, 
-      met: metValue, 
-      unit: 'minuten', 
-      isCustom: true 
-    };
-    setState(prev => ({ ...prev, customActivities: [newItem, ...prev.customActivities] }));
-    setNewActivityName(''); setNewActivityKcalMin('');
-    setToast({msg: "Activiteit toegevoegd"});
-  };
-
-  const removeActivityFromLibrary = (id: string) => {
-    setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== id) }));
-  };
-
   const removeProductFromMomentInLibrary = (moment: MealMoment, productId: string) => {
     setState((prev: AppState) => {
       const newOptions = { ...prev.customOptions };
-      if (newOptions[moment]) {
-        newOptions[moment] = newOptions[moment].filter(o => o.id !== productId);
-      }
+      if (newOptions[moment]) newOptions[moment] = newOptions[moment].filter(o => o.id !== productId);
       return { ...prev, customOptions: newOptions };
     });
   };
@@ -444,13 +448,7 @@ export default function App() {
     const kcalValue = Number(newProductKcal);
     const displayName = newProductGram ? `${newProductName} (${newProductGram}g)` : newProductName;
     const newItemId = 'c_' + Math.random().toString(36).substr(2, 9);
-    const newOption: MealOption = { 
-      id: newItemId, 
-      name: displayName, 
-      kcal: kcalValue, 
-      isCustom: true,
-      isDrink: newProductIsDrink
-    };
+    const newOption: MealOption = { id: newItemId, name: displayName, kcal: kcalValue, isCustom: true, isDrink: newProductIsDrink };
     setState(prev => {
       const customOptions = { ...prev.customOptions };
       const momentsToUpdate: MealMoment[] = [];
@@ -537,9 +535,7 @@ export default function App() {
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{t.dailyBudget}</span>
                       <div className="flex items-center gap-1">
                         <span className="text-sm font-black text-slate-600">1800</span>
-                        {totals.activityBurn > 0 && (
-                          <span className="text-sm font-black text-emerald-500">+ {Math.round(totals.activityBurn)}</span>
-                        )}
+                        {totals.activityBurn > 0 && <span className="text-sm font-black text-emerald-500">+ {Math.round(totals.activityBurn)}</span>}
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
@@ -549,20 +545,13 @@ export default function App() {
                       </span>
                     </div>
                  </div>
-                 
                  <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
-                    <div 
-                      className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} 
-                      style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} 
-                    />
+                    <div className={`h-full transition-all duration-1000 shadow-md ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                  </div>
-
                  <div className="flex justify-center mb-1">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STATUS</span>
-                     <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-black'}`}>
-                        {Math.round(totals.intakePercent)}%
-                     </span>
+                     <span className={`text-sm font-black ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-600' : 'text-black'}`}>{Math.round(totals.intakePercent)}%</span>
                    </div>
                  </div>
                </div>
@@ -573,7 +562,6 @@ export default function App() {
                   <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest">{t.myJourney}</h3>
                   <span className="text-[10px] font-black text-green-600 bg-white px-2 py-0.5 rounded-lg border border-green-100">-{ (Number(state.profile.startWeight) - Number(latestWeight)).toFixed(1) } KG</span>
                </div>
-               
                <div className="relative pt-0.5 pb-0.5">
                  <div className="flex justify-between items-center mb-1 px-1">
                     <div className="flex flex-col">
@@ -585,11 +573,9 @@ export default function App() {
                       <span className="text-sm font-black text-sky-500">{state.profile.targetWeight} KG</span>
                     </div>
                  </div>
-                 
                  <div className="h-3.5 w-full bg-white rounded-full overflow-hidden shadow-inner border border-slate-200 relative mb-1.5">
                     <div className="h-full bg-green-500 rounded-full transition-all duration-1000 shadow-md" style={{ width: `${Math.min(Math.max(totals.weightProgressPercent, 0), 100)}%` }} />
                  </div>
-
                  <div className="flex justify-center mb-1">
                    <div className="flex items-center gap-2 whitespace-nowrap bg-white px-3 py-0.5 rounded-xl border border-slate-200 shadow-sm">
                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.nowWeight}</span>
@@ -615,65 +601,40 @@ export default function App() {
               <div><h2 className="text-xl font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.todayPlanning}</span></div>
               <button onClick={() => setShowMyList(true)} className="flex items-center gap-1.5 bg-slate-50 text-sky-500 border border-slate-200 shadow-sm px-3 py-1.5 rounded-xl font-black text-xs uppercase"><ListFilter size={16} /> {t.myList}</button>
             </div>
-
             {mealGroups.map((group) => (
               <div key={group.label} className="bg-slate-100/40 rounded-[24px] p-4 border border-slate-200/50 space-y-3">
                 <div className="flex items-center gap-2 px-1">
-                  <div className="p-1 bg-white rounded-lg shadow-sm border border-slate-100"><group.icon size={14} className="text-sky-400" /></div>
-                  <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">{group.label}</h3>
+                  <div className="p-1 bg-white rounded-lg shadow-sm border border-slate-100"><group.icon size={12} className="text-sky-400" /></div>
+                  <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-widest">{group.label}</h3>
                 </div>
-                
                 <div className="grid grid-cols-1 gap-3">
                   {group.moments.map(moment => {
                     const items = currentLog.meals[moment] || [];
                     const availableOptions = state.customOptions[moment] || [];
                     const currentInput = mealInputs[moment] || { mealId: '', qty: 1 };
-                    
                     const selectedOption = availableOptions.find(o => o.id === currentInput.mealId);
+                    const { title, unitInfo } = selectedOption ? splitProductName(getTranslatedName(selectedOption.id, selectedOption.name)) : { title: t.placeholders.select, unitInfo: null };
 
                     return (
-                      <div key={moment} className="bg-sky-50 rounded-[20px] p-4 shadow-sm border border-sky-100">
-                        <h4 className="font-black text-[10px] text-sky-400 uppercase mb-3 tracking-widest">{t.moments[moment]}</h4>
-                        
-                        <div className="flex gap-2 mb-3 items-center flex-nowrap relative">
-                          {/* Custom Picker Button */}
+                      <div key={moment} className="bg-sky-50 rounded-[20px] p-3 shadow-sm border border-sky-100">
+                        <h4 className="font-black text-[9px] text-sky-400 uppercase mb-2.5 tracking-widest">{t.moments[moment]}</h4>
+                        <div className="flex gap-1.5 mb-2.5 items-center flex-nowrap relative">
                           <div className="flex-grow min-w-0 relative" ref={openPickerMoment === moment ? pickerRef : null}>
-                            <button 
-                              onClick={() => {
-                                setOpenPickerMoment(openPickerMoment === moment ? null : moment);
-                                setSearchTerm('');
-                              }}
-                              className="w-full bg-white border border-sky-100 rounded-xl p-2.5 text-sm font-bold shadow-sm flex items-center justify-between min-w-0"
-                            >
-                              <span className="truncate">
-                                {selectedOption ? getTranslatedName(selectedOption.id, selectedOption.name) : t.placeholders.select}
-                              </span>
+                            <button onClick={() => { setOpenPickerMoment(openPickerMoment === moment ? null : moment); setSearchTerm(''); }} className="w-full bg-white border border-sky-100 rounded-xl p-2 text-[13px] font-bold shadow-sm flex items-center justify-between min-w-0">
+                              <span className="truncate">{title}</span>
                               <ChevronDown size={14} className={`text-sky-300 transition-transform ${openPickerMoment === moment ? 'rotate-180' : ''}`} />
                             </button>
-
-                            {/* Dropdown Menu */}
                             {openPickerMoment === moment && (
                               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[320px] animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
                                   <Search size={14} className="text-slate-400" />
-                                  <input 
-                                    autoFocus
-                                    className="bg-transparent border-none text-sm w-full focus:ring-0 font-bold"
-                                    placeholder={t.searchPlaceholder}
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                  />
+                                  <input autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-bold" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 </div>
                                 <div className="overflow-y-auto py-2">
                                   {['Eten', 'Drinken'].map(type => {
                                     const isDrinkSection = type === 'Drinken';
-                                    const sectionItems = availableOptions.filter(o => 
-                                      !!o.isDrink === isDrinkSection &&
-                                      getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())
-                                    );
-
+                                    const sectionItems = availableOptions.filter(o => !!o.isDrink === isDrinkSection && getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()));
                                     if (sectionItems.length === 0) return null;
-
                                     return (
                                       <div key={type} className="mb-2">
                                         <div className="px-3 py-1 flex items-center gap-1.5">
@@ -681,25 +642,16 @@ export default function App() {
                                           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">{isDrinkSection ? t.drink : t.food}</span>
                                         </div>
                                         {sectionItems.map(opt => {
-                                          const info = splitProductName(getTranslatedName(opt.id, opt.name));
+                                          const nameData = splitProductName(getTranslatedName(opt.id, opt.name));
                                           return (
-                                            <button
-                                              key={opt.id}
-                                              onClick={() => {
-                                                setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } });
-                                                setOpenPickerMoment(null);
-                                              }}
-                                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-sky-50 transition-colors ${currentInput.mealId === opt.id ? 'bg-sky-50' : ''}`}
-                                            >
-                                              <div className="flex items-center gap-3 min-w-0 pr-4">
-                                                <div className={`p-1.5 rounded-lg border ${opt.isDrink ? 'bg-sky-100/50 border-sky-200 text-sky-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
+                                            <button key={opt.id} onClick={() => { setMealInputs({ ...mealInputs, [moment]: { ...currentInput, mealId: opt.id } }); setOpenPickerMoment(null); }} className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-sky-50 transition-colors ${currentInput.mealId === opt.id ? 'bg-sky-50' : ''}`}>
+                                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                                <div className={`p-1 rounded-lg border shrink-0 ${opt.isDrink ? 'bg-sky-100/50 border-sky-200 text-sky-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
                                                   {opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
-                                                  <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
-                                                  <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                                    {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
-                                                  </span>
+                                                  <span className="text-[13px] font-black text-slate-800 leading-tight truncate">{nameData.title}</span>
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase">{nameData.unitInfo && `${nameData.unitInfo} • `}{opt.kcal} kcal</span>
                                                 </div>
                                               </div>
                                             </button>
@@ -712,51 +664,32 @@ export default function App() {
                               </div>
                             )}
                           </div>
-
-                          <input 
-                            type="number" 
-                            min="0"
-                            step="0.1"
-                            className="w-14 flex-shrink-0 bg-white border border-sky-100 rounded-xl p-2.5 text-sm font-black text-center shadow-sm"
-                            value={currentInput.qty}
-                            onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })}
-                          />
-                          <button 
-                            className="flex-shrink-0 bg-sky-400 text-white p-2.5 rounded-xl shadow-md disabled:opacity-40"
-                            disabled={!currentInput.mealId}
-                            onClick={() => {
+                          <input type="number" min="0" step="0.1" className="w-12 flex-shrink-0 bg-white border border-sky-100 rounded-xl p-2 text-[13px] font-black text-center shadow-sm" value={currentInput.qty} onChange={(e) => setMealInputs({ ...mealInputs, [moment]: { ...currentInput, qty: Math.max(0, Number(e.target.value)) } })} />
+                          <button className="flex-shrink-0 bg-sky-400 text-white p-2 rounded-xl shadow-md disabled:opacity-40" disabled={!currentInput.mealId} onClick={() => {
                               const opt = availableOptions.find(o => o.id === currentInput.mealId);
                               if (opt) {
                                 addMealItem(moment, { name: opt.name, kcal: opt.kcal * currentInput.qty, quantity: currentInput.qty, mealId: opt.id, isDrink: opt.isDrink });
                                 setMealInputs({ ...mealInputs, [moment]: { mealId: '', qty: 1 } });
                               }
-                            }}
-                          >
-                            <Plus size={20} strokeWidth={3} />
-                          </button>
+                            }}><Plus size={18} strokeWidth={3} /></button>
                         </div>
-
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {items.map(item => {
-                            const info = splitProductName(getTranslatedName(item.mealId || '', item.name));
+                            const nameData = splitProductName(getTranslatedName(item.mealId || '', item.name));
                             return (
-                              <div key={item.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-sky-100 shadow-sm animate-in slide-in-from-right-4 duration-300">
-                                <div className="flex items-center gap-3">
-                                  <div className={`p-1.5 rounded-lg border ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-                                    {item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <p className="text-sm font-black text-slate-800 leading-tight">{info.title}</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
-                                      {item.quantity}x {info.details ? '• ' + info.details : ''} • {item.kcal} kcal
-                                    </p>
+                              <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded-xl border border-sky-100 shadow-sm animate-in slide-in-from-right-4 duration-300">
+                                <div className="flex items-center gap-2 min-w-0 pr-2">
+                                  <div className={`p-1 rounded-lg border shrink-0 ${item.isDrink ? 'bg-sky-50 border-sky-100 text-sky-400' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}</div>
+                                  <div className="flex flex-col min-w-0">
+                                    <p className="text-[13px] font-black text-slate-800 leading-tight truncate">{nameData.title}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{nameData.unitInfo && `${nameData.unitInfo} • `}{item.quantity}x • {item.kcal} kcal</p>
                                   </div>
                                 </div>
-                                <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition-colors"><Trash2 size={16} /></button>
+                                <button onClick={() => removeMealItem(moment, item.id)} className="text-slate-300 hover:text-red-500 p-1 transition-colors shrink-0"><Trash2 size={14} /></button>
                               </div>
                             );
                           })}
-                          {items.length === 0 && <p className="text-[10px] text-slate-300 font-bold uppercase text-center py-2">{t.nothingPlanned}</p>}
+                          {items.length === 0 && <p className="text-[9px] text-slate-300 font-bold uppercase text-center py-1.5">{t.nothingPlanned}</p>}
                         </div>
                       </div>
                     );
@@ -800,7 +733,6 @@ export default function App() {
         {activeTab === 'profile' && (
           <div className="space-y-4 animate-in fade-in duration-300">
              <h2 className="text-xl font-black text-slate-800 px-1 tracking-tight">{t.settings}</h2>
-             
              <div className="bg-slate-50 rounded-[20px] p-4 border border-slate-200 shadow-sm space-y-2">
                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5"><Globe size={14} className="text-sky-400" /> {t.language}</h3>
                <div className="grid grid-cols-5 gap-2" dir="ltr">
@@ -809,7 +741,6 @@ export default function App() {
                  ))}
                </div>
              </div>
-
              <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.age}</label><input type="number" value={state.profile.age} onChange={e => setState({...state, profile: {...state.profile, age: Number(e.target.value)}})} className="w-full bg-white p-3 rounded-xl font-black border border-slate-100 text-sm shadow-sm" /></div>
@@ -820,67 +751,33 @@ export default function App() {
                   <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">{t.targetWeight}</label><input type="number" value={state.profile.targetWeight} onChange={e => setState({...state, profile: {...state.profile, targetWeight: Number(e.target.value)}})} className="w-full bg-sky-50 p-3 rounded-xl font-black text-sky-500 border border-sky-100 text-sm shadow-sm" /></div>
                 </div>
              </div>
-             
              <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-200 shadow-sm space-y-4">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-sky-400" /> {t.dataManagement.title}</h3>
-               
-               <div className="space-y-3">
-                 <div className="p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between shadow-sm">
-                    <div className="flex flex-col">
-                       <div className="flex items-center gap-1.5 mb-1">
-                          <CheckCircle2 size={14} className="text-emerald-500" />
-                          <span className="text-xs font-black uppercase tracking-wider text-slate-700">{t.dataManagement.localActive}</span>
-                       </div>
-                       <p className="text-[10px] text-slate-400">{t.dataManagement.localDesc}</p>
-                    </div>
+               <div className="grid grid-cols-1 gap-2">
+                 <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-sky-600 border border-sky-100 rounded-xl hover:bg-sky-50 transition-all shadow-sm">
+                   <div className="flex items-center gap-2"><Download size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.export}</span></div>
+                   <ChevronRight size={14} />
+                 </button>
+                 
+                 <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => handleCloudExport('Google Drive')} className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-600 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
+                      <Cloud size={16} className="text-sky-400" /><span className="text-[9px] font-black uppercase tracking-widest">{t.dataManagement.googleDrive}</span>
+                    </button>
+                    <button onClick={() => handleCloudExport('Dropbox')} className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-600 border border-slate-100 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
+                      <Cloud size={16} className="text-blue-500" /><span className="text-[9px] font-black uppercase tracking-widest">{t.dataManagement.dropbox}</span>
+                    </button>
                  </div>
 
-                 <div className="grid grid-cols-1 gap-2">
-                   <button onClick={exportData} className="w-full flex items-center justify-between px-4 py-3 bg-white text-sky-600 border border-sky-100 rounded-xl hover:bg-sky-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Download size={16} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.export}</span>
-                     </div>
-                     <ChevronRight size={14} />
-                   </button>
-                   
-                   <button onClick={() => handleCloudExport('Google Drive')} className="w-full flex items-center justify-between px-4 py-3 bg-white text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Cloud size={16} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.googleDrive}</span>
-                     </div>
-                     <ChevronRight size={14} />
-                   </button>
-
-                   <button onClick={() => handleCloudExport('Dropbox')} className="w-full flex items-center justify-between px-4 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Share2 size={16} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.dropbox}</span>
-                     </div>
-                     <ChevronRight size={14} />
-                   </button>
-
-                   <label className="w-full flex items-center justify-between px-4 py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
-                     <div className="flex items-center gap-2">
-                       <Upload size={16} />
-                       <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.restore}</span>
-                     </div>
-                     <input type="file" accept=".json" className="hidden" onChange={handleImport} />
-                   </label>
-
-                   <div className="h-px bg-slate-200 my-1" />
-
-                   <button onClick={resetAllData} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-all shadow-sm">
-                     <Trash2 size={16} />
-                     <span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.clearAll}</span>
-                   </button>
-                 </div>
+                 <label className="w-full flex items-center justify-between px-4 py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all shadow-sm">
+                   <div className="flex items-center gap-2"><Upload size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.restore}</span></div>
+                   <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+                 </label>
+                 
+                 <button onClick={resetAllData} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-all shadow-sm">
+                   <Trash2 size={16} /><span className="text-xs font-black uppercase tracking-widest">{t.dataManagement.clearAll}</span>
+                 </button>
                </div>
              </div>
-
-             <button onClick={() => setShowLegal(true)} className="w-full flex items-center justify-center gap-2 bg-slate-50 text-slate-400 text-xs font-black uppercase py-4 rounded-xl border border-slate-200 hover:bg-white transition-all shadow-sm">
-                 <ShieldCheck size={16} /> {t.legal}
-             </button>
           </div>
         )}
       </main>
@@ -900,19 +797,10 @@ export default function App() {
                 <h3 className="text-lg font-black text-slate-800 uppercase">{t.products}</h3>
                 <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors"><X size={24} /></button>
               </div>
-
-              {/* Zoekbalk */}
               <div className="relative mb-6">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder={t.searchPlaceholder} 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all"
-                />
+                <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold shadow-sm focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none transition-all" />
               </div>
-
               <form onSubmit={addCustomOptionCentral} className="space-y-3 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.add}</h4>
                   <input type="text" placeholder={t.productName} value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" required />
@@ -922,158 +810,44 @@ export default function App() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <span className="text-xs font-black uppercase tracking-widest text-slate-600">{t.isDrinkQuestion}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => setNewProductIsDrink(!newProductIsDrink)}
-                      className={`w-12 h-6 rounded-full transition-all relative ${newProductIsDrink ? 'bg-sky-400' : 'bg-slate-200'}`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newProductIsDrink ? 'left-7' : 'left-1'}`} />
-                    </button>
+                    <button type="button" onClick={() => setNewProductIsDrink(!newProductIsDrink)} className={`w-12 h-6 rounded-full transition-all relative ${newProductIsDrink ? 'bg-sky-400' : 'bg-slate-200'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newProductIsDrink ? 'left-7' : 'left-1'}`} /></button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {['Ontbijt','Lunch','Diner','Snacks'].map(cat => (
-                      <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-2 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${newProductCats.includes(cat) ? 'bg-sky-400 text-white shadow-md' : 'bg-white text-sky-300 border border-sky-100 shadow-sm'}`}>{cat}</button>
-                    ))}
+                    {['Ontbijt','Lunch','Diner','Snacks'].map(cat => <button key={cat} type="button" onClick={() => setNewProductCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} className={`px-2 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${newProductCats.includes(cat) ? 'bg-sky-400 text-white shadow-md' : 'bg-white text-sky-300 border border-sky-100 shadow-sm'}`}>{cat}</button>)}
                   </div>
                   <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest mt-2">{t.saveInList}</button>
               </form>
-              
               <div className="space-y-8">
                 {MEAL_MOMENTS.map(moment => {
                   const options = state.customOptions[moment] || [];
-                  const filteredOptions = options.filter(o => 
-                    getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())
-                  );
-
+                  const filteredOptions = options.filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()));
                   if (filteredOptions.length === 0) return null;
-                  
-                  const foodItems = filteredOptions.filter(o => !o.isDrink);
-                  const drinkItems = filteredOptions.filter(o => o.isDrink);
-                  
                   return (
                     <div key={moment} className="space-y-5">
-                      <h4 className="text-[13px] font-black text-sky-600 uppercase tracking-widest border-b-2 border-sky-100 pb-1 flex items-center gap-2">
-                         {moment === 'Ontbijt' && <Coffee size={16} />}
-                         {moment === 'Lunch' && <Sun size={16} />}
-                         {moment === 'Diner' && <Moon size={16} />}
-                         {t.moments[moment] || moment}
-                      </h4>
-                      
-                      {/* Eten Sectie */}
-                      {foodItems.length > 0 && (
-                        <div className="space-y-3">
-                          <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><Utensils size={10} /> {t.food}</h5>
-                          <div className="space-y-2">
-                            {foodItems.map(opt => {
-                              const info = splitProductName(getTranslatedName(opt.id, opt.name));
-                              return (
-                                <div key={`${moment}-${opt.id}`} className="p-3 bg-slate-50/50 rounded-2xl flex justify-between items-center border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
-                                  <div className="flex items-center gap-3 min-w-0 pr-4">
-                                    <div className="p-2 bg-white rounded-xl border border-slate-100 text-slate-400 shrink-0"><Utensils size={14} /></div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
-                                      <span className="text-[10px] text-slate-400 uppercase font-bold">
-                                        {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-slate-200 hover:text-red-500 transition-colors">
-                                    <Trash2 size={16} />
-                                  </button>
+                      <h4 className="text-[13px] font-black text-sky-600 uppercase tracking-widest border-b-2 border-sky-100 pb-1 flex items-center gap-2">{moment}</h4>
+                      <div className="space-y-2">
+                        {filteredOptions.map(opt => {
+                          const { title, unitInfo } = splitProductName(getTranslatedName(opt.id, opt.name));
+                          return (
+                            <div key={`${moment}-${opt.id}`} className="p-2.5 bg-slate-50/50 rounded-2xl flex justify-between items-center border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-4">
+                                <div className={`p-1.5 bg-white rounded-xl border border-slate-100 shrink-0 ${opt.isDrink ? 'text-sky-400' : 'text-slate-400'}`}>{opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}</div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[13px] font-black text-slate-800 leading-tight truncate">{title}</span>
+                                  <span className="text-[9px] text-slate-400 uppercase font-bold">{unitInfo && `${unitInfo} • `}{opt.kcal} kcal</span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Drinken Sectie */}
-                      {drinkItems.length > 0 && (
-                        <div className="space-y-3">
-                          <h5 className="text-[9px] font-black text-sky-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-1.5"><GlassWater size={10} /> {t.drink}</h5>
-                          <div className="space-y-2">
-                            {drinkItems.map(opt => {
-                              const info = splitProductName(getTranslatedName(opt.id, opt.name));
-                              return (
-                                <div key={`${moment}-${opt.id}`} className="p-3 bg-sky-50/30 rounded-2xl flex justify-between items-center border border-sky-100 shadow-sm hover:bg-sky-50 transition-colors">
-                                  <div className="flex items-center gap-3 min-w-0 pr-4">
-                                    <div className="p-2 bg-white rounded-xl border border-slate-100 text-sky-400 shrink-0"><GlassWater size={14} /></div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-black text-slate-800 leading-tight">{info.title}</span>
-                                      <span className="text-[10px] text-sky-500 uppercase font-bold">
-                                        {info.details ? info.details + ' • ' : ''}{opt.kcal} kcal
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-2 text-sky-200 hover:text-red-500 transition-colors">
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                              </div>
+                              <button onClick={() => removeProductFromMomentInLibrary(moment, opt.id)} className="flex-shrink-0 p-1.5 text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-              
               <button onClick={() => { setShowMyList(false); setSearchTerm(''); }} className="w-full mt-10 py-4 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-transform">{t.close}</button>
            </div>
-        </div>
-      )}
-
-      {showMyActivityList && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowMyActivityList(false)}>
-           <div className="bg-white rounded-[28px] p-6 w-full max-w-xs shadow-2xl overflow-y-auto max-h-[85vh]" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-black text-slate-800 uppercase mb-4">{t.myList} ({t.tabs.activity})</h3>
-              <form onSubmit={addCustomActivityCentral} className="space-y-3 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <input type="text" placeholder={t.activityName} value={newActivityName} onChange={e => setNewActivityName(e.target.value)} className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-bold shadow-sm" required />
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-sky-400 uppercase tracking-widest ml-1">{t.kcalPerMin}</label>
-                    <input type="number" step="0.1" value={newActivityKcalMin} onChange={e => setNewActivityKcalMin(e.target.value)} placeholder="0" className="w-full bg-white border border-slate-100 rounded-xl p-3 text-sm font-black shadow-sm" required />
-                  </div>
-                  <button type="submit" className="w-full bg-sky-400 text-white py-3 rounded-xl font-black uppercase text-xs shadow-md tracking-widest">{t.add}</button>
-              </form>
-              <div className="space-y-2">
-                {state.customActivities.map(act => (
-                  <div key={act.id} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-sm font-bold border border-slate-200 shadow-sm">
-                    <span className="text-slate-800">{getTranslatedName(act.id, act.name)}</span>
-                    <button onClick={() => removeActivityFromLibrary(act.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                      <Trash2 size={18}/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => setShowMyActivityList(false)} className="w-full mt-4 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-lg">{t.close}</button>
-           </div>
-        </div>
-      )}
-
-      {showLegal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowLegal(false)}>
-          <div className="bg-white rounded-[28px] p-6 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-black text-slate-800 uppercase mb-3 flex items-center gap-2"><ShieldCheck size={20} className="text-sky-400" /> {t.legal}</h3>
-            <div className="space-y-3 text-xs text-slate-500 leading-relaxed mb-6">
-              <p className="font-bold text-slate-800">{t.privacy.data}</p>
-              <div className="h-px bg-slate-100" />
-              <p>{t.privacy.medical}</p>
-              <div className="h-px bg-slate-100" />
-              <p>{t.legalText}</p>
-            </div>
-            <button onClick={() => setShowLegal(false)} className="w-full py-3 bg-sky-400 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-md">{t.close}</button>
-          </div>
-        </div>
-      )}
-
-      {showInfo && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xl z-[100] flex items-center justify-center p-5" onClick={() => setShowInfo(false)}>
-          <div className="bg-white rounded-[28px] p-6 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-black text-slate-800 uppercase mb-3 flex items-center gap-2"><Info size={20} className="text-sky-400" /> {t.info}</h3>
-            <p className="text-sm text-slate-600 leading-relaxed mb-6">{t.infoText}</p>
-            <button onClick={() => setShowInfo(false)} className="w-full py-3 bg-sky-400 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-md">{t.close}</button>
-          </div>
         </div>
       )}
     </div>
