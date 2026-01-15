@@ -3,10 +3,10 @@
   "name": "Doelgewicht in Zicht",
   "short_name": "In Zicht",
   "description": "Persoonlijke dieet- en bewegingsplanner.",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#4f46e5",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3062/3062276.png",

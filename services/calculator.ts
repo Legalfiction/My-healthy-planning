@@ -59,11 +59,11 @@ export const calculateTargetDate = (profile: UserProfile, dailyIntakeGoal: numbe
   const weightToLose = currentW - targetW;
   const totalKcalToLose = weightToLose * KCAL_PER_KG_FAT; // 7700 kcal per kg fat
   
-  const maintenance = calculateTDEE(profile, 0);
+  const maintenance = calculateTDEE(profile, 0, currentW);
   const dailyDeficit = maintenance - dailyIntakeGoal;
   
-  // Minimal deficit of 50 to prevent infinite loops
-  const effectiveDeficit = dailyDeficit > 50 ? dailyDeficit : 250;
+  // Use a realistic fallback if deficit is too low
+  const effectiveDeficit = dailyDeficit > 100 ? dailyDeficit : 500;
 
   const daysNeeded = Math.ceil(totalKcalToLose / effectiveDeficit);
   
@@ -82,7 +82,6 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   
   if (currentW <= targetW) return 1800;
 
-  // Use local midnight for both dates to calculate true day difference
   const [year, month, day] = targetDateStr.split('-').map(Number);
   const targetDate = new Date(year, month - 1, day);
   
@@ -92,15 +91,14 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) return 1500;
+  if (diffDays <= 7) return 1200; // Hard cap for short periods
 
   const weightToLose = currentW - targetW;
   const totalKcalDeficitNeeded = weightToLose * KCAL_PER_KG_FAT;
   const dailyDeficitNeeded = totalKcalDeficitNeeded / diffDays;
 
-  const maintenance = calculateTDEE(profile, 0);
+  const maintenance = calculateTDEE(profile, 0, currentW);
   const budget = Math.round(maintenance - dailyDeficitNeeded);
 
-  // Safety caps: 1200 kcal is the common minimum for safe dieting
-  return Math.min(Math.max(budget, 1200), 4000);
+  return Math.min(Math.max(budget, 1200), 3500);
 };
