@@ -177,7 +177,6 @@ export default function App() {
   const [showProductList, setShowProductList] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   
-  // Custom states for adding new items
   const [newFood, setNewFood] = useState({ name: '', kcal: '', unit: '', cats: [] as string[], isDrink: false });
   const [newAct, setNewAct] = useState({ name: '', kcal: '' });
 
@@ -217,7 +216,6 @@ export default function App() {
     });
   }, []);
 
-  // Autofocus search when opened
   useEffect(() => {
     if (showProductList && searchInputRef.current) {
         searchInputRef.current.focus();
@@ -249,7 +247,6 @@ export default function App() {
     if (!isLoaded) return;
     const currentProfile = state.profile;
     const currentTDEE = calculateTDEE(currentProfile, 0, globalLatestWeight);
-    
     const MIN_HEALTHY_CALORIES = 1450;
 
     if (currentProfile.weightLossSpeed === 'custom') {
@@ -338,10 +335,14 @@ export default function App() {
     });
   };
 
-  const removeCustomMealOption = (moment: MealMoment, optionId: string) => {
+  const removeCustomMealOptionBatch = (moments: MealMoment[], optionId: string) => {
     setState(prev => {
       const options = { ...prev.customOptions };
-      options[moment] = options[moment].filter(o => o.id !== optionId);
+      moments.forEach(m => {
+        if (options[m]) {
+          options[m] = options[m].filter(o => o.id !== optionId);
+        }
+      });
       return { ...prev, customOptions: options };
     });
   };
@@ -645,37 +646,43 @@ export default function App() {
               </div>
 
               <div className="space-y-8 pb-10">
-                {myListCategories.map(cat => (
-                  <div key={cat.id} className="space-y-3">
-                    <h4 className="text-[11px] font-black text-orange-400 uppercase px-3 py-1 bg-orange-50 rounded-full w-fit tracking-[0.1em]">{cat.label}</h4>
-                    <div className="space-y-2">
-                      {cat.moments.flatMap(m => state.customOptions[m] || []).filter(o => o.isCustom).map(opt => (
-                        <div key={opt.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center animate-in fade-in duration-300">
-                          <div className="flex items-center gap-3 min-w-0 pr-4">
-                            <div className="bg-orange-50 p-2 rounded-xl text-orange-500 shrink-0">
-                                {opt.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
+                {myListCategories.map(cat => {
+                   const customItemsInCategory = cat.moments.flatMap(m => state.customOptions[m] || []).filter(o => o.isCustom);
+                   if (customItemsInCategory.length === 0) return null;
+                   
+                   return (
+                    <div key={cat.id} className="space-y-3 animate-in fade-in duration-300">
+                      <h4 className="text-[11px] font-black text-orange-400 uppercase px-3 py-1 bg-orange-50 rounded-full w-fit tracking-[0.1em]">{cat.label}</h4>
+                      <div className="space-y-2">
+                        {customItemsInCategory.map(opt => (
+                          <div key={opt.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center group hover:border-orange-200 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0 pr-4">
+                              <div className="bg-orange-50 p-2 rounded-xl text-orange-500 shrink-0">
+                                  {opt.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                  <span className="text-[14px] font-black text-slate-800 leading-tight uppercase truncate">{opt.name}</span>
+                                  <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">
+                                  {opt.unitName || '1 PORTIE'} • {opt.kcal} KCAL
+                                  </span>
+                              </div>
                             </div>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[14px] font-black text-slate-800 leading-tight uppercase truncate">{opt.name}</span>
-                                <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">
-                                {opt.unitName || '1 PORTIE'} • {opt.kcal} KCAL
-                                </span>
-                            </div>
+                            <button 
+                              onClick={() => {
+                                removeCustomMealOptionBatch(cat.moments, opt.id);
+                                setToast({ msg: 'Product verwijderd', type: 'info' });
+                              }}
+                              className="text-slate-200 hover:text-red-500 transition-all p-2 active:scale-90"
+                              title="Verwijder item"
+                            >
+                              <Trash2 size={20} />
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => {
-                              cat.moments.forEach(m => removeCustomMealOption(m, opt.id));
-                              setToast({ msg: 'Verwijderd uit lijst', type: 'info' });
-                            }}
-                            className="text-slate-200 hover:text-red-500 transition-colors p-2"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -732,7 +739,7 @@ export default function App() {
 
               <div className="space-y-3 pb-10">
                 {state.customActivities?.map(act => (
-                  <div key={act.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex justify-between items-center animate-in fade-in duration-300">
+                  <div key={act.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex justify-between items-center group hover:border-orange-200 animate-in fade-in duration-300">
                     <div className="flex flex-col">
                       <span className="text-[15px] font-black text-slate-800 leading-tight uppercase tracking-tight">{act.name}</span>
                       <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">{(act as any).kcalPer60} KCAL / 60 MIN</span>
@@ -740,11 +747,12 @@ export default function App() {
                     <button 
                       onClick={() => {
                         setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== act.id) }));
-                        setToast({ msg: 'Verwijderd uit lijst', type: 'info' });
+                        setToast({ msg: 'Activiteit verwijderd', type: 'info' });
                       }}
-                      className="text-slate-200 hover:text-red-500 transition-colors p-2"
+                      className="text-slate-200 hover:text-red-500 transition-all p-2 active:scale-90"
+                      title="Verwijder activiteit"
                     >
-                      <Trash2 size={20} />
+                      <Trash2 size={22} />
                     </button>
                   </div>
                 ))}
