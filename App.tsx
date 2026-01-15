@@ -178,8 +178,8 @@ export default function App() {
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
-    const base = translations['nl'];
-    const selected = translations[lang] || {};
+    const base = (translations as any)['nl'];
+    const selected = (translations as any)[lang] || {};
     const result = { ...base };
     Object.keys(selected).forEach(key => {
         if (selected[key] && (typeof selected[key] !== 'object' || Object.keys(selected[key]).length > 0)) {
@@ -209,38 +209,57 @@ export default function App() {
     });
   }, []);
 
+  const globalLatestWeight = useMemo((): number => {
+    const datesWithWeight = Object.keys(state.dailyLogs)
+      .filter(d => typeof state.dailyLogs[d].weight === 'number' && (state.dailyLogs[d].weight ?? 0) > 0)
+      .sort((a, b) => b.localeCompare(a));
+    
+    if (datesWithWeight.length > 0) {
+      return state.dailyLogs[datesWithWeight[0]].weight!;
+    }
+    return Number(state.profile.startWeight) || 86;
+  }, [state.dailyLogs, state.profile.startWeight]);
+
+  const weightForSelectedDate = useMemo((): number => {
+    const manualLogWeight = state.dailyLogs[selectedDate]?.weight;
+    if (typeof manualLogWeight === 'number' && manualLogWeight > 0) return manualLogWeight;
+    const sortedDates = Object.keys(state.dailyLogs)
+      .filter(d => d <= selectedDate && typeof state.dailyLogs[d].weight === 'number' && (state.dailyLogs[d].weight ?? 0) > 0)
+      .sort((a,b) => b.localeCompare(a));
+    for (const d of sortedDates) { if (state.dailyLogs[d]?.weight) return state.dailyLogs[d].weight as number; }
+    return Number(state.profile.startWeight) || 86;
+  }, [state.dailyLogs, state.profile.startWeight, selectedDate]);
+
   useEffect(() => {
     if (!isLoaded) return;
     const currentProfile = state.profile;
-    const currentTDEE = calculateTDEE(currentProfile, 0, currentProfile.currentWeight);
+    const currentTDEE = calculateTDEE(currentProfile, 0, globalLatestWeight);
     
     const MIN_HEALTHY_CALORIES = 1450;
 
     if (currentProfile.weightLossSpeed === 'custom') {
       if (currentProfile.customTargetDate) {
-        const newBudget = calculateBudgetFromTargetDate(currentProfile, currentProfile.customTargetDate);
+        const newBudget = calculateBudgetFromTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, currentProfile.customTargetDate);
         if (newBudget !== currentProfile.dailyBudget) {
           setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: newBudget } }));
         }
       } else {
-        const fallbackDate = calculateTargetDate(currentProfile, currentProfile.dailyBudget);
+        const fallbackDate = calculateTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, currentProfile.dailyBudget);
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: fallbackDate } }));
       }
     } else {
-      // More defensive deficits:
-      // Slow: -150 (very easy), Average: -350 (moderate), Fast: -600 (ambitious but safe floor)
-      let deficit = currentProfile.weightLossSpeed === 'slow' ? 150 : currentProfile.weightLossSpeed === 'fast' ? 600 : 350;
+      let deficit = currentProfile.weightLossSpeed === 'slow' ? 250 : currentProfile.weightLossSpeed === 'fast' ? 600 : 500;
       const safeBudget = Math.max(Math.round(currentTDEE - deficit), MIN_HEALTHY_CALORIES);
       
       if (safeBudget !== currentProfile.dailyBudget) {
         setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: safeBudget } }));
       }
-      const autoDate = calculateTargetDate(currentProfile, safeBudget);
+      const autoDate = calculateTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, safeBudget);
       if (autoDate !== currentProfile.customTargetDate) {
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: autoDate } }));
       }
     }
-  }, [isLoaded, state.profile.gender, state.profile.birthYear, state.profile.height, state.profile.currentWeight, state.profile.weightLossSpeed, state.profile.targetWeight, state.profile.activityLevel, state.profile.customTargetDate]);
+  }, [isLoaded, state.profile.gender, state.profile.birthYear, state.profile.height, state.profile.startWeight, state.profile.weightLossSpeed, state.profile.targetWeight, state.profile.activityLevel, state.profile.customTargetDate, globalLatestWeight]);
 
   useEffect(() => {
     if (isLoaded) idb.set(state);
@@ -248,30 +267,22 @@ export default function App() {
 
   const currentLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
   
-  const latestWeight = useMemo((): number => {
-    const manualLogWeight = state.dailyLogs[selectedDate]?.weight;
-    if (typeof manualLogWeight === 'number' && manualLogWeight > 0) return manualLogWeight;
-    const sortedDates = Object.keys(state.dailyLogs).filter(d => d <= selectedDate).sort((a,b) => b.localeCompare(a));
-    for (const d of sortedDates) { if (state.dailyLogs[d]?.weight) return state.dailyLogs[d].weight as number; }
-    return Number(state.profile.currentWeight) || 86;
-  }, [state.dailyLogs, state.profile.currentWeight, selectedDate]);
-
-  const bmi = useMemo(() => calculateBMI(latestWeight, state.profile.height), [latestWeight, state.profile.height]);
+  const bmi = useMemo(() => calculateBMI(weightForSelectedDate, state.profile.height), [weightForSelectedDate, state.profile.height]);
   const bmiColor = useMemo(() => bmi < 18.5 ? 'text-orange-400' : bmi < 25 ? 'text-green-500' : bmi < 30 ? 'text-amber-500' : 'text-red-500', [bmi]);
 
   const totals = useMemo(() => {
     const activityBurn = Number(currentLog.activities.reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0));
     const startW = Number(state.profile.startWeight) || 0;
     const targetW = Number(state.profile.targetWeight) || 0;
-    const currentW = Number(latestWeight);
+    const currentW = Number(weightForSelectedDate);
     const intakeGoal = Number(state.profile.dailyBudget) || 1800;
     const autoTargetDate = calculateTargetDate({ ...state.profile, currentWeight: currentW }, intakeGoal);
     
     const weightLogExists = Object.values(state.dailyLogs).some(log => typeof log.weight === 'number');
-    const weightLostSoFar = weightLogExists ? (startW - currentW) : 0;
+    const weightLostSoFar = startW - globalLatestWeight;
     
     const weightJourneyTotal = Math.abs(startW - targetW) || 0.1;
-    const weightProgressPercent = weightLogExists ? Math.min(Math.max((weightLostSoFar / weightJourneyTotal) * 100, 0), 100) : 0;
+    const weightProgressPercent = weightLogExists ? Math.min(Math.max(( (startW - globalLatestWeight) / weightJourneyTotal) * 100, 0), 100) : 0;
     
     const currentAdjustedGoal = Number(intakeGoal + activityBurn);
     const actualIntake = Number(Object.values(currentLog.meals).reduce((acc, items) => acc + Number(items.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0)), 0));
@@ -288,7 +299,7 @@ export default function App() {
       weightLostSoFar,
       weightLogExists
     };
-  }, [state.profile, currentLog, latestWeight, state.dailyLogs]);
+  }, [state.profile, currentLog, weightForSelectedDate, globalLatestWeight, state.dailyLogs]);
 
   const dateParts = useMemo(() => {
     const dateObj = new Date(selectedDate);
@@ -321,7 +332,7 @@ export default function App() {
   };
 
   const addActivity = (typeId: string, value: number) => {
-    const burn = calculateActivityBurn({ typeId, value }, latestWeight);
+    const burn = calculateActivityBurn({ typeId, value }, weightForSelectedDate);
     setState(prev => {
       const logs = { ...prev.dailyLogs };
       const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
@@ -419,7 +430,6 @@ export default function App() {
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
       {toast && <Toast message={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
       
-      {/* Informatie Modal */}
       {showInfo && (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
@@ -481,7 +491,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Mijn Lijst Modal */}
       {showMyList && (
         <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
@@ -525,7 +534,6 @@ export default function App() {
         </div>
       )}
 
-      {/* HEADER SECTION */}
       <header className="bg-white sticky top-0 z-30 p-3 pt-4 px-5 border-b border-slate-50">
         <div className="flex justify-between items-start mb-1">
           <div className="flex flex-col">
@@ -533,7 +541,7 @@ export default function App() {
              <h2 className="text-[14px] font-black text-slate-400 tracking-[0.1em] uppercase mt-0.5">{t.subtitle}</h2>
           </div>
           
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-start gap-2 pt-1">
              <div className="relative">
                 <select 
                   value={state.language} 
@@ -550,9 +558,8 @@ export default function App() {
              <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-[20px] flex flex-col items-center justify-center min-w-[85px] shadow-sm">
                 <div className="flex items-center gap-1">
                   <TrendingDown size={12} className="text-orange-400" />
-                  <span className="text-[14px] font-black text-slate-800 leading-none">{latestWeight.toFixed(1)} <span className="text-[8px] text-slate-400 font-black uppercase">KG</span></span>
+                  <span className="text-[14px] font-black text-slate-800 leading-none">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-400 font-black uppercase">KG</span></span>
                 </div>
-                <span className={`text-[9px] font-black uppercase ${bmiColor} leading-none mt-0.5`}>BMI: {bmi}</span>
              </div>
           </div>
         </div>
@@ -573,12 +580,18 @@ export default function App() {
       <main className="p-4 flex-grow space-y-4 max-h-screen overflow-y-auto custom-scrollbar overscroll-contain pb-32">
         {activeTab === 'dashboard' && (
           <div className="space-y-5 animate-in fade-in duration-500">
-            <div className="bg-orange-50/50 rounded-[32px] p-7 text-slate-800 relative overflow-hidden border border-orange-100/50 shadow-sm">
+            <div className="bg-orange-50/50 rounded-[32px] p-7 text-slate-800 relative overflow-hidden border border-orange-100/50 shadow-sm flex flex-col">
                <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none text-orange-500">
                  <Target size={120} strokeWidth={1} />
                </div>
-               <p className="text-orange-500 text-[12px] font-black uppercase tracking-[0.2em] mb-3">{t.targetReached}</p>
-               <h2 className="text-3xl font-black text-slate-800 tracking-tight">{formatTargetDateDisplay(totals.targetDate)}</h2>
+               
+               <div className="flex flex-col mb-6">
+                 <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-1">BMI</span>
+                 <span className={`text-3xl font-black ${bmiColor} leading-none tracking-tight`}>{bmi}</span>
+               </div>
+
+               <p className="text-orange-500 text-[12px] font-black uppercase tracking-[0.2em] mb-2">{t.targetReached}</p>
+               <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none">{formatTargetDateDisplay(totals.targetDate)}</h2>
             </div>
 
             <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-8">
@@ -716,7 +729,6 @@ export default function App() {
                           <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
                             <Search size={20} className="text-orange-400" />
                             <input 
-                              autoFocus 
                               className="bg-transparent border-none text-[15px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300" 
                               placeholder={t.searchPlaceholder}
                               value={searchTerm} 
@@ -929,7 +941,7 @@ export default function App() {
                       className={`flex flex-col items-center justify-center py-3 px-1 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-1 ring-orange-50 shadow-sm' : 'bg-slate-50 border-transparent grayscale opacity-60'}`}
                     >
                       <sp.icon size={14} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[7px] font-black uppercase mt-1 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                      <span className={`text-[10px] font-black uppercase mt-1 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
@@ -953,7 +965,7 @@ export default function App() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">STREEFDATUM</span>
+                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">{t.targetDateLabel}</span>
                      {state.profile.weightLossSpeed === 'custom' ? (
                        <div className="relative w-full max-w-[150px]">
                          <input 
