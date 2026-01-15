@@ -41,22 +41,26 @@
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
         }
-        @media (max-width: 640px) {
-            .max-w-md {
-                max-width: 100% !important;
-            }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f97316;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 <script type="importmap">
 {
@@ -74,7 +78,39 @@
 </script>
 </head>
 <body class="bg-white text-slate-900">
+    <div id="loading-screen">
+        <div class="spinner mb-4"></div>
+        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Laden...</p>
+        <button id="retry-button" class="hidden mt-4 px-4 py-2 bg-orange-500 text-white rounded-xl font-black text-xs uppercase" onclick="window.location.reload()">Opnieuw proberen</button>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
+
+    <script>
+        // Failsafe voor wit scherm
+        setTimeout(() => {
+            const root = document.getElementById('root');
+            if (root && root.children.length === 0) {
+                document.getElementById('loading-text').innerText = 'Kan de app niet laden. Controleer je verbinding.';
+                document.getElementById('retry-button').classList.remove('hidden');
+            }
+        }, 8000);
+
+        // Verberg loader als React klaar is
+        window.addEventListener('load', () => {
+            const checkReady = setInterval(() => {
+                const root = document.getElementById('root');
+                if (root && root.children.length > 0) {
+                    const loader = document.getElementById('loading-screen');
+                    if (loader) {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.remove(), 500);
+                    }
+                    clearInterval(checkReady);
+                }
+            }, 100);
+        });
+    </script>
 </body>
 </html>

@@ -18,10 +18,26 @@ root.render(
 // Registreer de Service Worker voor PWA-functionaliteit
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(registration => {
-      console.log('SW registered successfully with scope: ', registration.scope);
-    }).catch(registrationError => {
-      console.log('SW registration failed: ', registrationError);
-    });
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(registration => {
+        console.log('SW registered successfully with scope: ', registration.scope);
+        
+        // Check voor updates
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nieuwe versie gevonden, reload om te activeren
+                console.log('Nieuwe versie beschikbaar, herladen...');
+                window.location.reload();
+              }
+            };
+          }
+        };
+      })
+      .catch(registrationError => {
+        console.error('SW registration failed: ', registrationError);
+      });
   });
 }
