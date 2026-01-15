@@ -2,8 +2,9 @@
 {
   "name": "Doelgewicht in Zicht",
   "short_name": "In Zicht",
+  "id": "com.myhealthyplanning.app",
   "description": "Persoonlijke dieet- en bewegingsplanner voor een gezond streefgewicht.",
-  "start_url": ".",
+  "start_url": "/?pwa=true",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",

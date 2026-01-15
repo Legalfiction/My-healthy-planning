@@ -38,11 +38,19 @@ export const calculateBMI = (weight: number, heightCm: number): number => {
   return Number((weight / (heightM * heightM)).toFixed(1));
 };
 
-export const calculateActivityBurn = (activity: { typeId: string; value: number }, weight: number): number => {
-  const type = ACTIVITY_TYPES.find(t => t.id === activity.typeId);
+export const calculateActivityBurn = (activity: { typeId: string; value: number }, weight: number, customActivities?: ActivityType[]): number => {
+  const allActivities = [...ACTIVITY_TYPES, ...(customActivities || [])];
+  const type = allActivities.find(t => t.id === activity.typeId);
   if (!type) return 0;
   const minutes = Number(activity.value) || 0;
-  return Math.round(type.met * weight * (minutes / 60));
+  
+  // Support both MET and direct kcal/60min (stored as kcalPer60 for custom types)
+  if (type.met) {
+    return Math.round(type.met * weight * (minutes / 60));
+  } else if ((type as any).kcalPer60) {
+    return Math.round(((type as any).kcalPer60 / 60) * minutes);
+  }
+  return 0;
 };
 
 /**
