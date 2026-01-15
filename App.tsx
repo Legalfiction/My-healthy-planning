@@ -44,21 +44,21 @@ import {
   Language,
   MealOption,
   ActivityType
-} from './types.ts';
+} from './types';
 import { 
   MEAL_OPTIONS, 
   ACTIVITY_TYPES, 
   PRODUCT_TRANSLATIONS,
   MEAL_MOMENTS
-} from './constants.ts';
+} from './constants';
 import { 
   calculateTDEE,
   calculateActivityBurn, 
   calculateTargetDate,
   calculateBudgetFromTargetDate,
   calculateBMI
-} from './services/calculator.ts';
-import { translations } from './translations.ts';
+} from './services/calculator';
+import { translations } from './translations';
 
 const DB_NAME = 'GezondPlanningDB';
 const STORE_NAME = 'appState';
