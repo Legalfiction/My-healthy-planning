@@ -15,13 +15,7 @@ import {
   Info,
   Database, 
   ListFilter,
-  Globe,
-  Coffee,
-  Sun,
-  Moon,
   Zap,
-  Download,
-  Upload,
   Check,
   AlertCircle,
   GlassWater,
@@ -30,25 +24,15 @@ import {
   X,
   Calendar,
   Footprints,
-  Baby,
   Turtle,
   Flame,
   Settings2,
   Laptop,
   Hammer,
   Briefcase,
-  Smartphone,
   BookOpen,
-  HelpCircle,
-  Apple,
-  Chrome,
   Copyright,
-  ShieldAlert,
-  UserCircle,
-  Sparkles,
-  Heart,
   ShieldCheck,
-  MousePointer2,
   Settings,
   FileDown,
   FileUp
@@ -58,11 +42,7 @@ import {
   AppState, 
   MealMoment, 
   LoggedMealItem,
-  MealOption,
-  ActivityType,
-  Language,
-  WeightLossSpeed,
-  ActivityLevel
+  Language
 } from './types';
 import { 
   MEAL_OPTIONS, 
@@ -79,7 +59,6 @@ import {
 } from './services/calculator';
 import { translations } from './translations';
 
-// Database configuration
 const DB_NAME = 'GezondPlanningDB';
 const STORE_NAME = 'appState';
 const STATE_KEY = 'mainState';
@@ -91,7 +70,6 @@ const generateId = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
-// IndexedDB Helper
 const idb = {
   open: (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -198,7 +176,6 @@ export default function App() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Translation hook
   const t = useMemo(() => {
     const lang = state.language || 'nl';
     const base = translations['nl'];
@@ -217,7 +194,6 @@ export default function App() {
     return PRODUCT_TRANSLATIONS[lang]?.[id] || PRODUCT_TRANSLATIONS['nl']?.[id] || originalName;
   };
 
-  // Load state from IndexedDB
   useEffect(() => {
     idb.get().then(saved => {
       if (saved) {
@@ -233,13 +209,11 @@ export default function App() {
     });
   }, []);
 
-  // Recalculate budget when profile changes
   useEffect(() => {
     if (!isLoaded) return;
     const currentProfile = state.profile;
     const currentTDEE = calculateTDEE(currentProfile, 0, currentProfile.currentWeight);
     
-    // Healthy minimum intake floor
     const MIN_HEALTHY_CALORIES = 1450;
 
     if (currentProfile.weightLossSpeed === 'custom') {
@@ -253,9 +227,9 @@ export default function App() {
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: fallbackDate } }));
       }
     } else {
-      // Adjusting deficits to be more realistic and safe
-      // Slow: -200 (very gentle), Average: -500 (standard), Fast: -800 (ambitious but clamped)
-      let deficit = currentProfile.weightLossSpeed === 'slow' ? 200 : currentProfile.weightLossSpeed === 'fast' ? 800 : 500;
+      // More defensive deficits:
+      // Slow: -150 (very easy), Average: -350 (moderate), Fast: -600 (ambitious but safe floor)
+      let deficit = currentProfile.weightLossSpeed === 'slow' ? 150 : currentProfile.weightLossSpeed === 'fast' ? 600 : 350;
       const safeBudget = Math.max(Math.round(currentTDEE - deficit), MIN_HEALTHY_CALORIES);
       
       if (safeBudget !== currentProfile.dailyBudget) {
@@ -268,7 +242,6 @@ export default function App() {
     }
   }, [isLoaded, state.profile.gender, state.profile.birthYear, state.profile.height, state.profile.currentWeight, state.profile.weightLossSpeed, state.profile.targetWeight, state.profile.activityLevel, state.profile.customTargetDate]);
 
-  // Save to IndexedDB
   useEffect(() => {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
@@ -286,7 +259,6 @@ export default function App() {
   const bmi = useMemo(() => calculateBMI(latestWeight, state.profile.height), [latestWeight, state.profile.height]);
   const bmiColor = useMemo(() => bmi < 18.5 ? 'text-orange-400' : bmi < 25 ? 'text-green-500' : bmi < 30 ? 'text-amber-500' : 'text-red-500', [bmi]);
 
-  // Fix: Alleen gewichtsverlies tonen als er daadwerkelijk logs zijn ingevoerd.
   const totals = useMemo(() => {
     const activityBurn = Number(currentLog.activities.reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0));
     const startW = Number(state.profile.startWeight) || 0;
@@ -295,7 +267,6 @@ export default function App() {
     const intakeGoal = Number(state.profile.dailyBudget) || 1800;
     const autoTargetDate = calculateTargetDate({ ...state.profile, currentWeight: currentW }, intakeGoal);
     
-    // Check if user has entered any weight log in history
     const weightLogExists = Object.values(state.dailyLogs).some(log => typeof log.weight === 'number');
     const weightLostSoFar = weightLogExists ? (startW - currentW) : 0;
     
@@ -376,7 +347,6 @@ export default function App() {
     }
   };
 
-  // Backup & Restore handlers
   const handleExportData = () => {
     const dataStr = JSON.stringify(state, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -399,7 +369,6 @@ export default function App() {
       try {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content) as AppState;
-        // Basic validation
         if (parsed.profile && parsed.dailyLogs) {
           setState(parsed);
           setToast({ msg: 'Gegevens succesvol hersteld!', type: 'success' });
@@ -411,7 +380,6 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-    // Reset input
     if (event.target) event.target.value = '';
   };
 
@@ -468,7 +436,6 @@ export default function App() {
             </div>
             
             <div className="overflow-y-auto flex-grow p-6 space-y-10 custom-scrollbar pb-20">
-               {/* Handleiding */}
                <section className="space-y-4">
                   <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
                     <BookOpen size={20} className="text-orange-500" /> {t.infoModal.manualTitle}
@@ -486,7 +453,6 @@ export default function App() {
                   </div>
                </section>
 
-               {/* De Werking */}
                <section className="space-y-4">
                   <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
                     <Settings2 size={20} className="text-orange-500" /> {t.infoModal.howItWorksTitle}
@@ -497,7 +463,6 @@ export default function App() {
                   </div>
                </section>
 
-               {/* Privacy & Copyright */}
                <section className="pt-6 border-t border-slate-100 space-y-4">
                   <div className="flex flex-col items-center gap-4 text-center">
                     <div className="flex items-center gap-2 text-slate-400">
@@ -533,7 +498,7 @@ export default function App() {
                       <div key={opt.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center active:bg-slate-50 transition-colors">
                         <div className="flex flex-col min-w-0 pr-4">
                           <span className="text-[14px] font-black text-slate-800 leading-tight uppercase truncate">{getTranslatedName(opt.id, opt.name)}</span>
-                          <span className="text-[11px] font-bold uppercase tracking-tight mt-1 text-orange-500">
+                          <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">
                             {opt.unitName || '1 PORTIE'} • {opt.kcal} KCAL
                           </span>
                         </div>
@@ -569,13 +534,6 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-2 pt-1">
-             <button 
-               onClick={() => setShowInfo(true)}
-               className="p-2 bg-slate-50 border border-slate-200 rounded-full text-orange-500 shadow-sm active:scale-90 transition-transform hover:bg-orange-50"
-             >
-               <Info size={20} />
-             </button>
-
              <div className="relative">
                 <select 
                   value={state.language} 
@@ -737,7 +695,6 @@ export default function App() {
                 <div className="bg-orange-50/40 rounded-[30px] p-6 shadow-sm border border-orange-100 animate-in slide-in-from-top-4 duration-500">
                   <div className="flex flex-col gap-4">
                     <div className="relative">
-                      {/* Product Selector Button - Replaces floating search for stability */}
                       <button 
                         onClick={() => { setSearchTerm(''); setShowProductList(!showProductList); }} 
                         className={`w-full bg-white border-2 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px] transition-all ${mealInputs[openPickerMoment]?.mealId ? 'border-orange-500 ring-4 ring-orange-50 bg-orange-50/20' : 'border-orange-200/50 hover:border-orange-400'}`}
@@ -785,7 +742,6 @@ export default function App() {
                       )}
                     </div>
                     
-                    {/* Compact Quantity & Add Button Row - Fix overlap */}
                     {!showProductList && mealInputs[openPickerMoment]?.mealId && (
                       <div className="flex gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="flex-grow">
@@ -897,12 +853,18 @@ export default function App() {
         {activeTab === 'profile' && (
           <div className="space-y-6 animate-in fade-in duration-300 pb-12 w-full block">
              <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-6">
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block mb-4">{t.gender}</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'man' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.man}</button>
-                    <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'woman' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.woman}</button>
-                  </div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{t.gender}</label>
+                  <button 
+                    onClick={() => setShowInfo(true)}
+                    className="p-1.5 bg-slate-50 border border-slate-200 rounded-full text-orange-500 shadow-sm active:scale-90 transition-all hover:bg-orange-50"
+                  >
+                    <Info size={18} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'man' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.man}</button>
+                  <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'woman' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.woman}</button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-5">
@@ -952,7 +914,7 @@ export default function App() {
                 </div>
              </section>
 
-             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+             <section className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
                 <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest leading-none text-center mb-1">{t.chooseSpeed}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[
@@ -964,16 +926,15 @@ export default function App() {
                     <button 
                       key={sp.id}
                       onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, weightLossSpeed: sp.id as any } }))}
-                      className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-1 ring-orange-50 shadow-sm' : 'bg-slate-50 border-transparent grayscale'}`}
+                      className={`flex flex-col items-center justify-center py-3 px-1 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-1 ring-orange-50 shadow-sm' : 'bg-slate-50 border-transparent grayscale opacity-60'}`}
                     >
-                      <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <sp.icon size={14} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
                       <span className={`text-[7px] font-black uppercase mt-1 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
              </section>
 
-             {/* CALORIE BUDGET SUMMARY */}
              <section className="bg-orange-50 border border-orange-200 rounded-[32px] p-6 flex flex-col gap-4 shadow-sm relative">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
@@ -1013,7 +974,6 @@ export default function App() {
                 </div>
              </section>
 
-             {/* DATA MANAGEMENT SECTION */}
              <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
                 <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-slate-400" /> {t.dataManagement.title}</h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -1039,7 +999,6 @@ export default function App() {
         )}
       </main>
 
-      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-6 py-5 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom,20px)]">
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
