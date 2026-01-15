@@ -203,7 +203,7 @@ export const translations: Record<Language, any> = {
     chooseSpeed: 'WÄHLEN SIE, WIE SCHNELL SIE IHR ZIELGEWICHT ERREICHEN MÖCHTEN',
     activityLevelLabel: 'TÄGLICHE AKTIVITÄT (BASIS)', activityLevelDesc: 'WIE AKTIV IST IHR BERUF ODER ALLTAG?',
     levelLight: 'SITZEND', levelModerate: 'MODERAT', levelHeavy: 'SCHWERARBEIT',
-    searchPlaceholder: 'Produkt suchen...', remainingToday: 'RESTKALORIEN',
+    searchPlaceholder: 'Produkt zoeken...', remainingToday: 'RESTKALORIEN',
     activityCalories: 'Aktivität', consumedTodayLabel: 'Verbraucht', caloriesPerDay: 'PRO TAG',
     noDataYet: 'Keine Daten',
     placeholders: { select: '+ Wählen...', weight: '00.0' },
@@ -219,7 +219,7 @@ export const translations: Record<Language, any> = {
     mealSchedule: 'Plano Alimentar', todayPlanning: 'Registo de Hoje', myList: 'Minha Lista',
     nothingPlanned: 'Nada registado', movement: 'Atividade', activity: 'Atividade',
     amount: 'Minutos', qtyLabel: 'Qtd', age: 'ANO NASC.', gender: 'GÉNERO',
-    man: 'HOMEM', woman: 'MUJER', height: 'ALTURA (CM)', startWeight: 'PESO INICIAL',
+    man: 'HOMEM', woman: 'MULHER', height: 'ALTURA (CM)', startWeight: 'PESO INICIAL',
     targetWeight: 'PESO META', dailyBudgetLabel: 'ORÇAMENTO DIÁRIO', targetDateLabel: 'DATA ALVO',
     speedSlow: 'LENTO', speedAverage: 'MÉDIO', speedFast: 'RÁPIDO', speedCustom: 'RITMO PRÓPRIO',
     chooseSpeed: 'ESCOLHA QUÃO RÁPIDO DESEJA ATINGIR O SEU PESO IDEAL',
@@ -319,7 +319,7 @@ export const translations: Record<Language, any> = {
     placeholders: { select: '+ चुनें...', weight: '00.0' },
     moments: { 'Ontbijt': 'नाश्ता', 'Ochtend snack': 'स्नैक', 'Lunch': 'दोपहर का भोजन', 'Middag snack': 'स्नैक', 'Diner': 'रात का भोजन', 'Avondsnack': 'स्नैक' },
     tabs: { dashboard: 'योजना', meals: 'भोजन', activity: 'व्यायाम', profile: 'मैं' },
-    dataManagement: { title: 'डेटा', export: 'निर्यात', restore: 'पुनर्प्राप्त', clearAll: 'साफ़ करें', clearConfirm: 'क्या आप साफ़ करना चाहते हैं?' },
+    dataManagement: { title: 'डेटा', export: 'निर्यात', restore: 'पुنर्प्राप्त', clearAll: 'साफ़ करें', clearConfirm: 'क्या आप साफ़ करना चाहते हैं?' },
     infoModal: { title: 'जानकारी', manualTitle: 'गाइड', steps: [{title: 'सेटअप', desc: 'डेटा भरें'}, {title: 'इंस्टॉल', desc: 'क्रोम में "इंस्टॉल" करें'}] }
   },
   ar: {
