@@ -238,6 +238,10 @@ export default function App() {
     if (!isLoaded) return;
     const currentProfile = state.profile;
     const currentTDEE = calculateTDEE(currentProfile, 0, currentProfile.currentWeight);
+    
+    // Healthy minimum intake floor
+    const MIN_HEALTHY_CALORIES = 1450;
+
     if (currentProfile.weightLossSpeed === 'custom') {
       if (currentProfile.customTargetDate) {
         const newBudget = calculateBudgetFromTargetDate(currentProfile, currentProfile.customTargetDate);
@@ -249,8 +253,11 @@ export default function App() {
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: fallbackDate } }));
       }
     } else {
-      let deficit = currentProfile.weightLossSpeed === 'slow' ? 250 : currentProfile.weightLossSpeed === 'fast' ? 1000 : 500;
-      const safeBudget = Math.max(Math.round(currentTDEE - deficit), 1200);
+      // Adjusting deficits to be more realistic and safe
+      // Slow: -200 (very gentle), Average: -500 (standard), Fast: -800 (ambitious but clamped)
+      let deficit = currentProfile.weightLossSpeed === 'slow' ? 200 : currentProfile.weightLossSpeed === 'fast' ? 800 : 500;
+      const safeBudget = Math.max(Math.round(currentTDEE - deficit), MIN_HEALTHY_CALORIES);
+      
       if (safeBudget !== currentProfile.dailyBudget) {
         setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: safeBudget } }));
       }
@@ -946,7 +953,7 @@ export default function App() {
              </section>
 
              <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
-                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none text-center">{t.chooseSpeed}</p>
+                <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest leading-none text-center mb-1">{t.chooseSpeed}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     { id: 'slow', icon: Turtle, label: t.speedSlow },
@@ -957,10 +964,10 @@ export default function App() {
                     <button 
                       key={sp.id}
                       onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, weightLossSpeed: sp.id as any } }))}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-2 ring-orange-50 shadow-md' : 'bg-slate-50 border-transparent grayscale'}`}
+                      className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-1 ring-orange-50 shadow-sm' : 'bg-slate-50 border-transparent grayscale'}`}
                     >
-                      <sp.icon size={18} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[7px] font-black uppercase mt-2 tracking-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                      <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <span className={`text-[7px] font-black uppercase mt-1 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>

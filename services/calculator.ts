@@ -91,7 +91,7 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 7) return 1200; // Hard cap for short periods
+  if (diffDays <= 7) return 1450; // Healthy floor for short periods
 
   const weightToLose = currentW - targetW;
   const totalKcalDeficitNeeded = weightToLose * KCAL_PER_KG_FAT;
@@ -100,5 +100,6 @@ export const calculateBudgetFromTargetDate = (profile: UserProfile, targetDateSt
   const maintenance = calculateTDEE(profile, 0, currentW);
   const budget = Math.round(maintenance - dailyDeficitNeeded);
 
-  return Math.min(Math.max(budget, 1200), 3500);
+  // Clamped at a realistic floor (1450) instead of 1200
+  return Math.min(Math.max(budget, 1450), 3500);
 };
