@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -988,18 +987,18 @@ export default function App() {
                     </div>
                     
                     {!showProductList && currentSelectedProduct && (
-                      <div className="flex gap-3 items-stretch animate-in fade-in slide-in-from-top-2 duration-300 h-[60px]">
-                        <div className="flex-1 relative">
+                      <div className="flex gap-3 items-stretch animate-in fade-in slide-in-from-top-2 duration-300 h-[68px]">
+                        <div className="flex-grow relative min-w-0">
                           <input 
                             type="number" 
-                            className="w-full bg-white border-2 border-orange-200/50 rounded-[22px] px-6 py-4 text-[20px] font-black text-center h-full focus:border-orange-500 outline-none shadow-sm pr-16" 
+                            className="w-full bg-white border-2 border-orange-200/50 rounded-[24px] px-6 py-4 text-[26px] font-black text-center h-full focus:border-orange-500 outline-none shadow-sm pr-16" 
                             value={mealInputs[openPickerMoment]?.kcalVal || ''} 
                             onChange={(e) => setMealInputs({ ...mealInputs, [openPickerMoment]: { ...mealInputs[openPickerMoment], kcalVal: Number(e.target.value) } })} 
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-black text-orange-500 uppercase pointer-events-none">KCAL</span>
+                          <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[11px] font-black text-orange-500 uppercase pointer-events-none">KCAL</span>
                         </div>
                         <button 
-                          className="bg-orange-500 text-white rounded-[22px] px-6 py-4 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-orange-200" 
+                          className="bg-orange-500 text-white rounded-[24px] w-[68px] flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-orange-200 shrink-0" 
                           onClick={() => {
                             const currentInput = mealInputs[openPickerMoment];
                             const opt = currentSelectedProduct;
@@ -1017,8 +1016,7 @@ export default function App() {
                             setOpenPickerMoment(null);
                           }}
                         >
-                          <Plus size={20} strokeWidth={3} />
-                          <span className="font-black uppercase text-[12px] tracking-widest whitespace-nowrap">+ {mealInputs[openPickerMoment]?.kcalVal || 0} KCAL</span>
+                          <Plus size={32} strokeWidth={4} />
                         </button>
                       </div>
                     )}
