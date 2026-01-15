@@ -279,6 +279,7 @@ export default function App() {
   const bmi = useMemo(() => calculateBMI(latestWeight, state.profile.height), [latestWeight, state.profile.height]);
   const bmiColor = useMemo(() => bmi < 18.5 ? 'text-orange-400' : bmi < 25 ? 'text-green-500' : bmi < 30 ? 'text-amber-500' : 'text-red-500', [bmi]);
 
+  // Fix: Alleen gewichtsverlies tonen als er daadwerkelijk logs zijn ingevoerd.
   const totals = useMemo(() => {
     const activityBurn = Number(currentLog.activities.reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0));
     const startW = Number(state.profile.startWeight) || 0;
@@ -286,9 +287,13 @@ export default function App() {
     const currentW = Number(latestWeight);
     const intakeGoal = Number(state.profile.dailyBudget) || 1800;
     const autoTargetDate = calculateTargetDate({ ...state.profile, currentWeight: currentW }, intakeGoal);
-    const weightLostSoFar = startW - currentW;
+    
+    // Check if user has entered any weight log in history
+    const weightLogExists = Object.values(state.dailyLogs).some(log => typeof log.weight === 'number');
+    const weightLostSoFar = weightLogExists ? (startW - currentW) : 0;
+    
     const weightJourneyTotal = Math.abs(startW - targetW) || 0.1;
-    const weightProgressPercent = Math.min(Math.max((weightLostSoFar / weightJourneyTotal) * 100, 0), 100);
+    const weightProgressPercent = weightLogExists ? Math.min(Math.max((weightLostSoFar / weightJourneyTotal) * 100, 0), 100) : 0;
     
     const currentAdjustedGoal = Number(intakeGoal + activityBurn);
     const actualIntake = Number(Object.values(currentLog.meals).reduce((acc, items) => acc + Number(items.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0)), 0));
@@ -302,9 +307,10 @@ export default function App() {
       intakeGoal, 
       intakePercent, 
       calorieStatusColor: actualIntake > currentAdjustedGoal ? 'bg-red-500' : intakePercent > 85 ? 'bg-amber-500' : 'bg-green-500', 
-      weightLostSoFar 
+      weightLostSoFar,
+      weightLogExists
     };
-  }, [state.profile, currentLog, latestWeight]);
+  }, [state.profile, currentLog, latestWeight, state.dailyLogs]);
 
   const dateParts = useMemo(() => {
     const dateObj = new Date(selectedDate);
@@ -656,7 +662,8 @@ export default function App() {
                <div className="flex justify-between items-center">
                  <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.myJourney}</h3>
                  <span className={`text-[16px] font-black ${totals.weightLostSoFar >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                   {totals.weightLostSoFar >= 0 ? '-' : '+'}{Math.abs(totals.weightLostSoFar).toFixed(1)} KG
+                   {totals.weightLogExists ? (totals.weightLostSoFar >= 0 ? '-' : '+') : ''}
+                   {totals.weightLogExists ? Math.abs(totals.weightLostSoFar).toFixed(1) : t.noDataYet} {totals.weightLogExists ? 'KG' : ''}
                  </span>
                </div>
                <div className="space-y-1.5">
@@ -771,7 +778,7 @@ export default function App() {
                       )}
                     </div>
                     
-                    {/* Compact Quantity & Add Button Row */}
+                    {/* Compact Quantity & Add Button Row - Fix overlap */}
                     {!showProductList && mealInputs[openPickerMoment]?.mealId && (
                       <div className="flex gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="flex-grow">
