@@ -51,6 +51,8 @@
             background: white;
             z-index: 9999;
             transition: opacity 0.5s ease;
+            padding: 20px;
+            text-align: center;
         }
         .spinner {
             width: 40px;
@@ -61,6 +63,17 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-details {
+            font-family: monospace;
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 15px;
+            max-width: 80%;
+            word-break: break-all;
+            background: #f8fafc;
+            padding: 8px;
+            border-radius: 8px;
+        }
     </style>
 <script type="importmap">
 {
@@ -80,37 +93,89 @@
 <body class="bg-white text-slate-900">
     <div id="loading-screen">
         <div class="spinner mb-4"></div>
-        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Laden...</p>
-        <button id="retry-button" class="hidden mt-4 px-4 py-2 bg-orange-500 text-white rounded-xl font-black text-xs uppercase" onclick="window.location.reload()">Opnieuw proberen</button>
+        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-widest text-[10px]">App start op...</p>
+        <div id="error-box" class="hidden flex flex-col items-center">
+            <p class="text-slate-600 font-black uppercase text-[12px] mb-2">Kan de app niet laden</p>
+            <p class="text-slate-400 text-[10px] uppercase font-bold px-4 leading-relaxed">Dit kan gebeuren bij een trage verbinding of na een update.</p>
+            <div id="error-msg" class="error-details mb-6"></div>
+            <button class="px-8 py-4 bg-orange-500 text-white rounded-[20px] font-black text-xs uppercase shadow-xl shadow-orange-100 active:scale-95 transition-transform" onclick="resetAppAndReload()">Systeem herstellen</button>
+        </div>
     </div>
 
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
 
     <script>
-        // Failsafe voor wit scherm
-        setTimeout(() => {
+        // Foutmeldingen opvangen
+        window.addEventListener('error', (e) => {
+            console.error('Runtime error:', e);
+            if (e.message.includes('Script error')) {
+                showError('Een extern script kon niet worden geladen. Controleer je internet.');
+            } else {
+                showError(e.message);
+            }
+        }, true);
+
+        function showError(msg) {
+            document.getElementById('loading-text').classList.add('hidden');
+            document.querySelector('.spinner').classList.add('hidden');
+            document.getElementById('error-box').classList.remove('hidden');
+            document.getElementById('error-msg').innerText = msg;
+        }
+
+        async function resetAppAndReload() {
+            const btn = event.target;
+            btn.innerText = 'HERSTELLEN...';
+            btn.disabled = true;
+            
+            try {
+                // 1. Unregister alle service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                }
+                // 2. Verwijder alle caches
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    for (let key of keys) {
+                        await caches.delete(key);
+                    }
+                }
+                // 3. Herlaad geforceerd van server
+                window.location.reload(true);
+            } catch (err) {
+                window.location.reload();
+            }
+        }
+
+        // Failsafe timer: als React niet binnen 10 seconden in de DOM zit, toon fout
+        const failSafeTimeout = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
-                document.getElementById('loading-text').innerText = 'Kan de app niet laden. Controleer je verbinding.';
-                document.getElementById('retry-button').classList.remove('hidden');
+                showError('Time-out: De verbinding met de server is te traag.');
             }
-        }, 8000);
+        }, 10000);
 
-        // Verberg loader als React klaar is
-        window.addEventListener('load', () => {
-            const checkReady = setInterval(() => {
-                const root = document.getElementById('root');
-                if (root && root.children.length > 0) {
-                    const loader = document.getElementById('loading-screen');
-                    if (loader) {
-                        loader.style.opacity = '0';
-                        setTimeout(() => loader.remove(), 500);
-                    }
-                    clearInterval(checkReady);
+        // Verberg loader zodra er content is
+        const bootObserver = new MutationObserver(() => {
+            const root = document.getElementById('root');
+            if (root && root.children.length > 0) {
+                clearTimeout(failSafeTimeout);
+                const loader = document.getElementById('loading-screen');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.remove(), 500);
                 }
-            }, 100);
+                bootObserver.disconnect();
+            }
         });
+        
+        const rootNode = document.getElementById('root');
+        if (rootNode) {
+            bootObserver.observe(rootNode, { childList: true });
+        }
     </script>
 </body>
 </html>

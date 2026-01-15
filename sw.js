@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'mijn-gezond-v6';
+const CACHE_NAME = 'mijn-gezond-v8';
 const ASSETS = [
   '/',
   '/index.html',
@@ -20,20 +20,30 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // We gebruiken een meer vergevingsgezinde addAll om te voorkomen dat 1 ontbrekende file de hele installatie blokkeert
-      return Promise.allSettled(ASSETS.map(url => cache.add(url)));
+      console.log('[SW] Pre-caching assets');
+      return Promise.allSettled(ASSETS.map(url => 
+        fetch(url, { cache: 'no-cache' }).then(response => {
+          if (response.ok) return cache.put(url, response);
+          console.warn(`[SW] Could not cache: ${url}`);
+        })
+      ));
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Removing old cache:', key);
+            return caches.delete(key);
+          }
+        })
       );
     })
   );
@@ -41,30 +51,29 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Voor navigatie en scripts gebruiken we Network First
-  if (event.request.mode === 'navigate' || 
-      event.request.destination === 'script' || 
-      event.request.url.includes('.tsx') ||
-      event.request.url.includes('esm.sh')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
+  if (event.request.method !== 'GET') return;
+
+  // Voor alle app-logica en externe libraries: probeer eerst netwerk, dan cache
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
           const clonedResponse = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, clonedResponse);
           });
-          return response;
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
-    );
-  } else {
-    // Voor afbeeldingen en fonts gebruiken we Cache First
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request);
+        }
+        return response;
       })
-    );
-  }
+      .catch(() => {
+        return caches.match(event.request).then(cachedResponse => {
+          if (cachedResponse) return cachedResponse;
+          // Als we echt offline zijn en niks hebben, geef de index.html voor navigatie
+          if (event.request.mode === 'navigate') {
+            return caches.match('/');
+          }
+          return null;
+        });
+      })
+  );
 });
