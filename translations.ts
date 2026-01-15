@@ -20,6 +20,7 @@ export const translations: Record<Language, any> = {
     planActivities: 'Registreer je activiteiten',
     activity: 'Activiteit',
     amount: 'Minuten',
+    qtyLabel: 'Aantal',
     settings: 'Instellingen',
     age: 'GEBOORTEJAAR',
     gender: 'GESLACHT',
@@ -54,6 +55,23 @@ export const translations: Record<Language, any> = {
       clearAll: 'Gegevens wissen',
       clearConfirm: 'Weet je zeker dat je alle gegevens wilt wissen?'
     },
+    infoModal: {
+      title: 'Handleiding & Info',
+      manualTitle: 'Handleiding',
+      manualText: 'Deze app helpt je om op een gezonde manier je streefgewicht te bereiken.',
+      steps: [
+        { title: 'Instellen', desc: 'Vul bij "Ik" je gegevens in. We berekenen direct je energiebehoefte.' },
+        { title: 'Planning', desc: 'Kies een tempo. Wij berekenen het dagelijks calorie-budget voor je.' },
+        { title: 'Registreren', desc: 'Voer je voeding in bij "Voeding" en beweging bij "Beweeg".' },
+        { title: 'Dynamisch', desc: 'Je budget wordt live verhoogd als je extra beweegt!' }
+      ],
+      howItWorksTitle: 'Hoe het werkt',
+      howItWorksText: 'Onze berekeningen zijn gebaseerd op de Mifflin-St Jeor vergelijking, de meest nauwkeurige methode voor BMR.',
+      caloriesNote: 'Voor 1 kg vetverlies is een tekort van 7.700 kcal nodig. De app plant dit tekort op basis van jouw tempo.',
+      privacyTitle: 'Privacy-First Design',
+      privacyText: 'Alle gegevens worden uitsluitend op je eigen apparaat opgeslagen. Wij hebben geen toegang tot je data.',
+      copyright: '2024 My Healthy Planning'
+    },
     placeholders: { select: '+ Kies...', weight: '00.0' },
     moments: {
       'Ontbijt': 'Ontbijt',
@@ -83,6 +101,7 @@ export const translations: Record<Language, any> = {
     planActivities: 'Log your activities',
     activity: 'Activity',
     amount: 'Minutes',
+    qtyLabel: 'Qty',
     settings: 'Settings',
     age: 'BIRTH YEAR',
     gender: 'GENDER',
@@ -117,6 +136,23 @@ export const translations: Record<Language, any> = {
       clearAll: 'Clear Data',
       clearConfirm: 'Are you sure you want to clear all data?'
     },
+    infoModal: {
+      title: 'Manual & Info',
+      manualTitle: 'Manual',
+      manualText: 'This app helps you reach your target weight in a healthy way.',
+      steps: [
+        { title: 'Set up', desc: 'Enter your details in "Me". We calculate your energy needs instantly.' },
+        { title: 'Planning', desc: 'Choose a pace. We calculate your daily calorie budget.' },
+        { title: 'Log', desc: 'Enter food in "Meals" and exercise in "Move".' },
+        { title: 'Dynamic', desc: 'Your budget increases live when you exercise!' }
+      ],
+      howItWorksTitle: 'How it works',
+      howItWorksText: 'Our calculations are based on the Mifflin-St Jeor equation, the most accurate method for BMR.',
+      caloriesNote: 'Losing 1 kg of fat requires a 7,700 kcal deficit. The app plans this based on your pace.',
+      privacyTitle: 'Privacy-First Design',
+      privacyText: 'All data is stored exclusively on your own device. We have no access to your data.',
+      copyright: '2024 My Healthy Planning'
+    },
     placeholders: { select: '+ Select...', weight: '00.0' },
     moments: {
       'Ontbijt': 'Breakfast',
@@ -128,12 +164,12 @@ export const translations: Record<Language, any> = {
     },
     tabs: { dashboard: 'Plan', meals: 'Meals', activity: 'Move', profile: 'Me' }
   },
-  es: { title: 'PESO IDEAL', subtitle: 'A LA VISTA', targetReached: 'META ALCANZADA EL', nowWeight: 'AHORA', goalWeight: 'META', myJourney: 'MI PROGRESO DE PESO', weighMoment: 'Peso de hoy', dailyBudget: 'PRESUPUESTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Plan de Comidas', todayPlanning: 'Registro de Hoy', myList: 'Mi Lista', movement: 'Actividad', tabs: { dashboard: 'Plan', meals: 'Comidas', activity: 'Mover', profile: 'Yo' }, moments: { 'Ontbijt': 'Desayuno', 'Ochtend snack': 'Snack', 'Lunch': 'Almuerzo', 'Middag snack': 'Snack', 'Diner': 'Cena', 'Avondsnack': 'Snack noche' } },
-  de: { title: 'ZIELGEWICHT', subtitle: 'IM BLICK', targetReached: 'ZIEL ERREICHT AM', nowWeight: 'JETZT', goalWeight: 'ZIEL', myJourney: 'MEIN GEWICHTSVERLAUF', weighMoment: 'Heutiges Gewicht', dailyBudget: 'KALORIENBUDGET', consumed: 'VERBRAUCHT', mealSchedule: 'Ernährungsplan', todayPlanning: 'Heutiges Protokoll', myList: 'Meine Liste', movement: 'Aktivität', tabs: { dashboard: 'Plan', meals: 'Essen', activity: 'Bewegung', profile: 'Ich' }, moments: { 'Ontbijt': 'Frühstück', 'Ochtend snack': 'Snack', 'Lunch': 'Mittagessen', 'Middag snack': 'Snack', 'Diner': 'Abendessen', 'Avondsnack': 'Spätsnack' } },
-  pt: { title: 'PESO IDEAL', subtitle: 'À VISTA', targetReached: 'META ATINGIDA EM', nowWeight: 'AGORA', goalWeight: 'META', myJourney: 'MEU PROGRESSO', weighMoment: 'Peso de hoje', dailyBudget: 'ORÇAMENTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Plano de Refeições', todayPlanning: 'Registo de Hoje', myList: 'Minha Lista', movement: 'Atividade', tabs: { dashboard: 'Plano', meals: 'Refeições', activity: 'Mover', profile: 'Eu' }, moments: { 'Ontbijt': 'Pequeno-almoço', 'Ochtend snack': 'Lanche', 'Lunch': 'Almoço', 'Middag snack': 'Lanche', 'Diner': 'Jantar', 'Avondsnack': 'Ceia' } },
-  zh: { title: '目标体重', subtitle: '在望', targetReached: '目标达成日期', nowWeight: '现在', goalWeight: '目标', myJourney: '我的体重进展', weighMoment: '今日体重', dailyBudget: '每日热量预算', consumed: '已消耗', mealSchedule: '饮食计划', todayPlanning: '今日记录', myList: '我的列表', movement: '运动', tabs: { dashboard: '计划', meals: '饮食', activity: '运动', profile: '我' }, moments: { 'Ontbijt': '早餐', 'Ochtend snack': '点心', 'Lunch': '午餐', 'Middag snack': '点心', 'Diner': '晚餐', 'Avondsnack': '夜宵' } },
-  ja: { title: '目標体重', subtitle: '目前', targetReached: '目標達成日', nowWeight: '現在', goalWeight: '目標', myJourney: '体重の経過', weighMoment: '今日の体重', dailyBudget: '一日の摂取カロリー', consumed: '消費済み', mealSchedule: '食事プラン', todayPlanning: '今日の記録', myList: 'マイリスト', movement: '運動', tabs: { dashboard: 'プラン', meals: '食事', activity: '運動', profile: '私' }, moments: { 'Ontbijt': '朝食', 'Ochtend snack': '間食', 'Lunch': '昼食', 'Middag snack': '間食', 'Diner': '夕食', 'Avondsnack': '夜食' } },
-  ko: { title: '목표 체중', subtitle: '달성 가능', targetReached: '목표 달성일', nowWeight: '현재', goalWeight: '목표', myJourney: '체중 변화', weighMoment: '오늘의 체중', dailyBudget: '일일 칼로리 예산', consumed: '섭취량', mealSchedule: '식단 계획', todayPlanning: '오늘의 기록', myList: '나의 리스트', movement: '활동', tabs: { dashboard: '계획', meals: '식사', activity: '활동', profile: '나' }, moments: { 'Ontbijt': '아침', 'Ochtend snack': '간식', 'Lunch': '점심', 'Middag snack': '간식', 'Diner': '저녁', 'Avondsnack': '야식' } },
-  hi: { title: 'लक्ष्य वजन', subtitle: 'नज़र में', targetReached: 'लक्ष्य तिथि', nowWeight: 'अभी', goalWeight: 'लक्ष्य', myJourney: 'वजन प्रगति', weighMoment: 'आज का वजन', dailyBudget: 'कैلوरी बजट', consumed: 'खर्च', mealSchedule: 'भोजन योजना', todayPlanning: 'आज का लॉग', myList: 'मेरी सूची', movement: 'गतिविधि', tabs: { dashboard: 'योजना', meals: 'भोजन', activity: 'गतिविधि', profile: 'मैं' }, moments: { 'Ontbijt': 'नाश्ता', 'Ochtend snack': 'स्नैक', 'Lunch': 'दोपहर का भोजन', 'Middag snack': 'स्नैक', 'Diner': 'रात का भोजन', 'Avondsnack': 'देer रात स्नैक' } },
-  ar: { title: 'الوزن المستهدف', subtitle: 'في الأفق', targetReached: 'تاريخ الوصول', nowWeight: 'الآن', goalWeight: 'الهدف', myJourney: 'تقدم الوزن', weighMoment: 'وزن اليوم', dailyBudget: 'ميزانية السعرات', consumed: 'المستهلك', mealSchedule: 'خطة الوجبات', todayPlanning: 'سجل اليوم', myList: 'قائمتي', movement: 'النشاط', tabs: { dashboard: 'الخطة', meals: 'الوجبات', activity: 'الحركة', profile: 'أنا' }, moments: { 'Ontbijt': 'إفطار', 'Ochtend snack': 'سناك', 'Lunch': 'غداء', 'Middag snack': 'سناك', 'Diner': 'عشاء', 'Avondsnack': 'سناك ليلي' } }
+  es: { title: 'PESO IDEAL', subtitle: 'A LA VISTA', targetReached: 'META ALCANZADA EL', nowWeight: 'AHORA', goalWeight: 'META', myJourney: 'MI PROGRESO DE PESO', weighMoment: 'Peso de hoy', dailyBudget: 'PRESUPUESTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Plan de Comidas', todayPlanning: 'Registro de Hoy', myList: 'Mi Lista', movement: 'Actividad', tabs: { dashboard: 'Plan', meals: 'Comidas', activity: 'Mover', profile: 'Yo' }, moments: { 'Ontbijt': 'Desayuno', 'Ochtend snack': 'Snack', 'Lunch': 'Almuerzo', 'Middag snack': 'Snack', 'Diner': 'Cena', 'Avondsnack': 'Snack noche' }, infoModal: { title: 'Información', manualTitle: 'Manual', manualText: 'Esta aplicación te ayuda a alcanzar tu peso ideal.', howItWorksTitle: 'Cómo funciona', copyright: '2024 My Healthy Planning' } },
+  de: { title: 'ZIELGEWICHT', subtitle: 'IM BLICK', targetReached: 'ZIEL ERREICHT AM', nowWeight: 'JETZT', goalWeight: 'ZIEL', myJourney: 'MEIN GEWICHTSVERLAUF', weighMoment: 'Heutiges Gewicht', dailyBudget: 'KALORIENBUDGET', consumed: 'VERBRAUCHT', mealSchedule: 'Ernährungsplan', todayPlanning: 'Heutiges Protokoll', myList: 'Meine Liste', movement: 'Aktivität', tabs: { dashboard: 'Plan', meals: 'Essen', activity: 'Bewegung', profile: 'Ich' }, moments: { 'Ontbijt': 'Frühstück', 'Ochtend snack': 'Snack', 'Lunch': 'Mittagessen', 'Middag snack': 'Snack', 'Diner': 'Abendessen', 'Avondsnack': 'Spätsnack' }, infoModal: { title: 'Info', manualTitle: 'Anleitung', copyright: '2024 My Healthy Planning' } },
+  pt: { title: 'PESO IDEAL', subtitle: 'À VISTA', targetReached: 'META ATINGIDA EM', nowWeight: 'AGORA', goalWeight: 'META', myJourney: 'MEU PROGRESSO', weighMoment: 'Peso de hoje', dailyBudget: 'ORÇAMENTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Plano de Refeições', todayPlanning: 'Registo de Hoje', myList: 'Minha Lista', movement: 'Atividade', tabs: { dashboard: 'Plano', meals: 'Refeições', activity: 'Mover', profile: 'Eu' }, moments: { 'Ontbijt': 'Pequeno-almoço', 'Ochtend snack': 'Lanche', 'Lunch': 'Almoço', 'Middag snack': 'Lanche', 'Diner': 'Jantar', 'Avondsnack': 'Ceia' }, infoModal: { title: 'Informação', manualTitle: 'Manual', copyright: '2024 My Healthy Planning' } },
+  zh: { title: '目标体重', subtitle: '在望', targetReached: '目标达成日期', nowWeight: '现在', goalWeight: '目标', myJourney: '我的体重进展', weighMoment: '今日体重', dailyBudget: '每日热量预算', consumed: '已消耗', mealSchedule: '饮食计划', todayPlanning: '今日记录', myList: '我的列表', movement: '运动', tabs: { dashboard: '计划', meals: '饮食', activity: '运动', profile: '我' }, moments: { 'Ontbijt': '早餐', 'Ochtend snack': '点心', 'Lunch': '午餐', 'Middag snack': '点心', 'Diner': '晚餐', 'Avondsnack': '夜宵' }, infoModal: { title: '信息', manualTitle: '手册', copyright: '2024 My Healthy Planning' } },
+  ja: { title: '目標体重', subtitle: '目前', targetReached: '目標達成日', nowWeight: '現在', goalWeight: '目標', myJourney: '体重の経過', weighMoment: '今日の体重', dailyBudget: '一日の摂取カロリー', consumed: '消費済み', mealSchedule: '食事プラン', todayPlanning: '今日の記録', myList: 'マイリスト', movement: '運動', tabs: { dashboard: 'プラン', meals: '食事', activity: '運動', profile: '私' }, moments: { 'Ontbijt': '朝食', 'Ochtend snack': '間食', 'Lunch': '昼食', 'Middag snack': '間食', 'Diner': '夕食', 'Avondsnack': '夜食' }, infoModal: { title: '情報', manualTitle: 'マニュアル', copyright: '2024 My Healthy Planning' } },
+  ko: { title: '목표 체중', subtitle: '달성 가능', targetReached: '목표 달성일', nowWeight: '현재', goalWeight: '목표', myJourney: '체중 변화', weighMoment: '오늘의 체중', dailyBudget: '일일 칼로리 예산', consumed: '섭취량', mealSchedule: '식단 계획', todayPlanning: '오늘의 기록', myList: '나의 리스트', movement: '활동', tabs: { dashboard: '계획', meals: '식사', activity: '활동', profile: '나' }, moments: { 'Ontbijt': '아침', 'Ochtend snack': '간식', 'Lunch': '점심', 'Middag snack': '간식', 'Diner': '저녁', 'Avondsnack': '야식' }, infoModal: { title: '정보', manualTitle: '매뉴얼', copyright: '2024 My Healthy Planning' } },
+  hi: { title: 'लक्ष्य वजन', subtitle: 'नज़र में', targetReached: 'लक्ष्य तिथि', nowWeight: 'अभी', goalWeight: 'लक्ष्य', myJourney: 'वजन प्रगति', weighMoment: 'आज का वजन', dailyBudget: 'कैलोरी बजट', consumed: 'खर्च', mealSchedule: 'भोजन योजना', todayPlanning: 'आज का लॉग', myList: 'मेरी सूची', movement: 'गतिविधि', tabs: { dashboard: 'योजना', meals: 'भोजन', activity: 'गतिविधि', profile: 'मैं' }, moments: { 'Ontbijt': 'नाश्ता', 'Ochtend snack': 'स्नैक', 'Lunch': 'दोपहर का भोजन', 'Middag snack': 'स्नैक', 'Diner': 'रात का भोजन', 'Avondsnack': 'देer रात स्नैक' }, infoModal: { title: 'जानकारी', manualTitle: 'नियमावली', copyright: '2024 My Healthy Planning' } },
+  ar: { title: 'الوزن المستهدف', subtitle: 'في الأفق', targetReached: 'تاريخ الوصول', nowWeight: 'الآن', goalWeight: 'الهدف', myJourney: 'تقدم الوزن', weighMoment: 'وزن اليوم', dailyBudget: 'ميزانية السعرات', consumed: 'المستهلك', mealSchedule: 'خطة الوجبات', todayPlanning: 'سجل اليوم', myList: 'قائمتي', movement: 'النشاط', tabs: { dashboard: 'الخطة', meals: 'الوجبات', activity: 'الحركة', profile: 'أنا' }, moments: { 'Ontbijt': 'إفطار', 'Ochtend snack': 'سناك', 'Lunch': 'غداء', 'Middag snack': 'سناك', 'Diner': 'عشاء', 'Avondsnack': 'سناك ليلي' }, infoModal: { title: 'معلومات', manualTitle: 'دليل المستخدم', copyright: '2024 My Healthy Planning' } }
 };

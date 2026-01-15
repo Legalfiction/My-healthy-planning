@@ -49,7 +49,9 @@ import {
   Heart,
   ShieldCheck,
   MousePointer2,
-  Settings
+  Settings,
+  FileDown,
+  FileUp
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -186,14 +188,15 @@ export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [showInfo, setShowInfo] = useState(false);
   const [showMyList, setShowMyList] = useState(false);
-  const [showMyActivityList, setShowMyActivityList] = useState(false);
-  const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string; qty: number }>>({});
   const [showProductList, setShowProductList] = useState(false);
+  const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Translation hook
   const t = useMemo(() => {
@@ -242,7 +245,6 @@ export default function App() {
           setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: newBudget } }));
         }
       } else {
-        // Fallback if custom date is missing but custom speed is selected
         const fallbackDate = calculateTargetDate(currentProfile, currentProfile.dailyBudget);
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: fallbackDate } }));
       }
@@ -252,7 +254,6 @@ export default function App() {
       if (safeBudget !== currentProfile.dailyBudget) {
         setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: safeBudget } }));
       }
-      // Sync customTargetDate for display/backup
       const autoDate = calculateTargetDate(currentProfile, safeBudget);
       if (autoDate !== currentProfile.customTargetDate) {
          setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: autoDate } }));
@@ -362,6 +363,45 @@ export default function App() {
     }
   };
 
+  // Backup & Restore handlers
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `my-healthy-planning-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setToast({ msg: 'Back-up succesvol gedownload!', type: 'success' });
+  };
+
+  const handleRestoreData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content) as AppState;
+        // Basic validation
+        if (parsed.profile && parsed.dailyLogs) {
+          setState(parsed);
+          setToast({ msg: 'Gegevens succesvol hersteld!', type: 'success' });
+        } else {
+          setToast({ msg: 'Ongeldig back-up bestand.', type: 'error' });
+        }
+      } catch (err) {
+        setToast({ msg: 'Fout bij het lezen van bestand.', type: 'error' });
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (event.target) event.target.value = '';
+  };
+
   const birthYears = useMemo(() => {
     const years = [];
     const currentYear = new Date().getFullYear();
@@ -398,22 +438,66 @@ export default function App() {
     <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
       {toast && <Toast message={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
       
-      {/* Handleiding Modal */}
+      {/* Informatie Modal */}
       {showInfo && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] overflow-y-auto shadow-2xl overscroll-contain custom-scrollbar">
-            <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b p-6 flex justify-between items-center z-10">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-500 p-2.5 rounded-xl text-white shadow-lg shadow-orange-100"><BookOpen size={20} /></div>
-                <div>
-                  <h3 className="font-black text-slate-800 text-lg uppercase leading-tight">Handleiding en info</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gezondheid in Zicht</p>
-                </div>
-              </div>
-              <button onClick={() => setShowInfo(false)} className="p-2 bg-slate-100 text-slate-400 rounded-full hover:text-slate-800 transition-colors"><X size={20}/></button>
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
+            <div className="p-6 border-b flex justify-between items-center bg-slate-50 sticky top-0 z-10">
+               <div className="flex items-center gap-3">
+                 <div className="bg-orange-500 p-2 rounded-xl text-white">
+                   <Info size={20} />
+                 </div>
+                 <h3 className="font-black text-slate-800 uppercase text-lg tracking-tight">{t.infoModal.title}</h3>
+               </div>
+               <button onClick={() => setShowInfo(false)} className="p-2 bg-white text-slate-400 rounded-full shadow-sm hover:text-orange-500 transition-colors">
+                 <X size={24}/>
+               </button>
             </div>
-            <div className="p-6 space-y-10 pb-16 text-sm text-slate-600 font-medium leading-relaxed">
-               <p>Houd je gewicht, voeding en beweging bij om je doel te bereiken. Stel je profiel in bij "Ik" om je dagelijkse caloriebehoefte te berekenen.</p>
+            
+            <div className="overflow-y-auto flex-grow p-6 space-y-10 custom-scrollbar pb-20">
+               {/* Handleiding */}
+               <section className="space-y-4">
+                  <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
+                    <BookOpen size={20} className="text-orange-500" /> {t.infoModal.manualTitle}
+                  </h4>
+                  <div className="space-y-4 text-[13px] leading-relaxed font-medium text-slate-600">
+                    <p>{t.infoModal.manualText}</p>
+                    <div className="grid gap-3">
+                      {(t.infoModal.steps || []).map((item: any, idx: number) => (
+                        <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <span className="block font-black text-orange-500 uppercase text-[10px] tracking-widest mb-1">{item.title}</span>
+                          <span className="text-slate-600">{item.desc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+               </section>
+
+               {/* De Werking */}
+               <section className="space-y-4">
+                  <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
+                    <Settings2 size={20} className="text-orange-500" /> {t.infoModal.howItWorksTitle}
+                  </h4>
+                  <div className="space-y-3 text-[12px] leading-relaxed font-medium text-slate-500 bg-orange-50/50 p-5 rounded-[24px] border border-orange-100">
+                    <p>{t.infoModal.howItWorksText}</p>
+                    <p>{t.infoModal.caloriesNote}</p>
+                  </div>
+               </section>
+
+               {/* Privacy & Copyright */}
+               <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <ShieldCheck size={18} className="text-emerald-500" />
+                      <span className="text-[11px] font-black uppercase tracking-widest">{t.infoModal.privacyTitle}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-medium">{t.infoModal.privacyText}</p>
+                    <div className="flex items-center gap-1.5 text-slate-300 mt-2">
+                      <Copyright size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t.infoModal.copyright}</span>
+                    </div>
+                  </div>
+               </section>
             </div>
           </div>
         </div>
@@ -463,7 +547,7 @@ export default function App() {
         </div>
       )}
 
-      {/* HEADER SECTION - ALIGNED TEXTS */}
+      {/* HEADER SECTION */}
       <header className="bg-white sticky top-0 z-30 p-3 pt-4 px-5 border-b border-slate-50">
         <div className="flex justify-between items-start mb-1">
           <div className="flex flex-col">
@@ -471,7 +555,14 @@ export default function App() {
              <h2 className="text-[14px] font-black text-slate-400 tracking-[0.1em] uppercase mt-0.5">{t.subtitle}</h2>
           </div>
           
-          <div className="flex items-start gap-2 pt-1">
+          <div className="flex items-center gap-2 pt-1">
+             <button 
+               onClick={() => setShowInfo(true)}
+               className="p-2 bg-slate-50 border border-slate-200 rounded-full text-orange-500 shadow-sm active:scale-90 transition-transform hover:bg-orange-50"
+             >
+               <Info size={20} />
+             </button>
+
              <div className="relative">
                 <select 
                   value={state.language} 
@@ -611,7 +702,7 @@ export default function App() {
             
             <div className="bg-slate-50/50 p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
               <div className="relative">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] block mb-4 pl-1">MOMENT SELECTEREN</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] block mb-4 pl-1">{t.moments[openPickerMoment || 'Ontbijt'].toUpperCase()}</label>
                 <div className="relative group">
                   <select 
                     className="w-full bg-white px-6 py-4.5 rounded-[22px] font-black border-2 border-orange-400/30 text-[14px] shadow-sm outline-none appearance-none cursor-pointer text-slate-800 transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-100 group-hover:border-orange-400 uppercase tracking-widest"
@@ -621,7 +712,7 @@ export default function App() {
                     }}
                     value={openPickerMoment || ''}
                   >
-                    <option value="" disabled>KIES EEN EETMOMENT...</option>
+                    <option value="" disabled>{t.placeholders.select}</option>
                     {MEAL_MOMENTS.map(moment => <option key={moment} value={moment}>{t.moments[moment]}</option>)}
                   </select>
                   <ChevronDown size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-orange-500 pointer-events-none group-hover:scale-110 transition-transform" />
@@ -630,17 +721,20 @@ export default function App() {
 
               {openPickerMoment && (
                 <div className="bg-orange-50/40 rounded-[30px] p-6 shadow-sm border border-orange-100 animate-in slide-in-from-top-4 duration-500">
-                  <h4 className="font-black text-[11px] text-orange-500 uppercase mb-4 px-1 tracking-[0.2em]">{openPickerMoment.toUpperCase()}</h4>
-                  <div className="flex gap-4 mb-2 items-center relative">
-                    <div className="flex-grow relative">
+                  <div className="flex flex-col gap-4">
+                    <div className="relative">
+                      {/* Product Selector Button - Replaces floating search for stability */}
                       <button 
                         onClick={() => { setSearchTerm(''); setShowProductList(!showProductList); }} 
-                        className="w-full bg-white border-2 border-orange-200/50 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px] hover:border-orange-400 transition-colors"
+                        className={`w-full bg-white border-2 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px] transition-all ${mealInputs[openPickerMoment]?.mealId ? 'border-orange-500 ring-4 ring-orange-50 bg-orange-50/20' : 'border-orange-200/50 hover:border-orange-400'}`}
                       >
                         {mealInputs[openPickerMoment]?.mealId ? (
                           <div className="text-left leading-tight truncate">
-                            <div className="font-black text-slate-800 text-[14px] mb-1 uppercase tracking-tight">{getTranslatedName(mealInputs[openPickerMoment].mealId, '')}</div>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GESELECTEERD</div>
+                            <div className="font-black text-slate-800 text-[14px] mb-1 uppercase tracking-tight flex items-center gap-2">
+                              {getTranslatedName(mealInputs[openPickerMoment].mealId, '')}
+                              <Check size={16} className="text-emerald-500" />
+                            </div>
+                            <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{t.consumed.toLowerCase()}</div>
                           </div>
                         ) : <span className="text-slate-300 font-black uppercase tracking-widest text-[11px]">{t.searchPlaceholder}</span>}
                         <Search size={20} className={`text-orange-500 transition-all ${showProductList ? 'scale-125' : ''}`} />
@@ -677,20 +771,21 @@ export default function App() {
                       )}
                     </div>
                     
-                    {!showProductList && (
-                      <div className="flex gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="relative">
+                    {/* Compact Quantity & Add Button Row */}
+                    {!showProductList && mealInputs[openPickerMoment]?.mealId && (
+                      <div className="flex gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex-grow">
+                          <label className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-2 block ml-2">{t.qtyLabel}</label>
                           <input 
                             type="number" 
                             step="0.1" 
-                            className="w-18 bg-white border-2 border-orange-200/50 rounded-[22px] p-4 text-[18px] font-black text-center h-[68px] focus:border-orange-500 outline-none shadow-sm" 
+                            className="w-full bg-white border-2 border-orange-200/50 rounded-[22px] p-4 text-[18px] font-black text-center h-[60px] focus:border-orange-500 outline-none shadow-sm" 
                             value={mealInputs[openPickerMoment]?.qty || 1} 
                             onChange={(e) => setMealInputs({ ...mealInputs, [openPickerMoment]: { ...mealInputs[openPickerMoment], qty: Number(e.target.value) } })} 
                           />
                         </div>
                         <button 
-                          className="bg-orange-500 text-white rounded-[22px] h-[68px] w-[68px] flex items-center justify-center transition-all active:scale-90 shadow-lg shadow-orange-200 disabled:opacity-30" 
-                          disabled={!mealInputs[openPickerMoment]?.mealId}
+                          className="bg-orange-500 text-white rounded-[22px] h-[60px] w-full flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-orange-200" 
                           onClick={() => {
                             const currentInput = mealInputs[openPickerMoment];
                             const opt = (state.customOptions[openPickerMoment] || []).find(o => o.id === currentInput?.mealId);
@@ -699,7 +794,8 @@ export default function App() {
                             setOpenPickerMoment(null);
                           }}
                         >
-                          <Plus size={36} strokeWidth={3} />
+                          <Plus size={24} strokeWidth={3} />
+                          <span className="font-black uppercase text-[12px] tracking-widest">{t.consumed}</span>
                         </button>
                       </div>
                     )}
@@ -863,44 +959,68 @@ export default function App() {
                 </div>
              </section>
 
-             <section className="bg-orange-50 border border-orange-200 rounded-[32px] p-6 flex flex-col gap-6 shadow-sm relative">
-                <div className="flex flex-col items-center">
-                  <span className="text-[11px] font-black text-orange-400 uppercase tracking-[0.2em] leading-none mb-3">{t.dailyBudgetLabel}</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-orange-600 tabular-nums">{state.profile.dailyBudget}</span>
-                    <span className="text-[12px] font-black text-orange-400 uppercase tracking-widest">KCAL</span>
+             {/* CALORIE BUDGET SUMMARY */}
+             <section className="bg-orange-50 border border-orange-200 rounded-[32px] p-6 flex flex-col gap-4 shadow-sm relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-orange-400 uppercase tracking-[0.2em] leading-none mb-1">{t.dailyBudgetLabel}</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-orange-600 tabular-nums">{state.profile.dailyBudget}</span>
+                      <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">KCAL</span>
+                    </div>
+                  </div>
+                  <div className="bg-orange-500 p-2.5 rounded-xl text-white shadow-lg shadow-orange-100">
+                    <Zap size={20} fill="currentColor" />
                   </div>
                 </div>
 
                 <div className="h-px w-full bg-orange-200/50" />
 
                 <div className="flex items-center justify-between">
-                  <div className="bg-orange-500 p-3 rounded-2xl text-white">
-                    <Calendar size={28} />
-                  </div>
-                  <div className="flex flex-col items-end flex-grow ml-4">
-                     <span className="text-[12px] font-black text-orange-300 uppercase tracking-widest leading-none mb-2">STREEFDATUM</span>
-                     
+                  <div className="flex flex-col">
+                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">STREEFDATUM</span>
                      {state.profile.weightLossSpeed === 'custom' ? (
-                       <div className="relative w-full max-w-[180px]">
+                       <div className="relative w-full max-w-[150px]">
                          <input 
                            type="date" 
                            value={state.profile.customTargetDate || ''} 
                            onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: e.target.value } }))} 
-                           className="w-full bg-white border-2 border-orange-300 py-2 px-3 rounded-xl font-black text-[14px] text-orange-600 focus:ring-0 focus:border-orange-500 outline-none appearance-none"
+                           className="w-full bg-white border-2 border-orange-300 py-1.5 px-3 rounded-xl font-black text-[12px] text-orange-600 focus:ring-0 focus:border-orange-500 outline-none appearance-none"
                          />
-                         <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none" />
+                         <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none" />
                        </div>
                      ) : (
-                       <span className="text-2xl font-black text-orange-600 tracking-tight">{formatTargetDateDisplay(totals.targetDate)}</span>
+                       <span className="text-xl font-black text-orange-600 tracking-tight">{formatTargetDateDisplay(totals.targetDate)}</span>
                      )}
+                  </div>
+                  <div className="bg-orange-500 p-2.5 rounded-xl text-white shadow-lg shadow-orange-100">
+                    <Calendar size={20} />
                   </div>
                 </div>
              </section>
 
-             <div className="px-2">
-                <button onClick={resetAllData} className="w-full py-4 rounded-2xl border border-red-100 text-red-300 font-black text-[12px] uppercase hover:bg-red-50 transition-colors">{t.dataManagement.clearAll}</button>
-             </div>
+             {/* DATA MANAGEMENT SECTION */}
+             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-slate-400" /> {t.dataManagement.title}</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 font-black text-[11px] uppercase hover:bg-slate-100 transition-all active:scale-95 shadow-sm">
+                    <FileDown size={16} /> {t.dataManagement.export}
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 font-black text-[11px] uppercase hover:bg-slate-100 transition-all active:scale-95 shadow-sm">
+                    <FileUp size={16} /> {t.dataManagement.restore}
+                  </button>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleRestoreData} 
+                  accept=".json" 
+                  className="hidden" 
+                />
+                <button onClick={resetAllData} className="w-full py-3.5 rounded-2xl border border-red-100 text-red-300 font-black text-[11px] uppercase hover:bg-red-50 transition-all active:scale-95 mt-2">
+                  <Trash2 size={16} className="inline mr-1" /> {t.dataManagement.clearAll}
+                </button>
+             </section>
           </div>
         )}
       </main>
@@ -925,7 +1045,6 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #f1f5f9; border-radius: 20px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #e2e8f0; }
-        /* Hide default calendar icon in some browsers to use our layout */
         input[type="date"]::-webkit-calendar-picker-indicator {
           background: transparent;
           bottom: 0;
