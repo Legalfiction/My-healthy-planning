@@ -55,24 +55,25 @@
             text-align: center;
         }
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f1f5f9;
             border-top: 4px solid #f97316;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .error-details {
             font-family: monospace;
-            font-size: 10px;
-            color: #94a3b8;
+            font-size: 11px;
+            color: #64748b;
             margin-top: 15px;
-            max-width: 80%;
+            max-width: 90%;
             word-break: break-all;
             background: #f8fafc;
-            padding: 8px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
         }
     </style>
 <script type="importmap">
@@ -92,13 +93,13 @@
 </head>
 <body class="bg-white text-slate-900">
     <div id="loading-screen">
-        <div class="spinner mb-4"></div>
-        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-widest text-[10px]">App start op...</p>
-        <div id="error-box" class="hidden flex flex-col items-center">
-            <p class="text-slate-600 font-black uppercase text-[12px] mb-2">Kan de app niet laden</p>
-            <p class="text-slate-400 text-[10px] uppercase font-bold px-4 leading-relaxed">Dit kan gebeuren bij een trage verbinding of na een update.</p>
-            <div id="error-msg" class="error-details mb-6"></div>
-            <button class="px-8 py-4 bg-orange-500 text-white rounded-[20px] font-black text-xs uppercase shadow-xl shadow-orange-100 active:scale-95 transition-transform" onclick="resetAppAndReload()">Systeem herstellen</button>
+        <div class="spinner mb-6"></div>
+        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">App start op...</p>
+        <div id="error-box" class="hidden flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <p class="text-slate-800 font-black uppercase text-[14px] mb-2">Kan de app niet laden</p>
+            <p class="text-slate-400 text-[11px] font-medium px-8 leading-relaxed mb-4">Dit gebeurt soms na een update of bij een trage verbinding.</p>
+            <div id="error-msg" class="error-details mb-8"></div>
+            <button class="px-10 py-4 bg-orange-500 text-white rounded-[24px] font-black text-[13px] uppercase shadow-2xl shadow-orange-200 active:scale-95 transition-all" onclick="deepResetApp()">Systeem herstellen</button>
         </div>
     </div>
 
@@ -106,13 +107,14 @@
     <script type="module" src="index.tsx"></script>
 
     <script>
-        // Foutmeldingen opvangen
+        // Foutafhandeling voor scripts
         window.addEventListener('error', (e) => {
-            console.error('Runtime error:', e);
-            if (e.message.includes('Script error')) {
-                showError('Een extern script kon niet worden geladen. Controleer je internet.');
+            console.error('Boot error:', e);
+            const msg = e.message || 'Onbekende fout bij het opstarten';
+            if (msg.toLowerCase().includes('script error')) {
+                showError('Beveiligingsblokkade: De browser blokkeert de app-bestanden.');
             } else {
-                showError(e.message);
+                showError(msg);
             }
         }, true);
 
@@ -123,58 +125,63 @@
             document.getElementById('error-msg').innerText = msg;
         }
 
-        async function resetAppAndReload() {
+        async function deepResetApp() {
             const btn = event.target;
-            btn.innerText = 'HERSTELLEN...';
-            btn.disabled = true;
+            btn.innerText = 'BEZIG MET HERSTEL...';
+            btn.classList.add('opacity-50');
             
             try {
-                // 1. Unregister alle service workers
+                // 1. Wis alle databases
+                const dbs = await window.indexedDB.databases();
+                for (let db of dbs) {
+                    if (db.name) window.indexedDB.deleteDatabase(db.name);
+                }
+                // 2. Unregister alle service workers
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
                     for (let registration of registrations) {
                         await registration.unregister();
                     }
                 }
-                // 2. Verwijder alle caches
+                // 3. Wis alle caches
                 if ('caches' in window) {
                     const keys = await caches.keys();
                     for (let key of keys) {
                         await caches.delete(key);
                     }
                 }
-                // 3. Herlaad geforceerd van server
-                window.location.reload(true);
+                // 4. Forceer herladen van de server
+                window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
             } catch (err) {
-                window.location.reload();
+                window.location.reload(true);
             }
         }
 
-        // Failsafe timer: als React niet binnen 10 seconden in de DOM zit, toon fout
-        const failSafeTimeout = setTimeout(() => {
+        // Failsafe timer: 12 seconden (iets langer voor mobiel)
+        const bootTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
-                showError('Time-out: De verbinding met de server is te traag.');
+                showError('Time-out: De app-bestanden laden niet. Probeer Systeem herstellen.');
             }
-        }, 10000);
+        }, 12000);
 
-        // Verberg loader zodra er content is
-        const bootObserver = new MutationObserver(() => {
+        // Verberg loader zodra er content verschijnt
+        const observer = new MutationObserver(() => {
             const root = document.getElementById('root');
             if (root && root.children.length > 0) {
-                clearTimeout(failSafeTimeout);
+                clearTimeout(bootTimer);
                 const loader = document.getElementById('loading-screen');
                 if (loader) {
                     loader.style.opacity = '0';
                     setTimeout(() => loader.remove(), 500);
                 }
-                bootObserver.disconnect();
+                observer.disconnect();
             }
         });
         
-        const rootNode = document.getElementById('root');
-        if (rootNode) {
-            bootObserver.observe(rootNode, { childList: true });
+        const rootDiv = document.getElementById('root');
+        if (rootDiv) {
+            observer.observe(rootDiv, { childList: true });
         }
     </script>
 </body>

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'mijn-gezond-v8';
+const CACHE_NAME = 'mijn-gezond-v9';
 const ASSETS = [
   '/',
   '/index.html',
@@ -19,61 +19,63 @@ const ASSETS = [
   'https://cdn-icons-png.flaticon.com/512/3062/3062276.png'
 ];
 
+// Installatie: Sla alles op in de cache
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Pre-caching assets');
       return Promise.allSettled(ASSETS.map(url => 
-        fetch(url, { cache: 'no-cache' }).then(response => {
+        fetch(url, { cache: 'reload' }).then(response => {
           if (response.ok) return cache.put(url, response);
-          console.warn(`[SW] Could not cache: ${url}`);
-        })
+        }).catch(() => console.log(`Failed to pre-cache: ${url}`))
       ));
     })
   );
 });
 
+// Activatie: Schoon oude troep op
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log('[SW] Removing old cache:', key);
-            return caches.delete(key);
-          }
-        })
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
     })
   );
   self.clients.claim();
 });
 
+// Fetch: Cache-First (Offline-First) voor een razendsnelle start
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // Voor alle app-logica en externe libraries: probeer eerst netwerk, dan cache
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const clonedResponse = response.clone();
+    caches.match(event.request).then((cachedResponse) => {
+      // Als we het in cache hebben, geef het direct terug
+      if (cachedResponse) {
+        // Update de cache op de achtergrond (Stale-While-Revalidate)
+        fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+            });
+          }
+        }).catch(() => {});
+        
+        return cachedResponse;
+      }
+
+      // Niet in cache? Haal van netwerk
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clonedResponse);
+            cache.put(event.request, responseToCache);
           });
         }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then(cachedResponse => {
-          if (cachedResponse) return cachedResponse;
-          // Als we echt offline zijn en niks hebben, geef de index.html voor navigatie
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
-          }
-          return null;
-        });
-      })
+        return networkResponse;
+      });
+    })
   );
 });
