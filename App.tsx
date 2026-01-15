@@ -215,12 +215,6 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    if (showProductList && searchInputRef.current) {
-        searchInputRef.current.focus();
-    }
-  }, [showProductList]);
-
   const globalLatestWeight = useMemo((): number => {
     const datesWithWeight = Object.keys(state.dailyLogs)
       .filter(d => typeof state.dailyLogs[d].weight === 'number' && (state.dailyLogs[d].weight ?? 0) > 0)
