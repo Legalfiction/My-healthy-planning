@@ -16,11 +16,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
         body {
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: contain;
             background-color: #ffffff;
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            overflow: hidden;
+        }
+        #root {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.9);
