@@ -186,12 +186,52 @@ export const translations: Record<Language, any> = {
     },
     tabs: { dashboard: 'Plan', meals: 'Food & Drinks', activity: 'Move', profile: 'Me' }
   },
-  es: {},
-  de: {},
-  pt: {},
-  zh: {},
-  ja: {},
-  ko: {},
-  hi: {},
-  ar: {}
+  es: {
+    title: 'PESO OBJETIVO',
+    subtitle: 'A LA VISTA',
+    tabs: { dashboard: 'Plan', meals: 'Comida y Bebida', activity: 'Actividad', profile: 'Perfil' },
+    moments: { 'Ontbijt': 'Desayuno', 'Lunch': 'Almuerzo', 'Diner': 'Cena' }
+  },
+  de: {
+    title: 'ZIELGEWICHT',
+    subtitle: 'IM BLICK',
+    tabs: { dashboard: 'Plan', meals: 'Essen & Trinken', activity: 'Bewegung', profile: 'Ich' },
+    moments: { 'Ontbijt': 'Frühstück', 'Lunch': 'Mittagessen', 'Diner': 'Abendessen' }
+  },
+  pt: {
+    title: 'PESO IDEAL',
+    subtitle: 'À VISTA',
+    tabs: { dashboard: 'Plano', meals: 'Comida e Bebida', activity: 'Atividade', profile: 'Eu' },
+    moments: { 'Ontbijt': 'Pequeno-almoço', 'Lunch': 'Almoço', 'Diner': 'Jantar' }
+  },
+  zh: {
+    title: '目标体重',
+    subtitle: '在望',
+    tabs: { dashboard: '计划', meals: '饮食', activity: '运动', profile: '我' },
+    moments: { 'Ontbijt': '早餐', 'Lunch': '午餐', 'Diner': '晚餐' }
+  },
+  ja: {
+    title: '目標体重',
+    subtitle: '視野内',
+    tabs: { dashboard: '計画', meals: '食事', activity: '運動', profile: 'プロフィール' },
+    moments: { 'Ontbijt': '朝食', 'Lunch': '昼食', 'Diner': '夕食' }
+  },
+  ko: {
+    title: '목표 체중',
+    subtitle: '달성 가능',
+    tabs: { dashboard: '계획', meals: '식사', activity: '운동', profile: '프로필' },
+    moments: { 'Ontbijt': '아침', 'Lunch': '점심', 'Diner': '저녁' }
+  },
+  hi: {
+    title: 'लक्ष्य वजन',
+    subtitle: 'नज़दीक है',
+    tabs: { dashboard: 'योजना', meals: 'भोजन', activity: 'व्यायाम', profile: 'मैं' },
+    moments: { 'Ontbijt': 'नाश्ता', 'Lunch': 'दोपहर का भोजन', 'Diner': 'रात का खाना' }
+  },
+  ar: {
+    title: 'الوزن المستهدف',
+    subtitle: 'في الأفق',
+    tabs: { dashboard: 'الخطة', meals: 'الطعام', activity: 'النشاط', profile: 'أنا' },
+    moments: { 'Ontbijt': 'الفطور', 'Lunch': 'الغداء', 'Diner': 'العشاء' }
+  }
 };
