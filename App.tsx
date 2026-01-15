@@ -9,7 +9,7 @@ import {
   Plus, 
   Trash2, 
   Scale,
-  Target,
+  Target, 
   TrendingDown,
   Info,
   Database, 
@@ -919,37 +919,36 @@ export default function App() {
                 <div className="bg-orange-50/40 rounded-[30px] p-6 shadow-sm border border-orange-100 animate-in slide-in-from-top-4 duration-500">
                   <div className="flex flex-col gap-4">
                     <div className="relative">
-                      <button 
-                        onClick={() => { setShowProductList(!showProductList); }} 
-                        className={`w-full bg-white border-2 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px] transition-all ${mealInputs[openPickerMoment]?.mealId ? 'border-orange-500 ring-4 ring-orange-50 bg-orange-50/20' : 'border-orange-200/50 hover:border-orange-400'}`}
-                      >
-                        {currentSelectedProduct ? (
-                          <div className="text-left leading-tight truncate">
-                            <div className="font-black text-slate-800 text-[14px] mb-1 uppercase tracking-tight flex items-center gap-2">
-                              {getTranslatedName(currentSelectedProduct.id, currentSelectedProduct.name)}
-                              <Check size={16} className="text-emerald-500" />
+                      {currentSelectedProduct ? (
+                         <div className="w-full bg-orange-50/20 border-2 border-orange-500 ring-4 ring-orange-50 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px]">
+                            <div className="text-left leading-tight truncate">
+                              <div className="font-black text-slate-800 text-[14px] mb-1 uppercase tracking-tight flex items-center gap-2">
+                                {getTranslatedName(currentSelectedProduct.id, currentSelectedProduct.name)}
+                                <Check size={16} className="text-emerald-500" />
+                              </div>
+                              <div className="text-[10px] font-black text-orange-400 uppercase tracking-widest">
+                                  {currentSelectedProduct.unitName} = {currentSelectedProduct.kcal} KCAL
+                              </div>
                             </div>
-                            <div className="text-[10px] font-black text-orange-400 uppercase tracking-widest">
-                                {currentSelectedProduct.unitName} = {currentSelectedProduct.kcal} KCAL
-                            </div>
-                          </div>
-                        ) : <span className="text-slate-300 font-black uppercase tracking-widest text-[11px]">{t.searchPlaceholder}</span>}
-                        <Search size={20} className={`text-orange-500 transition-all ${showProductList ? 'scale-125' : ''}`} />
-                      </button>
+                            <button onClick={() => { setMealInputs({ ...mealInputs, [openPickerMoment]: { mealId: '', kcalVal: 0 } }); }} className="p-2 text-orange-500 hover:bg-orange-100 rounded-full transition-colors">
+                              <X size={20} />
+                            </button>
+                         </div>
+                      ) : (
+                        <div className="relative bg-white border-2 border-orange-200/50 hover:border-orange-400 rounded-[22px] px-6 py-4 shadow-sm flex items-center gap-3 min-h-[68px] transition-all">
+                          <Search size={20} className="text-orange-500" />
+                          <input 
+                            className="bg-transparent border-none text-[15px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" 
+                            placeholder={t.searchPlaceholder}
+                            value={searchTerm} 
+                            onChange={(e) => { setSearchTerm(e.target.value); setShowProductList(true); }}
+                            onFocus={() => setShowProductList(true)}
+                          />
+                        </div>
+                      )}
 
                       {showProductList && (
-                        <div className="absolute top-full left-0 right-0 mt-3 bg-white border-2 border-orange-100 rounded-[26px] shadow-2xl overflow-hidden flex flex-col max-h-[350px] custom-scrollbar z-50 animate-in fade-in zoom-in-95 duration-200">
-                          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
-                            <Search size={20} className="text-orange-400" />
-                            <input 
-                              ref={searchInputRef}
-                              className="bg-transparent border-none text-[15px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300" 
-                              placeholder={t.searchPlaceholder}
-                              value={searchTerm} 
-                              onChange={(e) => setSearchTerm(e.target.value)} 
-                            />
-                            {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} className="text-slate-300" /></button>}
-                          </div>
+                        <div className="absolute top-full left-0 right-0 mt-3 bg-white border-2 border-orange-100 rounded-[26px] shadow-2xl overflow-hidden flex flex-col max-h-[300px] custom-scrollbar z-50 animate-in fade-in zoom-in-95 duration-200">
                           <div className="overflow-y-auto py-2">
                             {([...(state.customOptions[openPickerMoment] || [])])
                               .filter(o => {
