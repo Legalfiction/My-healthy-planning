@@ -1,4 +1,4 @@
-import { Language } from './types.ts';
+import { Language } from './types';
 
 const genericSteps = (l: string) => {
   const steps: Record<string, any[]> = {
@@ -32,9 +32,9 @@ const genericSteps = (l: string) => {
     ],
     pt: [
       { title: 'Perfil Pessoal', desc: 'Insira o ano de nascimento, altura e peso no separador "Eu".' },
-      { title: 'Nível de Atividade', desc: 'Escolha o seu nível de atividade diária.' },
+      { title: 'Nível de Actividade', desc: 'Escolha o seu nível de atividade diária.' },
       { title: 'Escolha o Ritmo', desc: 'Selecione um ritmo de perda de peso.' },
-      { title: 'Receba o Plano', desc: 'A app calcula o seu orçamento e data meta.' },
+      { title: 'Receba o Plano', desc: 'La app calcula o seu orçamento e data meta.' },
       { title: 'Registo', desc: 'Registe a sua alimentação e atividades diariamente.' }
     ],
     zh: [
@@ -47,16 +47,16 @@ const genericSteps = (l: string) => {
     ja: [
       { title: 'プロフィール', desc: '「プロフィール」タブで生年、身長、体重を入力します。' },
       { title: '活動レベル', desc: '毎日の活動レベルを選択します。' },
-      { title: 'ペース設定', desc: '減量のペースを選択します。' },
-      { title: 'プラン取得', desc: 'アプリがカロリー予算と目標日を計算します。' },
+      { title: 'ペース設定', desc: 'ペースを選択します。' },
+      { title: 'プラン取得', desc: 'アプリが予算と目標日を計算します。' },
       { title: '記録する', desc: '毎日の食事と運動を記録します。' }
     ],
     ko: [
       { title: '개인 프로필', desc: '「내 정보」 탭에서 출생 연도, 키, 체중을 입력하세요.' },
       { title: '활동 수준', desc: '일일 활동 수준을 선택하세요.' },
-      { title: '속도 선택', desc: '체중 감량 속도를 선택하세요.' },
-      { title: '계획 수립', desc: '앱이 칼로리 예산과 목표 날짜를 계산합니다.' },
-      { title: '기록하기', desc: '매일 음식 섭취와 활동을 기록하세요.' }
+      { title: '속도 선택', desc: '속도를 선택하세요.' },
+      { title: '계획 수립', desc: '앱이 예산과 목표 날짜를 계산합니다.' },
+      { title: '기록하기', desc: '매일 음식과 활동을 기록하세요.' }
     ],
     hi: [
       { title: 'व्यक्तिगत प्रोफ़ाइल', desc: ' "मैं" टैब में अपना जन्म वर्ष, लंबाई और वजन दर्ज करें।' },
@@ -157,6 +157,7 @@ const _translations: Record<string, any> = {
     manageDb: 'Database Beheren',
     removeItems: 'Verwijder items uit de picker',
     ownActivities: 'Eigen Activiteiten',
+    invalidDate: 'Deze streefdatum is fysiek niet verantwoord. Kies een latere datum voor een gezond resultaat.',
     dataManagement: {
       title: 'Data & Opslag',
       export: 'Exporteer (Backup)',
@@ -258,6 +259,7 @@ const _translations: Record<string, any> = {
     manageDb: 'Manage Database',
     removeItems: 'Remove items from picker',
     ownActivities: 'Own Activities',
+    invalidDate: 'This target date is physically irresponsible. Choose a later date for a healthy result.',
     dataManagement: { title: 'Data', export: 'Export', restore: 'Restore', clearAll: 'Clear', clearConfirm: 'Delete all data?' },
     infoModal: { 
       title: 'About', 
@@ -353,6 +355,7 @@ const _translations: Record<string, any> = {
     manageDb: 'Gestionar Base de Datos',
     removeItems: 'Eliminar del selector',
     ownActivities: 'Actividades Propias',
+    invalidDate: 'Esta fecha objetivo es físicamente irresponsable. Elija una fecha posterior para obtener un resultado saludable.',
     dataManagement: { title: 'Datos', export: 'Exportar', restore: 'Restaurar', clearAll: 'Borrar', clearConfirm: '¿Borrar todo?' },
     infoModal: { 
       title: 'Sobre', 
@@ -448,6 +451,7 @@ const _translations: Record<string, any> = {
     manageDb: 'Datenbank verwalten',
     removeItems: 'Aus Liste entfernen',
     ownActivities: 'Eigene Aktivitäten',
+    invalidDate: 'Dieses Zieldatum ist physisch unverantwortlich. Wählen Sie ein späteres Datum für ein gesundes Ergebnis.',
     dataManagement: { title: 'Daten', export: 'Exportieren', restore: 'Wiederherstellen', clearAll: 'Löschen', clearConfirm: 'Alles löschen?' },
     infoModal: { 
       title: 'Über', 
@@ -543,12 +547,13 @@ const _translations: Record<string, any> = {
     manageDb: 'Gerir Base de Dados',
     removeItems: 'Remover do seletor',
     ownActivities: 'Atividades Próprias',
+    invalidDate: 'Esta data de destino é fisicamente irresponsável. Escolha uma data posterior para um resultado saudável.',
     dataManagement: { title: 'Dados', export: 'Exportar', restore: 'Restaurar', clearAll: 'Limpar', clearConfirm: 'Limpar tudo?' },
     infoModal: { 
       title: 'Sobre', 
       aboutText: 'Esta app guia-te até ao teu peso ideal com um orçamento calórico pessoal.',
       scienceTitle: 'A Ciência',
-      scienceText: 'Usamos Mifflin-St Jeor para TMB e défice saudável.',
+      scienceText: 'Osamos Mifflin-St Jeor para TMB e défice saudável.',
       manualTitle: 'Guia', 
       steps: genericSteps('pt'), 
       disclaimerTitle: 'Aviso Médico',
@@ -638,6 +643,7 @@ const _translations: Record<string, any> = {
     manageDb: '管理数据库',
     removeItems: '从选择器中移除',
     ownActivities: '自有活动',
+    invalidDate: '这个目标日期在生理上是不负责任的。为了健康的结果，请选择一个较晚的日期。',
     dataManagement: { title: '数据', export: '导出', restore: '导入', clearAll: '清除', clearConfirm: '确认清除所有数据？' },
     infoModal: { 
       title: '关于', 
@@ -733,6 +739,7 @@ const _translations: Record<string, any> = {
     manageDb: 'データベース管理',
     removeItems: '選択肢から削除',
     ownActivities: '独自の活動',
+    invalidDate: 'この目標日は身体的に無責任です。健康的な結果を得るために、より遅い日付を選択してください。',
     dataManagement: { title: 'データ', export: '出力', restore: '入力', clearAll: '初期化', clearConfirm: '削除しますか？' },
     infoModal: { 
       title: 'について', 
@@ -828,6 +835,7 @@ const _translations: Record<string, any> = {
     manageDb: '데이터베이스 관리',
     removeItems: '목록에서 삭제',
     ownActivities: '자체 활동',
+    invalidDate: '이 목표 날짜는 신체적으로 무책임합니다. 건강한 결과를 위해 나중 날짜를 선택하십시오.',
     dataManagement: { title: '데이터', export: '내보내기', restore: '가져오기', clearAll: '초기화', clearConfirm: '삭제하시겠습니까?' },
     infoModal: { 
       title: '정보', 
@@ -923,6 +931,7 @@ const _translations: Record<string, any> = {
     manageDb: 'डेटाबेस प्रबंधित करें',
     removeItems: 'चयनकर्ता से हटाएं',
     ownActivities: 'स्वयं के व्यायाम',
+    invalidDate: 'यह लक्ष्य तिथि शारीरिक रूप से गैर-जिम्मेदाराना है। स्वस्थ परिणाम के लिए बाद की तिथि चुनें।',
     dataManagement: { title: 'डेटा', export: 'निर्यात', restore: 'आयात', clearAll: 'साफ़ करें', clearConfirm: 'मिटा दें?' },
     infoModal: { 
       title: 'के बारे में', 
@@ -1018,6 +1027,7 @@ const _translations: Record<string, any> = {
     manageDb: "إدارة البيانات",
     removeItems: "حذف من القائمة",
     ownActivities: "أنشطتي الخاصة",
+    invalidDate: 'تاريخ الهدف هذا غير مسؤول جسديًا. اختر تاريخًا لاحقًا للحصول على نتيجة صحية.',
     dataManagement: { title: 'البيانات', export: 'تصدير', restore: 'استيراد', clearAll: 'مسح', clearConfirm: 'مسح الكل؟' },
     infoModal: { 
       title: 'عن التطبيق', 

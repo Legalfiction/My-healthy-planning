@@ -1,5 +1,5 @@
-import { UserProfile, LoggedActivity, ActivityType } from '../types.ts';
-import { ACTIVITY_TYPES, KCAL_PER_KG_FAT } from '../constants.ts';
+import { UserProfile, LoggedActivity, ActivityType } from '../types';
+import { ACTIVITY_TYPES, KCAL_PER_KG_FAT } from '../constants';
 
 const PAL_VALUES: Record<string, number> = {
   light: 1.3,
