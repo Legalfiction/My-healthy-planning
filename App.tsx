@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -136,11 +137,11 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
   }, [onHide]);
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[90vw]">
-      <div className={`px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-md bg-opacity-95 ${
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[90vw]">
+      <div className={`px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-md bg-opacity-95 ${
         type === 'error' ? 'bg-red-900 border-red-700 text-white' : 'bg-slate-900 border-slate-700 text-white'
       }`}>
-        {type === 'error' ? <AlertCircle size={14} className="text-red-400" /> : <Check size={14} className="text-emerald-400" />}
+        {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
         <span className="text-[10px] font-black uppercase tracking-widest">{message}</span>
       </div>
     </div>
@@ -465,52 +466,110 @@ export default function App() {
   if (!isLoaded) return null;
 
   return (
-    <div className="max-w-xl mx-auto h-[100dvh] bg-white flex flex-col relative overflow-hidden text-slate-900">
+    <div className="max-w-md mx-auto h-[100dvh] bg-white flex flex-col shadow-2xl relative overflow-hidden text-slate-900">
       {toast && <Toast message={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
       
-      {/* Compact Header */}
-      <header className="bg-white sticky top-0 z-40 p-2.5 pt-3 pb-2 border-b border-slate-50 flex flex-col gap-2 shrink-0 shadow-sm">
-        <div className="flex justify-between items-center px-1">
-          <div className="flex flex-col">
-             <h1 className="text-xl font-black text-orange-500 leading-none tracking-tight">{t.title}</h1>
-             <h2 className="text-[9px] font-black text-slate-400 tracking-[0.1em] uppercase">{t.subtitle}</h2>
+      {showInfo && (
+        <div className="fixed inset-0 z-[200] bg-white/95 backdrop-blur-md p-6 overflow-y-auto animate-in fade-in duration-300">
+          <button onClick={() => setShowInfo(false)} className="fixed top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95 z-[210]"><X size={24}/></button>
+          <div className="space-y-8 pb-12 max-w-sm mx-auto">
+            <div className="pt-8">
+              <h2 className="text-3xl font-black text-orange-500 uppercase tracking-tight leading-none mb-1">{t.infoModal.title}</h2>
+              <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">My Healthy Planning</p>
+            </div>
+
+            <section className="space-y-3">
+              <p className="text-sm font-medium text-slate-600 leading-relaxed italic border-l-4 border-orange-200 pl-4">
+                {t.infoModal.aboutText}
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="font-black text-xs text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <Zap size={14} className="text-orange-500" /> {t.infoModal.scienceTitle}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                {t.infoModal.scienceText}
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h3 className="font-black text-xs text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <Settings size={14} className="text-orange-500" /> {t.infoModal.manualTitle}
+              </h3>
+              <div className="grid grid-cols-1 gap-3">
+                {t.infoModal.steps.map((step: any, i: number) => (
+                  <div key={i} className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 flex gap-4">
+                    <span className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-black shrink-0 text-xs shadow-sm">{i+1}</span>
+                    <div className="flex flex-col">
+                      <h4 className="font-black text-[10px] text-slate-800 uppercase tracking-widest">{step.title}</h4>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="bg-red-50 p-5 rounded-[24px] border border-red-100 space-y-2">
+              <h3 className="font-black text-[10px] text-red-600 uppercase tracking-widest flex items-center gap-2">
+                <AlertCircle size={14} /> {t.infoModal.disclaimerTitle}
+              </h3>
+              <p className="text-[10px] text-red-400 font-medium leading-relaxed">
+                {t.infoModal.disclaimerText}
+              </p>
+            </section>
+
+            <footer className="pt-8 border-t border-slate-100 flex flex-col items-center gap-3 opacity-40">
+               <Target size={32} className="text-slate-300" />
+               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center px-4 leading-relaxed">
+                 {t.infoModal.copyright}
+               </p>
+            </footer>
           </div>
-          <div className="flex items-center gap-2">
-             <div className="relative active:scale-95 transition-transform">
+        </div>
+      )}
+
+      <header className="bg-white sticky top-0 z-40 p-4 px-5 border-b border-slate-50 flex flex-col gap-3 shrink-0">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col">
+             <h1 className="text-2xl font-black text-orange-500 leading-none mb-1">{t.title}</h1>
+             <h2 className="text-[11px] font-black text-slate-400 tracking-[0.15em] uppercase">{t.subtitle}</h2>
+          </div>
+          <div className="flex items-center gap-2.5">
+             <div className="relative">
                 <select 
                   value={state.language} 
                   onChange={(e) => setState(prev => ({ ...prev, language: e.target.value as Language }))} 
-                  className="bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 text-[10px] font-black appearance-none pr-7 outline-none uppercase min-h-[36px]"
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 text-[10px] font-black appearance-none pr-7 outline-none uppercase shadow-sm active:bg-slate-100"
                 >
                   {Object.keys(LANGUAGE_FLAGS).map(l => <option key={l} value={l}>{LANGUAGE_FLAGS[l as Language]} {l.toUpperCase()}</option>)}
                 </select>
-                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
              </div>
-             <div className="bg-white border border-slate-100 px-3 py-1.5 rounded-xl flex items-center gap-1.5 min-h-[36px]">
+             <div className="bg-white border border-slate-100 px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
                 <TrendingDown size={12} className="text-orange-400" />
-                <span className="text-xs font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
+                <span className="text-sm font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
              </div>
           </div>
         </div>
         
-        {/* Compact Date Navigation */}
-        <div className="flex items-center justify-between px-1 bg-slate-50/50 rounded-2xl py-1 border border-slate-100/50">
+        <div className="flex items-center justify-between px-1 bg-slate-50/30 rounded-2xl py-1">
           <button 
             onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} 
             className="p-2 text-slate-300 active:text-orange-500 transition-colors"
           >
-            <ChevronLeft size={20} strokeWidth={3} />
+            <ChevronLeft size={24} strokeWidth={3} />
           </button>
           
-          <div className="flex items-center gap-2 py-0.5">
-             <span className="text-2xl font-black text-orange-500 tabular-nums leading-none tracking-tighter">
+          <div className="flex items-center gap-3">
+             <span className="text-4xl font-black text-orange-500 tabular-nums leading-none tracking-tighter">
                {dateParts.day}
              </span>
-             <div className="flex flex-col leading-none">
-               <span className="text-[9px] font-black text-orange-400 uppercase tracking-[0.1em]">
+             <div className="flex flex-col leading-tight pt-0.5">
+               <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.1em]">
                  {dateParts.weekday}
                </span>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+               <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
                  {dateParts.month}
                </span>
              </div>
@@ -520,155 +579,474 @@ export default function App() {
             onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} 
             className="p-2 text-slate-300 active:text-orange-500 transition-colors"
           >
-            <ChevronRight size={20} strokeWidth={3} />
+            <ChevronRight size={24} strokeWidth={3} />
           </button>
         </div>
       </header>
 
-      {/* Optimized Content Area - 96% Width, Tight Gaps */}
-      <main className="flex-grow overflow-y-auto pb-20 pt-2 custom-scrollbar bg-slate-50/20">
+      <main className="p-2 flex-grow overflow-y-auto pb-24 custom-scrollbar bg-slate-50/10">
         
-        {/* PLAN TAB */}
+        {/* Dashboard Tab - Compacted significantly by reducing gaps and padding */}
         {activeTab === 'dashboard' && (
-          <div className="flex flex-col gap-2.5 animate-in fade-in duration-500 items-center">
-            
-            {/* Slim Target Banner */}
-            <div className="w-[96%] bg-gradient-to-br from-orange-50 to-orange-100/40 rounded-2xl p-3 border border-orange-100 flex items-center justify-between shadow-sm">
+          <div className="flex flex-col gap-3 py-2 animate-in fade-in duration-500 min-h-full">
+            <div className="bg-orange-50/40 rounded-[32px] p-4 border border-orange-100/50 flex items-center justify-between shadow-sm">
                <div className="flex flex-col">
-                 <span className="text-orange-400 text-[8px] font-bold uppercase tracking-widest mb-0.5">{t.targetReached}</span>
-                 <h2 className="text-lg font-black tracking-tight text-slate-800">
-                    {totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}
-                 </h2>
+                 <span className="text-orange-400 text-[10px] font-black uppercase tracking-widest mb-1">{t.targetReached}</span>
+                 <h2 className="text-xl font-black tracking-tight">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</h2>
                </div>
-               <Target size={24} className="text-orange-400 opacity-50" />
+               <div className="relative">
+                 <Target size={32} className="text-orange-200" />
+               </div>
             </div>
 
-            {/* Compact Budget Card */}
-            <div className="w-[96%] bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-4">
+            <div className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Zap size={14} className="text-amber-400 fill-amber-400" />
-                    <h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">{t.dailyBudget}</h3>
-                  </div>
-                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-wide bg-orange-50 px-2.5 py-0.5 rounded-full">
-                    {totals.actualIntake} / {totals.currentAdjustedGoal} KCAL
-                  </span>
+                  <div className="flex items-center gap-2"><Zap size={16} className="text-amber-400 fill-amber-400" /><h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.dailyBudget}</h3></div>
+                  <span className="text-[11px] font-black text-orange-500 uppercase tracking-wide">{totals.actualIntake} / {totals.currentAdjustedGoal} KCAL</span>
                </div>
-
-               <div className="flex flex-col items-center justify-center gap-0.5 bg-slate-50/50 py-4 rounded-2xl font-black tabular-nums tracking-tighter border border-slate-100 shadow-inner">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl text-orange-500">{totals.currentAdjustedGoal}</span>
-                    <span className="text-[10px] text-slate-300 uppercase font-black tracking-widest">KCAL</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
-                    <span>{totals.intakeGoal} <small>base</small></span>
-                    <span className="text-emerald-500">+{totals.activityBurn} <small>act</small></span>
-                  </div>
+               <div className="flex items-center justify-center gap-3 bg-slate-50/70 py-4 rounded-[20px] font-black tabular-nums tracking-tighter">
+                  <span className="text-3xl text-slate-300">{totals.intakeGoal}</span>
+                  <span className="text-3xl text-emerald-500">+{totals.activityBurn}</span>
+                  <span className="text-3xl text-orange-500">={totals.currentAdjustedGoal}</span>
                </div>
-
-               <div className="space-y-1">
-                 <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-50">
-                    <div className={`h-full transition-all duration-1000 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
-                 </div>
+               <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-100 shadow-inner">
+                  <div className={`h-full transition-all duration-1000 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col border-l-2 border-orange-100 pl-2">
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.remainingToday}</span>
-                    <span className="text-xl font-black text-slate-800 tabular-nums leading-none">
-                      {Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}
-                    </span>
+               <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.remainingToday}</span>
+                    <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</span>
                   </div>
-                  <div className="flex flex-col items-end border-r-2 border-slate-100 pr-2">
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel.toUpperCase()}</span>
-                    <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{Math.round(totals.intakePercent)}%</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.caloriesPerDay}</span>
+                    <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{totals.intakeGoal}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.activityCalories.toUpperCase()}</span>
+                    <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{totals.activityBurn}</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel.toUpperCase()}</span>
+                    <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{Math.round(totals.intakePercent)}%</span>
                   </div>
                </div>
             </div>
 
-            {/* Tight Journey Card */}
-            <div className="w-[96%] bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-3">
-               <h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">{t.myJourney}</h3>
-               <div className="grid grid-cols-3 text-center gap-1.5 items-baseline">
-                 <div className="flex flex-col">
-                   <span className="text-[7px] font-bold text-slate-300 uppercase">{t.startWeight}</span>
-                   <span className="text-sm font-black text-slate-600">{state.profile.startWeight}</span>
-                 </div>
-                 <div className="flex flex-col bg-orange-50/50 py-2 rounded-xl border border-orange-100">
-                   <span className="text-[7px] font-black text-orange-400 uppercase">{t.nowWeight}</span>
-                   <span className="text-base font-black text-orange-600">{globalLatestWeight.toFixed(1)}</span>
-                 </div>
-                 <div className="flex flex-col">
-                   <span className="text-[7px] font-bold text-slate-300 uppercase">{t.goalWeight}</span>
-                   <span className="text-sm font-black text-slate-600">{state.profile.targetWeight}</span>
-                 </div>
+            <div className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
+               <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.myJourney}</h3>
+               <div className="grid grid-cols-3 text-center gap-2">
+                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.startWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.startWeight} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.nowWeight}</span><span className="text-[14px] font-black text-orange-500">{globalLatestWeight.toFixed(1)} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.goalWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.targetWeight} KG</span></div>
                </div>
-               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+               <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-100">
                   <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${totals.weightProgressPercent}%` }} />
                </div>
             </div>
 
-            {/* Weigh Moment - Low Height Input */}
-            <div className="w-[96%] bg-white rounded-3xl p-3 border border-slate-100 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-2 pl-1">
-                <Scale size={16} className="text-orange-400" />
-                <h3 className="font-black text-[9px] uppercase tracking-widest text-slate-500">{t.weighMoment.toUpperCase()}</h3>
-              </div>
-              <div className="flex items-center gap-1 bg-slate-50 p-2 px-4 rounded-xl border border-slate-100 min-h-[44px]">
-                <input 
-                  type="number" step="0.1" placeholder="00.0" 
-                  value={(state.dailyLogs[selectedDate] as DailyLog)?.weight || ''} 
-                  onChange={(e) => {
-                     const val = e.target.value ? Number(e.target.value) : undefined;
-                     setState(prev => {
-                       const logs = { ...prev.dailyLogs };
-                       logs[selectedDate] = { ...((logs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }), weight: val };
-                       return { ...prev, dailyLogs: logs };
-                     });
-                  }} 
-                  className="w-20 bg-transparent border-none p-0 text-xl font-black text-orange-500 focus:ring-0 text-right placeholder:text-slate-200" 
-                />
-                <span className="text-[8px] font-black text-slate-300 uppercase">kg</span>
+            <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3"><div className="bg-orange-50 p-2 rounded-[16px] text-orange-500 shadow-sm"><Scale size={20} /></div><h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.weighMoment.toUpperCase()}</h3></div>
+              <div className="flex items-center gap-2 bg-slate-50 p-2 px-4 rounded-[20px] border border-slate-100 shadow-inner max-w-[130px]">
+                <input type="number" step="0.1" placeholder="00.0" value={(state.dailyLogs[selectedDate] as DailyLog)?.weight || ''} onChange={(e) => {
+                   const val = e.target.value ? Number(e.target.value) : undefined;
+                   setState(prev => {
+                     const logs = { ...prev.dailyLogs };
+                     logs[selectedDate] = { ...((logs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }), weight: val };
+                     return { ...prev, dailyLogs: logs };
+                   });
+                }} className="w-full bg-transparent border-none p-0 text-xl font-black text-orange-500 focus:ring-0 text-right placeholder:text-slate-200" /><span className="text-[10px] font-black text-slate-300 uppercase">kg</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* IK TAB - NO SCROLL OPTIMIZED */}
+        {/* Eten & Drinken Tab - No changes permitted */}
+        {activeTab === 'meals' && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-300 min-h-full">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xl font-black text-[#1e293b] tracking-tight uppercase">{t.mealSchedule}</h2>
+              <button onClick={() => setShowMyList(!showMyList)} className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-[10px] uppercase shadow-sm transition-all border ${showMyList ? 'bg-[#ff7300] text-white border-[#ff7300]' : 'bg-white text-[#ff7300] border-slate-200'}`}>
+                <ListFilter size={16} className={showMyList ? 'text-white' : 'text-[#ff7300]'} /> {t.myList.toUpperCase()}
+              </button>
+            </div>
+
+            {showMyList ? (
+              <div className="flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex gap-2">
+                    <button onClick={() => setNewFood(p => ({...p, isDrink: false}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${!newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
+                      <Utensils size={18} className={!newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.mealLabel}
+                    </button>
+                    <button onClick={() => setNewFood(p => ({...p, isDrink: true}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
+                      <GlassWater size={18} className={newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.drinkLabel}
+                    </button>
+                  </div>
+
+                  <input type="text" placeholder={t.productName} value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="number" placeholder={t.kcalLabel} value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                    <input type="text" placeholder={t.portionPlaceholder} value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {['ONTBIJT', 'LUNCH', 'DINER', 'SNACK'].map(m => {
+                      const isSnack = m === 'SNACK';
+                      const isSelected = newFood.cats.includes(m);
+                      return (
+                        <button 
+                          key={m} 
+                          onClick={() => setNewFood(p => ({...p, cats: p.cats.includes(m) ? p.cats.filter(x => x!==m) : [...p.cats, m]}))} 
+                          className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase border transition-all ${
+                            isSelected 
+                              ? isSnack ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white border-[#ff7300] text-[#ff7300]' 
+                              : isSnack ? 'bg-amber-50 text-slate-400 border-amber-100' : 'bg-white text-slate-300 border-slate-100'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-[#cbd5e1] text-white' : 'bg-[#ff7300] text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
+                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.manageDb}</h3>
+                      <p className="text-[7px] font-bold text-slate-300 uppercase">{t.removeItems}</p>
+                    </div>
+                    {selectedCustomIds.length > 0 && (
+                      <button onClick={deleteCustomOptions} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all animate-in zoom-in duration-200">
+                        <Trash2 size={14} /> {t.delete} ({selectedCustomIds.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                    {allProductsForManagement.map(opt => (
+                      <div key={opt.id} className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border border-slate-50 group hover:border-orange-100 transition-all">
+                        <div className="relative flex items-center justify-center shrink-0">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedCustomIds.includes(opt.id)}
+                            onChange={() => setSelectedCustomIds(prev => prev.includes(opt.id) ? prev.filter(id => id !== opt.id) : [...prev, opt.id])}
+                            className="w-5 h-5 rounded-md border-slate-200 text-[#ff7300] focus:ring-[#ff7300] transition-all cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col flex-grow truncate">
+                           <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">
+                             {getTranslatedName(opt.id, opt.name)}
+                           </span>
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">
+                             {opt.kcal} {t.kcalLabel} • {opt.unitName} {opt.isCustom ? '• EIGEN' : ''}
+                           </span>
+                        </div>
+                        <button 
+                          onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} 
+                          className="text-slate-200 active:text-red-500 transition-colors p-2 shrink-0"
+                        >
+                           <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {allProductsForManagement.length === 0 && (
+                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">{t.noDataYet}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 flex flex-col flex-grow relative">
+                <div className="relative shrink-0">
+                   {openPickerMoment ? (
+                     <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
+                        <div className="flex justify-between items-center mb-3">
+                           <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]} {t.addActivity}</h3>
+                           <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); }} className="p-1.5 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-all"><X size={16}/></button>
+                        </div>
+                        
+                        {!stagedProduct ? (
+                          <>
+                            <div className="relative bg-[#f8fafc] border border-slate-100 rounded-[22px] px-5 py-3 flex items-center gap-3 mb-2">
+                               <Search size={18} className="text-slate-300" />
+                               <input type="text" autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            </div>
+                            
+                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
+                              {((state.customOptions[openPickerMoment] || [])
+                                .filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()))
+                                .map(opt => (
+                                  <button key={opt.id} onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })} className="w-full text-left px-4 py-3.5 hover:bg-orange-50/50 rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-orange-100">
+                                    <div className="flex items-center gap-3 truncate">
+                                      <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:bg-white group-hover:text-[#ff7300] transition-colors">
+                                        {opt.isDrink ? <GlassWater size={16} /> : <Utensils size={16} />}
+                                      </div>
+                                      <div className="flex flex-col truncate leading-none">
+                                        <span className="text-[12px] font-black text-[#1e293b] uppercase truncate mb-0.5">{getTranslatedName(opt.id, opt.name)}</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{opt.kcal} {t.kcalLabel} • {opt.unitName}</span>
+                                      </div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-[#ff7300] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="bg-slate-50 p-4 rounded-[24px] border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                             <div className="flex items-center gap-3">
+                                <div className="bg-white p-2.5 rounded-[16px] text-[#ff7300] shadow-sm">
+                                  {stagedProduct.opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
+                                </div>
+                                <div className="flex flex-col truncate">
+                                  <span className="text-[13px] font-black text-[#1e293b] uppercase truncate">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{stagedProduct.opt.unitName}</span>
+                                </div>
+                             </div>
+
+                             <div className="flex flex-col gap-1.5">
+                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{t.adjustQuantity}</label>
+                               <div className="flex items-center justify-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - 50)} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Minus size={20} strokeWidth={4}/></button>
+                                  <div className="flex items-center gap-1">
+                                    <input type="number" className="w-20 bg-transparent border-none p-0 text-2xl font-black text-[#ff7300] focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} />
+                                    <span className="text-[10px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                                  </div>
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + 50} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Plus size={20} strokeWidth={4}/></button>
+                               </div>
+                             </div>
+
+                             <button onClick={() => {
+                                addMealItem(openPickerMoment, { name: stagedProduct.opt.name, kcal: stagedProduct.currentKcal, quantity: 1, mealId: stagedProduct.opt.id, isDrink: stagedProduct.opt.isDrink });
+                                setOpenPickerMoment(null);
+                                setStagedProduct(null);
+                                setSearchTerm('');
+                                setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} ${t.save}`});
+                             }} className="w-full py-4 bg-[#ff7300] text-white rounded-2xl font-black text-[14px] uppercase shadow-lg shadow-orange-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                               OK <Check size={18} strokeWidth={4} />
+                             </button>
+                          </div>
+                        )}
+                     </div>
+                   ) : (
+                     <div className="relative">
+                        <select 
+                          className="w-full bg-white px-6 py-5 rounded-[28px] font-black border border-slate-100 text-[14px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm text-[#1e293b]"
+                          onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); }}
+                          value=""
+                        >
+                          <option value="" disabled>{t.addFoodDrink}</option>
+                          {MEAL_MOMENTS.map(moment => <option key={moment} value={moment}>{t.moments[moment]}</option>)}
+                        </select>
+                        <ChevronDown size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-[#ff7300] pointer-events-none" />
+                     </div>
+                   )}
+                </div>
+
+                <div className="flex-grow space-y-2 overflow-y-auto custom-scrollbar pt-1">
+                  {Object.keys(currentLog.meals).map(moment => (currentLog.meals[moment] as LoggedMealItem[]).map(item => (
+                    <div key={item.id} className="flex justify-between items-center bg-white p-3 px-4 rounded-[24px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
+                      <div className="flex items-center gap-3 truncate flex-1">
+                        <div className="bg-[#fff7ed] p-2 rounded-[16px] text-[#ff7300] shrink-0">
+                          {item.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
+                        </div>
+                        <div className="flex flex-col truncate">
+                          <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">{getTranslatedName(item.mealId || '', item.name)}</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{t.moments[moment as MealMoment]?.toUpperCase()}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-slate-50 p-1 px-2 rounded-2xl border border-slate-100 shadow-inner">
+                        <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={14} strokeWidth={3} /></button>
+                        <div className="flex items-center gap-0.5">
+                           <input 
+                            type="number" 
+                            className="w-10 bg-transparent border-none p-0 text-[13px] font-black text-[#ff7300] focus:ring-0 text-center outline-none" 
+                            value={Math.round(item.kcal)} 
+                            onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
+                          />
+                           <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                        </div>
+                        <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={14} strokeWidth={3} /></button>
+                      </div>
+                      
+                      <button onClick={() => {
+                          setState(prev => {
+                            const logs = { ...prev.dailyLogs };
+                            const log = logs[selectedDate];
+                            if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
+                            return { ...prev, dailyLogs: logs };
+                          });
+                      }} className="text-slate-200 p-2 shrink-0 transition-colors active:text-red-500 ml-1"><Trash2 size={16}/></button>
+                    </div>
+                  )))}
+                  {Object.keys(currentLog.meals).length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full opacity-20 py-20">
+                      <Utensils size={48} className="text-slate-300 mb-4" />
+                      <p className="text-[11px] font-black uppercase tracking-widest">{t.nothingPlanned}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Activity Tab - No changes permitted */}
+        {activeTab === 'activity' && (
+          <div className="space-y-4 animate-in fade-in duration-300 min-h-full flex flex-col">
+            <div className="flex justify-between items-center px-1">
+               <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">{t.movement}</h2>
+               <button onClick={() => setShowMyActivityList(!showMyActivityList)} className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-[10px] uppercase shadow-sm border transition-all ${showMyActivityList ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-500 border-slate-200'}`}>
+                 <ListFilter size={16} /> {t.myList.toUpperCase()}
+               </button>
+            </div>
+
+            {showMyActivityList ? (
+              <div className="flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                  <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.newActivity}</h3>
+                  <div className="space-y-3">
+                    <div className="relative bg-[#f8fafc] border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
+                       <Activity size={18} className="text-slate-300" />
+                       <input type="text" placeholder={t.activityName} value={newActivityInput.name} onChange={e => setNewActivityInput({...newActivityInput, name: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
+                    </div>
+                    <div className="relative bg-[#f8fafc] border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
+                       <Clock size={18} className="text-slate-300" />
+                       <input type="number" placeholder={t.kcalPerHour} value={newActivityInput.kcalPerHour} onChange={e => setNewActivityInput({...newActivityInput, kcalPerHour: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
+                    </div>
+                  </div>
+                  <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-[#cbd5e1] text-white' : 'bg-orange-500 text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
+                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.ownActivities}</h3>
+                    {selectedCustomActivityIds.length > 0 && (
+                      <button onClick={deleteCustomActivities} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all">
+                        <Trash2 size={14} /> {t.delete} ({selectedCustomActivityIds.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                    {(state.customActivities || []).map(act => (
+                      <div key={act.id} className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border border-slate-50 group hover:border-orange-100 transition-all">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedCustomActivityIds.includes(act.id)}
+                          onChange={() => setSelectedCustomActivityIds(prev => prev.includes(act.id) ? prev.filter(id => id !== act.id) : [...prev, act.id])}
+                          className="w-5 h-5 rounded-md border-slate-200 text-orange-500 focus:ring-orange-500 transition-all cursor-pointer"
+                        />
+                        <div className="flex flex-col flex-grow truncate">
+                           <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{act.name}</span>
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} {t.kcalLabel} / {t.timeGroups.afternoon}</span>
+                        </div>
+                        <button onClick={() => { setSelectedCustomActivityIds([act.id]); setTimeout(deleteCustomActivities, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
+                           <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {(state.customActivities || []).length === 0 && (
+                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">{t.noDataYet}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-[28px] p-6 border border-slate-100 space-y-4 shadow-inner flex flex-col flex-grow">
+                 <div className="relative">
+                   <select value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-slate-50 p-4 rounded-2xl font-black border border-slate-100 text-[13px] outline-none appearance-none cursor-pointer uppercase shadow-sm pr-10">
+                     {[...ACTIVITY_TYPES, ...(state.customActivities || [])].map(act => <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>)}
+                   </select>
+                   <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 pointer-events-none" />
+                 </div>
+                 
+                 <div className="flex gap-3">
+                   <div className="relative flex-grow">
+                     <input id="act-val" type="number" placeholder={t.minutes} className="w-full bg-slate-50 p-4 rounded-2xl font-black border border-slate-100 text-[13px] outline-none text-center shadow-sm placeholder:text-slate-200" />
+                   </div>
+                   <button onClick={() => { const val = (document.getElementById('act-val') as HTMLInputElement).value; if (val) { addActivity(selectedActivityId, Number(val)); (document.getElementById('act-val') as HTMLInputElement).value = ''; } }} className="bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center"><Plus size={24} strokeWidth={4} /></button>
+                 </div>
+
+                 <div className="flex-grow space-y-2 overflow-y-auto custom-scrollbar pt-2 pr-1">
+                    {currentLog.activities.map(act => {
+                      const type = [...ACTIVITY_TYPES, ...(state.customActivities || [])].find(t => t.id === act.typeId);
+                      return (
+                        <div key={act.id} className="bg-white p-4 rounded-[22px] border border-slate-100 shadow-sm flex justify-between items-center animate-in fade-in slide-in-from-left-2 duration-300">
+                          <div className="flex items-center gap-3">
+                             <div className="bg-orange-50 p-2 rounded-xl text-orange-500">
+                               <Activity size={18} />
+                             </div>
+                             <div className="flex flex-col leading-tight">
+                               <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{getTranslatedName(act.typeId, type?.name || '')}</span>
+                               <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{act.value} {t.minutes} • <span className="text-emerald-500">+{Math.round(act.burnedKcal)} {t.kcalLabel}</span></span>
+                             </div>
+                          </div>
+                          <button onClick={() => setState(prev => {
+                             const logs = { ...prev.dailyLogs };
+                             const log = logs[selectedDate];
+                             if (log) log.activities = log.activities.filter(a => a.id !== act.id);
+                             return { ...prev, dailyLogs: logs };
+                          })} className="text-slate-200 active:text-red-500 p-2 transition-colors"><Trash2 size={18}/></button>
+                        </div>
+                      );
+                    })}
+                    {currentLog.activities.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-20 opacity-20">
+                        <Activity size={48} className="text-slate-300 mb-4" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</p>
+                      </div>
+                    )}
+                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* IK Tab - No changes permitted */}
         {activeTab === 'profile' && (
-          <div className="flex flex-col gap-2 animate-in fade-in duration-300 items-center">
-             
-             {/* Tight Biometrics */}
-             <section className="w-[96%] bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-4">
+          <div className="flex flex-col gap-2 animate-in fade-in duration-300 h-full">
+             <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-3 shrink-0">
                 <div className="flex justify-between items-center px-1">
                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">{t.gender}</label>
-                   <button onClick={() => setShowInfo(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-400 active:scale-95"><Info size={16}/></button>
+                   <button onClick={() => setShowInfo(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-400 active:scale-95 shadow-sm transition-all hover:bg-slate-100"><Info size={16}/></button>
                 </div>
                 <div className="flex gap-2 px-1">
-                  <button onClick={() => updateProfile({ gender: 'man' })} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-transparent'}`}>{t.man}</button>
-                  <button onClick={() => updateProfile({ gender: 'woman' })} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-transparent'}`}>{t.woman}</button>
+                  <button onClick={() => updateProfile({ gender: 'man' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.man}</button>
+                  <button onClick={() => updateProfile({ gender: 'woman' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.woman}</button>
                 </div>
-                <div className="grid grid-cols-4 gap-2 px-1">
-                  {[{l: t.age, v: state.profile.birthYear, isSel: true, field: 'birthYear'}, 
-                    {l: t.height, v: state.profile.height, field: 'height'}, 
-                    {l: t.startWeight, v: state.profile.startWeight, field: 'startWeight'}, 
-                    {l: t.targetWeight, v: state.profile.targetWeight, field: 'targetWeight', color: 'orange'}].map((item, i) => (
-                    <div key={i} className="space-y-1">
-                      <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate">{item.l.split(' ')[0]}</label>
-                      {item.isSel ? (
-                        <div className="relative">
-                          <select value={item.v} onChange={(e) => updateProfile({ [item.field]: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-3 rounded-xl font-black text-xs appearance-none text-center min-h-[44px]">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                        </div>
-                      ) : (
-                        <input type="number" value={item.v} onChange={(e) => updateProfile({ [item.field]: Number(e.target.value) })} className={`w-full ${item.color === 'orange' ? 'bg-orange-50 border-orange-100 text-orange-600' : 'bg-slate-50 border-slate-100 text-slate-700'} border py-3 rounded-xl font-black text-xs text-center min-h-[44px]`} />
-                      )}
+                <div className="grid grid-cols-4 gap-2 pt-1 px-1">
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.age.split(' ')[0]}</label>
+                    <div className="relative">
+                      <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none appearance-none text-center shadow-inner">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                      <ChevronDown size={6} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
-                  ))}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.height.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.startWeight.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-orange-400 uppercase tracking-widest block text-center truncate leading-none">{t.targetWeight.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-orange-600 text-center shadow-inner" />
+                  </div>
                 </div>
              </section>
 
-             {/* Small Icons Activity */}
-             <section className="w-[96%] bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-3">
+             <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
                 <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.activityLevelLabel}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
@@ -676,16 +1054,15 @@ export default function App() {
                     { id: 'moderate', icon: Briefcase, label: t.levelModerate },
                     { id: 'heavy', icon: Hammer, label: t.levelHeavy }
                   ].map(lvl => (
-                    <button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all active:scale-95 min-h-[70px] ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-60'}`}>
-                      <lvl.icon size={18} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[8px] font-black uppercase mt-2 text-center leading-tight ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
+                    <button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
+                      <lvl.icon size={16} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
                     </button>
                   ))}
                 </div>
              </section>
 
-             {/* Pace Grid */}
-             <section className="w-[96%] bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-3">
+             <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
                 <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.paceTitle}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
@@ -693,109 +1070,104 @@ export default function App() {
                     { id: 'average', icon: Footprints, label: t.speedAverage },
                     { id: 'fast', icon: Flame, label: t.speedFast }
                   ].map(sp => (
-                    <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all active:scale-95 min-h-[70px] ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-60'}`}>
-                      <sp.icon size={18} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[8px] font-black uppercase mt-2 text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                    <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
+                      <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
-                <button onClick={() => updateProfile({ weightLossSpeed: 'custom' })} className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border transition-all min-h-[48px] ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-500 shadow-md' : 'bg-slate-50 border-transparent opacity-70'}`}>
-                  <Settings size={14} className={state.profile.weightLossSpeed === 'custom' ? "text-orange-500" : "text-slate-400"} />
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${state.profile.weightLossSpeed === 'custom' ? "text-slate-800" : "text-slate-500"}`}>{t.customPace}</span>
+                <button onClick={() => updateProfile({ weightLossSpeed: 'custom' })} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-40'}`}>
+                  <Settings size={12} className="text-slate-400" />
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">{t.customPace}</span>
                 </button>
              </section>
 
-             {/* Compact Results Banner */}
-             <section className="w-[96%] bg-gradient-to-br from-orange-50 to-orange-100/20 border border-orange-100 rounded-3xl p-4 flex flex-col gap-3 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-baseline gap-2 border-b border-orange-100 pb-3">
-                  <div className="flex flex-col gap-1">
+             <section className="bg-orange-50/50 border border-orange-100 rounded-[24px] p-3 flex flex-col gap-2 shadow-inner flex-grow">
+                <div className="flex flex-col gap-2 border-b border-orange-100 pb-3">
+                  <div className="flex justify-between items-baseline">
                     <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">{t.oldBudgetLabel}</span>
-                    <span className="text-xs font-black text-orange-800/40 tabular-nums">{maintenanceKcal} KCAL</span>
+                    <span className="text-sm font-black text-orange-600/50 tabular-nums">{maintenanceKcal} {t.kcalLabel}</span>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-orange-600 tabular-nums leading-none tracking-tighter">{state.profile.dailyBudget}</span>
-                      <span className="text-[10px] font-black text-orange-400 uppercase">KCAL</span>
-                    </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span>
+                    <span className="text-2xl font-black text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} {t.kcalLabel}</span>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center pt-1">
                   <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t.targetDate}</span>
                   {state.profile.weightLossSpeed === 'custom' ? (
-                    <input 
-                      type="date" min={minSafeDate} value={state.profile.customTargetDate || ''} 
-                      onChange={(e) => updateProfile({ customTargetDate: e.target.value })} 
-                      className="bg-white border border-orange-200 py-2 px-3 rounded-xl font-black text-xs text-orange-600 outline-none shadow-sm min-h-[40px] text-center" 
-                    />
+                    <div className="relative inline-flex"><input type="date" min={minSafeDate} value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border border-orange-200 py-1.5 px-3 rounded-[12px] font-black text-[11px] text-orange-600 outline-none" /></div>
                   ) : (
-                    <span className="text-sm font-black text-orange-600 tracking-tight uppercase leading-none bg-white/60 px-3 py-2 rounded-xl border border-orange-100">
-                      {totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : (state.language === 'en' ? 'en-US' : state.language), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}
-                    </span>
+                    <span className="text-[14px] font-black text-orange-600 tracking-tight uppercase leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : (state.language === 'en' ? 'en-US' : state.language), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</span>
                   )}
                 </div>
              </section>
 
-             {/* Small Data Manage area */}
-             <section className="w-[96%] bg-white rounded-2xl p-2 px-4 border border-slate-100 shadow-sm flex items-center justify-between mt-auto mb-2 min-h-[52px]">
-                <span className="font-black text-slate-800 text-[8px] uppercase tracking-widest">{t.dataStorage}</span>
+             <section className="bg-white rounded-[24px] p-2.5 px-5 border border-slate-100 shadow-sm flex items-center justify-between mt-auto shrink-0">
+                <span className="font-black text-slate-800 text-[8px] uppercase tracking-[0.15em]">{t.dataStorage}</span>
                 <div className="flex gap-3">
-                  <button onClick={handleExportData} className="p-2 rounded-xl bg-slate-50 text-slate-400 min-h-[36px] min-w-[36px] flex items-center justify-center"><FileDown size={16} /></button>
-                  <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 min-h-[36px] min-w-[36px] flex items-center justify-center"><FileUp size={16} /></button>
-                  <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="p-2 rounded-xl bg-red-50 text-red-200 min-h-[36px] min-w-[36px] flex items-center justify-center"><Trash2 size={16} /></button>
+                  <button onClick={handleExportData} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileDown size={18} /></button>
+                  <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileUp size={18} /></button>
+                  <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="p-2 rounded-xl bg-red-50 text-red-200 transition-all active:scale-95"><Trash2 size={18} /></button>
                 </div>
                 <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
              </section>
           </div>
         )}
-
-        {/* baseline tabs logic remains */}
-        {(activeTab === 'meals' || activeTab === 'activity') && (
-           <div className="flex flex-col gap-4 animate-in fade-in duration-300 items-center">
-             <div className="w-[94%] flex justify-between items-center px-1 mb-2">
-                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">{activeTab === 'meals' ? t.mealSchedule : t.movement}</h2>
-                <button onClick={() => activeTab === 'meals' ? setShowMyList(!showMyList) : setShowMyActivityList(!showMyActivityList)} className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase shadow-sm transition-all border bg-white text-orange-500 border-slate-200">
-                  <ListFilter size={16} /> {t.myList}
-                </button>
-             </div>
-           </div>
-        )}
       </main>
 
-      {/* Slim Tab Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 pt-2 flex justify-between items-center max-w-xl mx-auto z-40 rounded-t-[32px] shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom,12px)] min-h-[72px]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-3 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-[0_-12px_40px_-15px_rgba(0,0,0,0.12)] pb-[env(safe-area-inset-bottom,16px)]">
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard.toUpperCase() }, 
           { id: 'meals', icon: Utensils, label: t.tabs.meals.toUpperCase() }, 
           { id: 'activity', icon: Activity, label: t.tabs.activity.toUpperCase() }, 
           { id: 'profile', icon: UserIcon, label: t.tabs.profile.toUpperCase() }
         ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`flex flex-col items-center gap-1 transition-all w-[24%] active:scale-95 group ${activeTab === tab.id ? 'text-orange-500' : 'text-slate-300'}`}
-          >
-            <div className={`p-1.5 rounded-xl transition-all ${activeTab === tab.id ? 'bg-orange-50' : 'bg-transparent'}`}>
-              <tab.icon size={20} strokeWidth={activeTab === tab.id ? 3 : 2} />
-            </div>
-            <span className="text-[7px] font-black uppercase tracking-widest text-center leading-none opacity-80">{tab.label}</span>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all w-20 ${activeTab === tab.id ? 'text-orange-500 scale-110' : 'text-slate-300 scale-100'}`}>
+            <tab.icon size={20} strokeWidth={activeTab === tab.id ? 3 : 2} />
+            <span className="text-[7px] font-black uppercase tracking-[0.1em] text-center leading-none">{tab.label}</span>
           </button>
         ))}
       </nav>
 
-      {/* Global CSS Overrides */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 2px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #f1f5f9; border-radius: 10px; }
         input[type="number"] { -moz-appearance: textfield; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        @media (max-width: 640px) {
-          #root { background-color: #f8fafc; }
-        }
-        input:focus, select:focus { outline: none; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1); }
         input[type="date"]::-webkit-calendar-picker-indicator {
           background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
+        }
+        input[type="checkbox"] {
+          appearance: none;
+          background-color: #fff;
+          margin: 0;
+          font: inherit;
+          color: currentColor;
+          width: 1.15em;
+          height: 1.15em;
+          border: 0.15em solid #cbd5e1;
+          border-radius: 0.35em;
+          transform: translateY(-0.075em);
+          display: grid;
+          place-content: center;
+        }
+        input[type="checkbox"]::before {
+          content: "";
+          width: 0.65em;
+          height: 0.65em;
+          transform: scale(0);
+          transition: 120ms transform ease-in-out;
+          box-shadow: inset 1em 1em #f97316;
+          transform-origin: bottom left;
+          clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        input[type="checkbox"]:checked::before {
+          transform: scale(1);
+        }
+        input[type="checkbox"]:checked {
+          border-color: #f97316;
         }
       `}</style>
     </div>
