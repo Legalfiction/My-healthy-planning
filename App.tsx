@@ -31,7 +31,12 @@ import {
   Briefcase,
   ListFilter,
   Info,
-  Clock
+  Clock,
+  Sun,
+  Moon,
+  Apple,
+  Cherry,
+  Beef
 } from 'lucide-react';
 import { 
   AppState, 
@@ -167,6 +172,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [stagedProduct, setStagedProduct] = useState<{ opt: MealOption, currentKcal: number } | null>(null);
+  const [pickerFilter, setPickerFilter] = useState<'all' | 'breakfast' | 'lunch' | 'diner' | 'food' | 'drink' | 'fruit'>('all');
 
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   const [selectedCustomIds, setSelectedCustomIds] = useState<string[]>([]);
@@ -449,7 +455,7 @@ export default function App() {
     return years;
   }, []);
 
-  const allProductsForManagement = useMemo(() => {
+  const allAvailableProducts = useMemo(() => {
     const seenIds = new Set<string>();
     const list: MealOption[] = [];
     MEAL_MOMENTS.forEach(m => {
@@ -462,6 +468,10 @@ export default function App() {
     });
     return list.sort((a, b) => getTranslatedName(a.id, a.name).localeCompare(getTranslatedName(b.id, b.name)));
   }, [state.customOptions, state.language]);
+
+  const allProductsForManagement = useMemo(() => {
+    return allAvailableProducts;
+  }, [allAvailableProducts]);
 
   if (!isLoaded) return null;
 
@@ -660,7 +670,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Eten & Drinken Tab - No changes permitted */}
+        {/* Eten & Drinken Tab - Unified Product Picker with Quick Filter Icons */}
         {activeTab === 'meals' && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-300 min-h-full">
             <div className="flex justify-between items-center px-1">
@@ -767,19 +777,56 @@ export default function App() {
                      <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
                         <div className="flex justify-between items-center mb-3">
                            <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]} {t.addActivity}</h3>
-                           <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); }} className="p-1.5 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-all"><X size={16}/></button>
+                           <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }} className="p-1.5 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-all"><X size={16}/></button>
                         </div>
                         
                         {!stagedProduct ? (
                           <>
+                            {/* Filter Icons Row */}
+                            <div className="flex justify-between items-center w-full gap-1 mb-4 overflow-x-auto pb-1 no-scrollbar">
+                               {[
+                                 { id: 'all', icon: LayoutDashboard, label: 'ALLES' },
+                                 { id: 'breakfast', icon: Sun, label: 'ONTBIJT' },
+                                 { id: 'lunch', icon: Utensils, label: 'LUNCH' },
+                                 { id: 'diner', icon: Moon, label: 'DINER' },
+                                 { id: 'food', icon: Beef, label: 'ETEN' },
+                                 { id: 'drink', icon: GlassWater, label: 'DRINKEN' },
+                                 { id: 'fruit', icon: Cherry, label: 'FRUIT' }
+                               ].map(f => (
+                                 <button 
+                                   key={f.id} 
+                                   onClick={() => setPickerFilter(f.id as any)} 
+                                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all shrink-0 min-w-[58px] ${
+                                     pickerFilter === f.id ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 text-slate-300 border-transparent hover:bg-slate-100'
+                                   }`}
+                                 >
+                                   <f.icon size={18} />
+                                   <span className="text-[7px] font-black uppercase tracking-tighter">{f.label}</span>
+                                 </button>
+                               ))}
+                            </div>
+
                             <div className="relative bg-[#f8fafc] border border-slate-100 rounded-[22px] px-5 py-3 flex items-center gap-3 mb-2">
                                <Search size={18} className="text-slate-300" />
-                               <input type="text" autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                               <input type="text" className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                             
                             <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
-                              {((state.customOptions[openPickerMoment] || [])
-                                .filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase()))
+                              {allAvailableProducts
+                                .filter(o => {
+                                  const name = getTranslatedName(o.id, o.name).toLowerCase();
+                                  const matchesSearch = name.includes(searchTerm.toLowerCase());
+                                  let matchesFilter = true;
+                                  
+                                  if (pickerFilter === 'breakfast') matchesFilter = o.id.startsWith('b_');
+                                  else if (pickerFilter === 'lunch') matchesFilter = o.id.startsWith('l_');
+                                  else if (pickerFilter === 'diner') matchesFilter = o.id.startsWith('m_');
+                                  else if (pickerFilter === 'drink') matchesFilter = !!o.isDrink;
+                                  else if (pickerFilter === 'food') matchesFilter = !o.isDrink;
+                                  else if (pickerFilter === 'fruit') matchesFilter = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht');
+                                  
+                                  return matchesSearch && matchesFilter;
+                                })
                                 .map(opt => (
                                   <button key={opt.id} onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })} className="w-full text-left px-4 py-3.5 hover:bg-orange-50/50 rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-orange-100">
                                     <div className="flex items-center gap-3 truncate">
@@ -794,7 +841,7 @@ export default function App() {
                                     <ChevronRight size={16} className="text-[#ff7300] opacity-0 group-hover:opacity-100 transition-opacity" />
                                   </button>
                                 ))
-                              )}
+                              }
                             </div>
                           </>
                         ) : (
@@ -826,6 +873,7 @@ export default function App() {
                                 setOpenPickerMoment(null);
                                 setStagedProduct(null);
                                 setSearchTerm('');
+                                setPickerFilter('all');
                                 setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} ${t.save}`});
                              }} className="w-full py-4 bg-[#ff7300] text-white rounded-2xl font-black text-[14px] uppercase shadow-lg shadow-orange-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                                OK <Check size={18} strokeWidth={4} />
@@ -837,7 +885,7 @@ export default function App() {
                      <div className="relative">
                         <select 
                           className="w-full bg-white px-6 py-5 rounded-[28px] font-black border border-slate-100 text-[14px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm text-[#1e293b]"
-                          onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); }}
+                          onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }}
                           value=""
                         >
                           <option value="" disabled>{t.addFoodDrink}</option>
@@ -1134,6 +1182,8 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #f1f5f9; border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type="number"] { -moz-appearance: textfield; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="date"]::-webkit-calendar-picker-indicator {
