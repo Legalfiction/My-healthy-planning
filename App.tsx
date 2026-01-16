@@ -433,7 +433,7 @@ export default function App() {
     const finalCats: MealMoment[] = [];
     newFood.cats.forEach(c => {
       if (c === 'ONTBIJT') finalCats.push('Ontbijt');
-      else if (c === 'SNACK') finalCats.push('Ochtend snack', 'Middag snack', 'Avondsnack');
+      else if (c === 'SNACK') finalCats.push('Ochtend Snack', 'Middag Snack', 'Avond Snack');
       else if (c === 'LUNCH') finalCats.push('Lunch');
       else if (c === 'DINER') finalCats.push('Diner');
     });
@@ -597,7 +597,7 @@ export default function App() {
 
       <main className="p-2 flex-grow overflow-y-auto pb-24 custom-scrollbar bg-slate-50/10">
         
-        {/* Dashboard Tab - Enhanced label readability */}
+        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-3 py-2 animate-in fade-in duration-500 min-h-full">
             <div className="bg-orange-50/40 rounded-[32px] p-4 border border-orange-100/50 flex items-center justify-between shadow-sm">
@@ -671,7 +671,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Eten & Drinken Tab - Unified Product Picker with Quick Filter Icons */}
+        {/* Eten & Drinken Tab */}
         {activeTab === 'meals' && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-300 min-h-full">
             <div className="flex justify-between items-center px-1">
@@ -777,7 +777,7 @@ export default function App() {
                    {openPickerMoment ? (
                      <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
                         <div className="flex justify-between items-center mb-3">
-                           <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]} {t.addActivity}</h3>
+                           <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]}</h3>
                            <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }} className="p-1.5 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-all"><X size={16}/></button>
                         </div>
                         
@@ -819,20 +819,22 @@ export default function App() {
                                   const name = getTranslatedName(o.id, o.name).toLowerCase();
                                   const matchesSearch = name.includes(searchTerm.toLowerCase());
                                   
-                                  const isFruit = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht') || name.includes('appel');
-                                  const isSnack = o.id.includes('snack') || o.id === 'b_ontbijtkoek' || o.id === 'b_beschuit' || o.id === 'b_knackebrod';
+                                  if (pickerFilter === 'all') return matchesSearch;
+
+                                  const isFruit = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht') || name.includes('mango') || name.includes('aardbeien') || name.includes('kiwi') || name.includes('perzik') || name.includes('pruimen');
+                                  const isSnack = o.id.includes('snack') || o.id === 'b_ontbijtkoek' || o.id === 'b_beschuit' || o.id === 'b_knackebrod' || o.id === 'b_notenmix' || o.id === 'b_dadels';
                                   const isAlcohol = !!o.isAlcohol;
                                   
                                   let matchesFilter = true;
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = o.id.startsWith('b_') && !o.isDrink && !isFruit && !isSnack && !isAlcohol;
+                                    matchesFilter = (o.id.startsWith('b_') || (state.customOptions['Ontbijt'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isSnack && !isAlcohol;
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = o.id.startsWith('l_') && !o.isDrink && !isFruit && !isAlcohol;
+                                    matchesFilter = (o.id.startsWith('l_') || (state.customOptions['Lunch'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isAlcohol;
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = o.id.startsWith('m_') && !o.isDrink && !isFruit && !isAlcohol;
+                                    matchesFilter = (o.id.startsWith('m_') || (state.customOptions['Diner'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isAlcohol;
                                   }
                                   else if (pickerFilter === 'drink') {
                                     matchesFilter = !!o.isDrink && !isAlcohol;
@@ -967,7 +969,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Activity Tab - No changes permitted */}
+        {/* Activity Tab */}
         {activeTab === 'activity' && (
           <div className="space-y-4 animate-in fade-in duration-300 min-h-full flex flex-col">
             <div className="flex justify-between items-center px-1">
@@ -1081,7 +1083,7 @@ export default function App() {
           </div>
         )}
 
-        {/* IK Tab - Modified labels and values for profile */}
+        {/* IK Tab */}
         {activeTab === 'profile' && (
           <div className="flex flex-col gap-2 animate-in fade-in duration-300 h-full">
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-3 shrink-0">

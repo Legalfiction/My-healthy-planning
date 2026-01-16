@@ -19,7 +19,7 @@ export interface UserProfile {
   age?: number; // Legacy support
 }
 
-export type MealMoment = 'Ontbijt' | 'Ochtend snack' | 'Lunch' | 'Middag snack' | 'Diner' | 'Avondsnack';
+export type MealMoment = 'Ontbijt' | 'Ochtend Snack' | 'Lunch' | 'Middag Snack' | 'Diner' | 'Avond Snack';
 
 export interface MealOption {
   id: string;
