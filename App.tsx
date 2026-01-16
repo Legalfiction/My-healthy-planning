@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -11,9 +12,6 @@ import {
   Scale,
   Target, 
   TrendingDown,
-  Info,
-  Database, 
-  ListFilter,
   Zap,
   Check,
   AlertCircle,
@@ -21,42 +19,41 @@ import {
   Search,
   ChevronDown,
   X,
-  Calendar,
   Footprints,
   Turtle,
   Flame,
-  Settings2,
+  Settings,
+  FileDown,
+  FileUp,
   Laptop,
   Hammer,
   Briefcase,
-  BookOpen,
-  Copyright,
-  ShieldCheck,
-  Settings,
-  FileDown,
-  FileUp
+  ListFilter,
+  Info
 } from 'lucide-react';
 import { 
-  UserProfile, 
   AppState, 
   MealMoment, 
   LoggedMealItem,
   Language,
   MealOption,
-  ActivityType
+  ActivityType,
+  DailyLog,
+  UserProfile,
+  LoggedActivity
 } from './types';
 import { 
   MEAL_OPTIONS, 
   ACTIVITY_TYPES, 
   PRODUCT_TRANSLATIONS,
-  MEAL_MOMENTS
+  MEAL_MOMENTS,
+  KCAL_PER_KG_FAT
 } from './constants';
 import { 
   calculateTDEE,
   calculateActivityBurn, 
   calculateTargetDate,
-  calculateBudgetFromTargetDate,
-  calculateBMI
+  calculateBudgetFromTargetDate
 } from './services/calculator';
 import { translations } from './translations';
 
@@ -65,9 +62,6 @@ const STORE_NAME = 'appState';
 const STATE_KEY = 'mainState';
 
 const generateId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
@@ -112,7 +106,6 @@ const idb = {
     tx.objectStore(STORE_NAME).clear();
     return new Promise(resolve => {
       tx.oncomplete = () => resolve();
-      tx.onerror = () => console.error("IndexedDB Clear Error");
     });
   }
 };
@@ -144,12 +137,10 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
   return (
     <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[90vw]">
       <div className={`px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border backdrop-blur-md bg-opacity-95 ${
-        type === 'error' ? 'bg-red-900 border-red-700 text-white' : 
-        type === 'info' ? 'bg-orange-900 border-orange-700 text-white' :
-        'bg-slate-900 border-slate-700 text-white'
+        type === 'error' ? 'bg-red-900 border-red-700 text-white' : 'bg-slate-900 border-slate-700 text-white'
       }`}>
         {type === 'error' ? <AlertCircle size={16} className="text-red-400" /> : <Check size={16} className="text-emerald-400" />}
-        <span className="text-xs font-black uppercase tracking-widest">{message}</span>
+        <span className="text-[10px] font-black uppercase tracking-widest">{message}</span>
       </div>
     </div>
   );
@@ -165,34 +156,32 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  
+  // Modals / List views
   const [showMyList, setShowMyList] = useState(false);
   const [showMyActivityList, setShowMyActivityList] = useState(false);
-  const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
   
+  // Meals Tab States
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
-  const [mealInputs, setMealInputs] = useState<Record<string, { mealId: string; kcalVal: number }>>({});
   const [showProductList, setShowProductList] = useState(false);
+
+  // Activity Tab State
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
-  
+
+  // Custom Creation States
   const [newFood, setNewFood] = useState({ name: '', kcal: '', unit: '', cats: [] as string[], isDrink: false });
-  const [newAct, setNewAct] = useState({ name: '', kcal: '' });
+  const [newAct, setNewAct] = useState({ name: '', met: '' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
     const base = (translations as any)['nl'];
     const selected = (translations as any)[lang] || {};
-    const result = { ...base };
-    Object.keys(selected).forEach(key => {
-        if (selected[key] && (typeof selected[key] !== 'object' || Object.keys(selected[key]).length > 0)) {
-            result[key] = selected[key];
-        }
-    });
-    return result;
+    return { ...base, ...selected };
   }, [state.language]);
 
   const getTranslatedName = (id: string, originalName: string) => {
@@ -215,107 +204,82 @@ export default function App() {
     });
   }, []);
 
-  const globalLatestWeight = useMemo((): number => {
-    const datesWithWeight = Object.keys(state.dailyLogs)
-      .filter(d => typeof state.dailyLogs[d].weight === 'number' && (state.dailyLogs[d].weight ?? 0) > 0)
-      .sort((a, b) => b.localeCompare(a));
-    
-    if (datesWithWeight.length > 0) {
-      return state.dailyLogs[datesWithWeight[0]].weight!;
-    }
-    return Number(state.profile.startWeight) || 86;
-  }, [state.dailyLogs, state.profile.startWeight]);
-
-  const weightForSelectedDate = useMemo((): number => {
-    const manualLogWeight = state.dailyLogs[selectedDate]?.weight;
-    if (typeof manualLogWeight === 'number' && manualLogWeight > 0) return manualLogWeight;
-    const sortedDates = Object.keys(state.dailyLogs)
-      .filter(d => d <= selectedDate && typeof state.dailyLogs[d].weight === 'number' && (state.dailyLogs[d].weight ?? 0) > 0)
-      .sort((a,b) => b.localeCompare(a));
-    for (const d of sortedDates) { if (state.dailyLogs[d]?.weight) return state.dailyLogs[d].weight as number; }
-    return Number(state.profile.startWeight) || 86;
-  }, [state.dailyLogs, state.profile.startWeight, selectedDate]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    const currentProfile = state.profile;
-    const currentTDEE = calculateTDEE(currentProfile, 0, globalLatestWeight);
-    const MIN_HEALTHY_CALORIES = 1450;
-
-    if (currentProfile.weightLossSpeed === 'custom') {
-      if (currentProfile.customTargetDate) {
-        const newBudget = calculateBudgetFromTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, currentProfile.customTargetDate);
-        if (newBudget !== currentProfile.dailyBudget) {
-          setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: newBudget } }));
-        }
-      } else {
-        const fallbackDate = calculateTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, currentProfile.dailyBudget);
-         setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: fallbackDate } }));
-      }
-    } else {
-      let deficit = currentProfile.weightLossSpeed === 'slow' ? 250 : currentProfile.weightLossSpeed === 'fast' ? 600 : 500;
-      const safeBudget = Math.max(Math.round(currentTDEE - deficit), MIN_HEALTHY_CALORIES);
-      
-      if (safeBudget !== currentProfile.dailyBudget) {
-        setState(prev => ({ ...prev, profile: { ...prev.profile, dailyBudget: safeBudget } }));
-      }
-      const autoDate = calculateTargetDate({ ...currentProfile, currentWeight: globalLatestWeight }, safeBudget);
-      if (autoDate !== currentProfile.customTargetDate) {
-         setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: autoDate } }));
-      }
-    }
-  }, [isLoaded, state.profile.gender, state.profile.birthYear, state.profile.height, state.profile.startWeight, state.profile.weightLossSpeed, state.profile.targetWeight, state.profile.activityLevel, state.profile.customTargetDate, globalLatestWeight]);
-
   useEffect(() => {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
 
-  const currentLog = useMemo(() => state.dailyLogs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
-  
-  const bmi = useMemo(() => calculateBMI(weightForSelectedDate, state.profile.height), [weightForSelectedDate, state.profile.height]);
-  const bmiColor = useMemo(() => bmi < 18.5 ? 'text-orange-400' : bmi < 25 ? 'text-green-500' : bmi < 30 ? 'text-amber-500' : 'text-red-500', [bmi]);
+  const globalLatestWeight = useMemo((): number => {
+    const datesWithWeight = Object.keys(state.dailyLogs)
+      .filter(d => (state.dailyLogs[d] as DailyLog).weight && (state.dailyLogs[d] as DailyLog).weight! > 0)
+      .sort((a, b) => b.localeCompare(a));
+    return datesWithWeight.length > 0 ? (state.dailyLogs[datesWithWeight[0]] as DailyLog).weight! : (Number(state.profile.startWeight) || 86);
+  }, [state.dailyLogs, state.profile.startWeight]);
+
+  const weightForSelectedDate = useMemo((): number => {
+    const manual = (state.dailyLogs[selectedDate] as DailyLog)?.weight;
+    if (manual) return manual;
+    const previous = Object.keys(state.dailyLogs)
+      .filter(d => d <= selectedDate && (state.dailyLogs[d] as DailyLog).weight)
+      .sort((a,b) => b.localeCompare(a));
+    return previous.length > 0 ? (state.dailyLogs[previous[0]] as DailyLog).weight! : (Number(state.profile.startWeight) || 86);
+  }, [state.dailyLogs, state.profile.startWeight, selectedDate]);
+
+  const maintenanceKcal = useMemo(() => {
+    return Math.round(calculateTDEE(state.profile, 0, globalLatestWeight));
+  }, [state.profile, globalLatestWeight]);
 
   const totals = useMemo(() => {
-    const activityBurn = Number(currentLog.activities.reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0));
+    const log = (state.dailyLogs[selectedDate] as DailyLog) || { meals: {}, activities: [] };
+    const activityBurn = Number((log.activities as LoggedActivity[]).reduce((sum: number, a: LoggedActivity) => sum + (Number(a.burnedKcal) || 0), 0));
+    const intakeGoal = Number(state.profile.dailyBudget) || 1800;
+    const actualIntake = Number(Object.values(log.meals || {}).reduce((acc: number, items: any) => acc + (items as LoggedMealItem[]).reduce((sum: number, m: LoggedMealItem) => sum + m.kcal, 0), 0));
+    const currentAdjustedGoal = intakeGoal + activityBurn;
+    const intakePercent = currentAdjustedGoal > 0 ? (actualIntake / currentAdjustedGoal) * 100 : 0;
+    
     const startW = Number(state.profile.startWeight) || 0;
     const targetW = Number(state.profile.targetWeight) || 0;
-    const currentW = Number(weightForSelectedDate);
-    const intakeGoal = Number(state.profile.dailyBudget) || 1800;
-    const autoTargetDate = calculateTargetDate({ ...state.profile, currentWeight: currentW }, intakeGoal);
-    
-    const weightLogExists = Object.values(state.dailyLogs).some(log => typeof log.weight === 'number');
+    const weightJourneyTotal = Math.abs(startW - targetW) || 1;
     const weightLostSoFar = startW - globalLatestWeight;
-    
-    const weightJourneyTotal = Math.abs(startW - targetW) || 0.1;
-    const weightProgressPercent = weightLogExists ? Math.min(Math.max(( (startW - globalLatestWeight) / weightJourneyTotal) * 100, 0), 100) : 0;
-    
-    const currentAdjustedGoal = Number(intakeGoal + activityBurn);
-    const actualIntake = Number(Object.values(currentLog.meals).reduce((acc, items) => acc + Number(items.reduce((sum, m) => sum + (Number(m.kcal) || 0), 0)), 0));
-    const intakePercent = currentAdjustedGoal > 0 ? (actualIntake / currentAdjustedGoal) * 100 : 0;
+    const weightProgressPercent = Math.min(Math.max((weightLostSoFar / weightJourneyTotal) * 100, 0), 100);
+
     return { 
-      activityBurn, 
-      actualIntake, 
-      targetDate: state.profile.weightLossSpeed === 'custom' && state.profile.customTargetDate ? state.profile.customTargetDate : autoTargetDate, 
-      weightProgressPercent, 
-      currentAdjustedGoal, 
-      intakeGoal, 
-      intakePercent, 
-      calorieStatusColor: actualIntake > currentAdjustedGoal ? 'bg-red-500' : intakePercent > 85 ? 'bg-amber-500' : 'bg-green-500', 
-      weightLostSoFar,
-      weightLogExists
+      activityBurn, actualIntake, currentAdjustedGoal, intakeGoal, intakePercent, 
+      weightProgressPercent, weightLostSoFar, 
+      calorieStatusColor: actualIntake > currentAdjustedGoal ? 'bg-red-500' : intakePercent > 85 ? 'bg-amber-500' : 'bg-green-500',
+      targetDate: state.profile.weightLossSpeed === 'custom' && state.profile.customTargetDate ? state.profile.customTargetDate : calculateTargetDate({ ...state.profile, currentWeight: globalLatestWeight }, intakeGoal)
     };
-  }, [state.profile, currentLog, weightForSelectedDate, globalLatestWeight, state.dailyLogs]);
+  }, [state.profile, state.dailyLogs, selectedDate, globalLatestWeight]);
+
+  const currentLog = useMemo(() => {
+    return (state.dailyLogs[selectedDate] as DailyLog) || { meals: {}, activities: [] };
+  }, [state.dailyLogs, selectedDate]);
 
   const dateParts = useMemo(() => {
-    const dateObj = new Date(selectedDate);
+    const d = new Date(selectedDate);
     const locale = state.language === 'nl' ? 'nl-NL' : 'en-US';
-    const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(dateObj);
+    const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d);
     return { 
       day: parts.find(p => p.type === 'day')?.value || '', 
-      month: parts.find(p => p.type === 'month')?.value || '', 
-      weekday: parts.find(p => p.type === 'weekday')?.value || '' 
+      month: (parts.find(p => p.type === 'month')?.value || '').toUpperCase(), 
+      weekday: (parts.find(p => p.type === 'weekday')?.value || '').toUpperCase() 
     };
   }, [selectedDate, state.language]);
+
+  const updateProfile = (updates: Partial<UserProfile>) => {
+    setState(prev => {
+      const newProfile = { ...prev.profile, ...updates };
+      let newBudget = newProfile.dailyBudget;
+      if (newProfile.weightLossSpeed !== 'custom') {
+        const speedMap: Record<string, number> = { slow: 0.25, average: 0.5, fast: 1.0 };
+        const kgPerWeek = speedMap[newProfile.weightLossSpeed!] || 0.5;
+        const dailyDeficit = (kgPerWeek * KCAL_PER_KG_FAT) / 7;
+        const maintenance = calculateTDEE(newProfile, 0, Number(newProfile.currentWeight) || Number(newProfile.startWeight));
+        newBudget = Math.round(maintenance - dailyDeficit);
+        newBudget = Math.max(newBudget, newProfile.gender === 'man' ? 1500 : 1200);
+      }
+      return { ...prev, profile: { ...newProfile, dailyBudget: newBudget } };
+    });
+  };
 
   const addMealItem = (moment: MealMoment, item: Omit<LoggedMealItem, 'id'>) => {
     setState(prev => {
@@ -328,18 +292,6 @@ export default function App() {
     });
   };
 
-  const removeCustomMealOptionBatch = (moments: MealMoment[], optionId: string) => {
-    setState(prev => {
-      const options = { ...prev.customOptions };
-      moments.forEach(m => {
-        if (options[m]) {
-          options[m] = options[m].filter(o => o.id !== optionId);
-        }
-      });
-      return { ...prev, customOptions: options };
-    });
-  };
-
   const addActivity = (typeId: string, value: number) => {
     const burn = calculateActivityBurn({ typeId, value }, weightForSelectedDate, state.customActivities);
     setState(prev => {
@@ -348,77 +300,6 @@ export default function App() {
       logs[selectedDate] = { ...log, activities: [...log.activities, { id: generateId(), typeId, value, burnedKcal: burn }] };
       return { ...prev, dailyLogs: logs };
     });
-    const input = document.getElementById('act-val') as HTMLInputElement;
-    if (input) input.value = '';
-  };
-
-  const handleAddCustomProduct = () => {
-    if (!newFood.name || !newFood.kcal || newFood.cats.length === 0) {
-      setToast({ msg: 'Vul alle velden in en kies een categorie.', type: 'error' });
-      return;
-    }
-    const id = 'cust_' + generateId().substring(0, 8);
-    const newOption: MealOption = {
-      id,
-      name: newFood.name,
-      kcal: Number(newFood.kcal),
-      unitName: newFood.unit.toUpperCase() || '1 PORTIE',
-      isCustom: true,
-      isDrink: newFood.isDrink
-    };
-
-    setState(prev => {
-      const opts = { ...prev.customOptions };
-      newFood.cats.forEach(cat => {
-        if (cat === 'Snack') {
-          ['Ochtend snack', 'Middag snack', 'Avondsnack'].forEach(m => {
-            opts[m as MealMoment] = [...(opts[m as MealMoment] || []), newOption];
-          });
-        } else {
-          opts[cat as MealMoment] = [...(opts[cat as MealMoment] || []), newOption];
-        }
-      });
-      return { ...prev, customOptions: opts };
-    });
-    setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false });
-    setToast({ msg: 'Product toegevoegd aan lijst!', type: 'success' });
-  };
-
-  const handleAddCustomActivity = () => {
-    if (!newAct.name || !newAct.kcal) {
-      setToast({ msg: 'Vul naam en calorieën in.', type: 'error' });
-      return;
-    }
-    const newActivity: ActivityType = {
-      id: 'act_cust_' + generateId().substring(0, 8),
-      name: newAct.name,
-      met: 0, 
-      unit: 'minuten',
-      isCustom: true
-    };
-    (newActivity as any).kcalPer60 = Number(newAct.kcal);
-
-    setState(prev => ({
-      ...prev,
-      customActivities: [...(prev.customActivities || []), newActivity]
-    }));
-    setNewAct({ name: '', kcal: '' });
-    setToast({ msg: 'Activiteit toegevoegd aan lijst!', type: 'success' });
-  };
-
-  const formatTargetDateDisplay = (isoDate: string) => {
-    if (!isoDate) return "...";
-    const date = new Date(isoDate);
-    const locale = state.language === 'nl' ? 'nl-NL' : 'en-US';
-    return date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-
-  const resetAllData = async () => {
-    if (confirm(t.dataManagement.clearConfirm)) {
-      await idb.clear();
-      setState({ ...INITIAL_STATE, language: state.language });
-      setActiveTab('dashboard');
-    }
   };
 
   const handleExportData = () => {
@@ -427,684 +308,393 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `my-healthy-planning-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
+    link.download = `backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
-    document.body.removeChild(link);
-    setToast({ msg: 'Back-up succesvol gedownload!', type: 'success' });
   };
 
-  const handleRestoreData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleRestoreData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (re) => {
       try {
-        const content = e.target?.result as string;
-        const parsed = JSON.parse(content) as AppState;
-        if (parsed.profile && parsed.dailyLogs) {
-          setState(parsed);
-          setToast({ msg: 'Gegevens succesvol hersteld!', type: 'success' });
-        } else {
-          setToast({ msg: 'Ongeldig back-up bestand.', type: 'error' });
-        }
-      } catch (err) {
-        setToast({ msg: 'Fout bij het lezen van bestand.', type: 'error' });
-      }
+        const parsed = JSON.parse(re.target?.result as string);
+        setState(parsed);
+      } catch (err) { alert('Fout bij laden bestand'); }
     };
     reader.readAsText(file);
-    if (event.target) event.target.value = '';
+  };
+
+  const addCustomFood = () => {
+    if (!newFood.name || !newFood.kcal || newFood.cats.length === 0) return;
+    const item: MealOption = { 
+      id: 'cust_' + generateId(), 
+      name: newFood.name, 
+      kcal: Number(newFood.kcal), 
+      unitName: newFood.unit.toUpperCase() || 'STUK', 
+      isDrink: newFood.isDrink, 
+      isCustom: true 
+    };
+
+    const finalCats: MealMoment[] = [];
+    newFood.cats.forEach(c => {
+      if (c === 'Snack') {
+        finalCats.push('Ochtend snack', 'Middag snack', 'Avondsnack');
+      } else {
+        finalCats.push(c as MealMoment);
+      }
+    });
+
+    setState(prev => {
+      const newOptions = { ...prev.customOptions };
+      finalCats.forEach(cat => {
+        newOptions[cat] = [...(newOptions[cat] || []), item];
+      });
+      return { ...prev, customOptions: newOptions };
+    });
+    setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false });
+    setToast({ msg: t.addProduct + ' ' + t.save });
   };
 
   const birthYears = useMemo(() => {
     const years = [];
-    const currentYear = new Date().getFullYear();
-    for (let i = currentYear; i >= currentYear - 100; i--) years.push(i);
+    const cur = new Date().getFullYear();
+    for (let i = cur; i >= cur - 90; i--) years.push(i);
     return years;
   }, []);
 
-  const groupedLoggedMeals = useMemo(() => {
-    const meals = currentLog.meals;
-    return [
-      { id: 'Ontbijt', label: t.moments['Ontbijt'], items: meals['Ontbijt'] || [] },
-      { id: 'Lunch', label: t.moments['Lunch'], items: meals['Lunch'] || [] },
-      { id: 'Diner', label: t.moments['Diner'], items: meals['Diner'] || [] },
-      { id: 'Snackmomenten', label: 'Snackmomenten', items: [
-        ...(meals['Ochtend snack'] || []),
-        ...(meals['Middag snack'] || []),
-        ...(meals['Avondsnack'] || [])
-      ] }
-    ].filter(cat => cat.items.length > 0);
-  }, [currentLog.meals, t]);
-
-  const myListCategories = useMemo(() => {
-    return [
-      { id: 'Ontbijt', label: t.moments['Ontbijt'], moments: ['Ontbijt'] as MealMoment[] },
-      { id: 'Lunch', label: t.moments['Lunch'], moments: ['Lunch'] as MealMoment[] },
-      { id: 'Diner', label: t.moments['Diner'], moments: ['Diner'] as MealMoment[] },
-      { id: 'Snackmomenten', label: 'Snackmomenten', moments: ['Ochtend snack', 'Middag snack', 'Avondsnack'] as MealMoment[] }
-    ];
-  }, [t]);
-
-  const currentSelectedProduct = useMemo(() => {
-    if (!openPickerMoment || !mealInputs[openPickerMoment]?.mealId) return null;
-    const allOptions = state.customOptions[openPickerMoment] || [];
-    return allOptions.find(o => o.id === mealInputs[openPickerMoment].mealId);
-  }, [openPickerMoment, mealInputs, state.customOptions]);
-
-  if (!isLoaded) return <div className="flex h-screen items-center justify-center font-black text-orange-500 uppercase">...</div>;
+  if (!isLoaded) return null;
 
   return (
-    <div className="max-w-md mx-auto min-h-screen pb-24 bg-white flex flex-col shadow-2xl relative overflow-hidden">
+    <div className="max-w-md mx-auto h-screen bg-white flex flex-col shadow-2xl relative overflow-hidden text-slate-900">
       {toast && <Toast message={toast.msg} type={toast.type} onHide={() => setToast(null)} />}
       
+      {/* Information Modal Overlay */}
       {showInfo && (
-        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
-            <div className="p-6 border-b flex justify-between items-center bg-slate-50 sticky top-0 z-10">
-               <div className="flex items-center gap-3">
-                 <div className="bg-orange-500 p-2 rounded-xl text-white">
-                   <Info size={20} />
-                 </div>
-                 <h3 className="font-black text-slate-800 uppercase text-lg tracking-tight">{t.infoModal.title}</h3>
-               </div>
-               <button onClick={() => setShowInfo(false)} className="p-2 bg-white text-slate-400 rounded-full shadow-sm hover:text-orange-500 transition-colors">
-                 <X size={24}/>
-               </button>
+        <div className="fixed inset-0 z-[200] bg-white/95 backdrop-blur-md p-6 overflow-y-auto animate-in fade-in duration-300">
+          <button onClick={() => setShowInfo(false)} className="fixed top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95"><X size={24}/></button>
+          <div className="space-y-8 pb-12">
+            <div className="pt-8">
+              <h2 className="text-3xl font-black text-orange-500 uppercase tracking-tight leading-none mb-1">{t.infoModal.title}</h2>
+              <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">{t.infoModal.manualTitle}</p>
             </div>
             
-            <div className="overflow-y-auto flex-grow p-6 space-y-10 custom-scrollbar pb-20">
-               <section className="space-y-4">
-                  <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
-                    <BookOpen size={20} className="text-orange-500" /> {t.infoModal.manualTitle}
-                  </h4>
-                  <div className="space-y-4 text-[13px] leading-relaxed font-medium text-slate-600">
-                    <p>{t.infoModal.manualText}</p>
-                    <div className="grid gap-3">
-                      {(t.infoModal.steps || []).map((item: any, idx: number) => (
-                        <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                          <span className="block font-black text-orange-500 uppercase text-[10px] tracking-widest mb-1">{item.title}</span>
-                          <span className="text-slate-600">{item.desc}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-               </section>
-
-               <section className="space-y-4">
-                  <h4 className="font-black text-slate-800 text-[14px] uppercase tracking-widest flex items-center gap-2">
-                    <Settings2 size={20} className="text-orange-500" /> {t.infoModal.howItWorksTitle}
-                  </h4>
-                  <div className="space-y-3 text-[12px] leading-relaxed font-medium text-slate-500 bg-orange-50/50 p-5 rounded-[24px] border border-orange-100">
-                    <p>{t.infoModal.howItWorksText}</p>
-                    <p>{t.infoModal.caloriesNote}</p>
-                  </div>
-               </section>
-
-               <section className="pt-6 border-t border-slate-100 space-y-4">
-                  <div className="flex flex-col items-center gap-4 text-center">
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <ShieldCheck size={18} className="text-emerald-500" />
-                      <span className="text-[11px] font-black uppercase tracking-widest">{t.infoModal.privacyTitle}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 font-medium">{t.infoModal.privacyText}</p>
-                    <div className="flex items-center gap-1.5 text-slate-300 mt-2">
-                      <Copyright size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t.infoModal.copyright}</span>
-                    </div>
-                  </div>
-               </section>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMyList && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
-            <div className="p-6 border-b flex justify-between items-center bg-slate-50 sticky top-0 z-10">
-               <div className="flex items-center gap-3">
-                 <Utensils size={20} className="text-orange-500" />
-                 <h3 className="font-black text-slate-800 uppercase text-lg tracking-tight">Mijn Producten</h3>
-               </div>
-               <button onClick={() => setShowMyList(false)} className="p-2 bg-white text-slate-400 rounded-full shadow-sm">
-                 <X size={20}/>
-               </button>
-            </div>
-            
-            <div className="overflow-y-auto flex-grow p-5 space-y-8 custom-scrollbar">
-              <div className="bg-orange-50/50 p-6 rounded-[28px] border border-orange-100 space-y-5">
-                <h4 className="font-black text-orange-500 uppercase text-[11px] tracking-widest flex items-center gap-2">
-                  <Plus size={16} /> {t.addProduct}
-                </h4>
-                <div className="space-y-4">
-                  <input 
-                    placeholder="Productnaam" 
-                    value={newFood.name} 
-                    onChange={e => setNewFood({...newFood, name: e.target.value})}
-                    className="w-full bg-white border border-orange-100 p-4 rounded-2xl font-black text-sm outline-none focus:ring-2 ring-orange-200"
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input 
-                      placeholder={t.unitPlaceholder} 
-                      value={newFood.unit} 
-                      onChange={e => setNewFood({...newFood, unit: e.target.value})}
-                      className="w-full bg-white border border-orange-100 p-4 rounded-2xl font-black text-sm outline-none"
-                    />
-                    <input 
-                      type="number" 
-                      placeholder="Kcal" 
-                      value={newFood.kcal} 
-                      onChange={e => setNewFood({...newFood, kcal: e.target.value})}
-                      className="w-full bg-white border border-orange-100 p-4 rounded-2xl font-black text-sm outline-none"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-orange-100 shadow-sm active:scale-[0.98] transition-all cursor-pointer" onClick={() => setNewFood({...newFood, isDrink: !newFood.isDrink})}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${newFood.isDrink ? 'bg-orange-500 text-white' : 'bg-slate-100 text-transparent'}`}>
-                        <Check size={14} strokeWidth={4} />
-                    </div>
-                    <label className="text-[11px] font-black uppercase text-slate-600 cursor-pointer">{t.isDrink}</label>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.categories}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Ontbijt', 'Lunch', 'Diner', 'Snack'].map(cat => (
-                        <button 
-                          key={cat}
-                          onClick={() => {
-                            const cats = newFood.cats.includes(cat) 
-                              ? newFood.cats.filter(c => c !== cat) 
-                              : [...newFood.cats, cat];
-                            setNewFood({...newFood, cats});
-                          }}
-                          className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all border ${
-                            newFood.cats.includes(cat) ? 'bg-orange-500 text-white border-orange-600 shadow-md' : 'bg-white text-slate-400 border-slate-100'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button 
-                    onClick={handleAddCustomProduct}
-                    className="w-full bg-orange-500 text-white p-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-100 active:scale-95 transition-all"
-                  >
-                    {t.save}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-8 pb-10">
-                {myListCategories.map(cat => {
-                   const customItemsInCategory = cat.moments.flatMap(m => state.customOptions[m] || []).filter(o => o.isCustom);
-                   if (customItemsInCategory.length === 0) return null;
-                   
-                   return (
-                    <div key={cat.id} className="space-y-3 animate-in fade-in duration-300">
-                      <h4 className="text-[11px] font-black text-orange-400 uppercase px-3 py-1 bg-orange-50 rounded-full w-fit tracking-[0.1em]">{cat.label}</h4>
-                      <div className="space-y-2">
-                        {customItemsInCategory.map(opt => (
-                          <div key={opt.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center group hover:border-orange-200 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0 pr-4">
-                              <div className="bg-orange-50 p-2 rounded-xl text-orange-500 shrink-0">
-                                  {opt.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                  <span className="text-[14px] font-black text-slate-800 leading-tight uppercase truncate">{opt.name}</span>
-                                  <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">
-                                  {opt.unitName || '1 PORTIE'} • {opt.kcal} KCAL
-                                  </span>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => {
-                                removeCustomMealOptionBatch(cat.moments, opt.id);
-                                setToast({ msg: 'Product verwijderd', type: 'info' });
-                              }}
-                              className="text-slate-200 hover:text-red-500 transition-all p-2 active:scale-90"
-                              title="Verwijder item"
-                            >
-                              <Trash2 size={20} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMyActivityList && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
-            <div className="p-6 border-b flex justify-between items-center bg-slate-50 sticky top-0 z-10">
-               <div className="flex items-center gap-3">
-                 <Activity size={20} className="text-orange-500" />
-                 <h3 className="font-black text-slate-800 uppercase text-lg">Mijn Activiteiten</h3>
-               </div>
-               <div className="flex items-center gap-2">
-                 <button 
-                   onClick={() => { if(confirm('Alle eigen activiteiten wissen?')) setState(prev => ({...prev, customActivities: []})); }}
-                   className="p-2 bg-white text-slate-400 rounded-full shadow-sm hover:text-red-500 transition-colors"
-                 >
-                   <Trash2 size={20}/>
-                 </button>
-                 <button onClick={() => setShowMyActivityList(false)} className="p-2 bg-white text-slate-400 rounded-full shadow-sm">
-                   <X size={20}/>
-                 </button>
-               </div>
-            </div>
-            <div className="overflow-y-auto flex-grow p-5 space-y-6 custom-scrollbar">
-              <div className="bg-orange-50/50 p-6 rounded-[28px] border border-orange-100 space-y-5">
-                <h4 className="font-black text-orange-500 uppercase text-[11px] tracking-widest flex items-center gap-2">
-                  <Plus size={16} /> {t.addActivity}
-                </h4>
-                <div className="space-y-4">
-                  <input 
-                    placeholder="Naam activiteit" 
-                    value={newAct.name}
-                    onChange={e => setNewAct({...newAct, name: e.target.value})}
-                    className="w-full bg-white border border-orange-100 p-4 rounded-2xl font-black text-sm outline-none"
-                  />
-                  <input 
-                    type="number"
-                    placeholder={t.kcalPer60}
-                    value={newAct.kcal}
-                    onChange={e => setNewAct({...newAct, kcal: e.target.value})}
-                    className="w-full bg-white border border-orange-100 p-4 rounded-2xl font-black text-sm outline-none"
-                  />
-                  <button 
-                    onClick={handleAddCustomActivity}
-                    className="w-full bg-orange-500 text-white p-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-100 active:scale-95 transition-all"
-                  >
-                    {t.save}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3 pb-10">
-                {state.customActivities?.map(act => (
-                  <div key={act.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex justify-between items-center group hover:border-orange-200 animate-in fade-in duration-300">
+            <section className="space-y-4">
+              <p className="text-sm font-medium text-slate-600 leading-relaxed">{t.infoModal.manualText}</p>
+              <div className="grid grid-cols-1 gap-3">
+                {t.infoModal.steps.map((step: any, i: number) => (
+                  <div key={i} className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 flex gap-4">
+                    <span className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-black shrink-0">{i+1}</span>
                     <div className="flex flex-col">
-                      <span className="text-[15px] font-black text-slate-800 leading-tight uppercase tracking-tight">{act.name}</span>
-                      <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-1">{(act as any).kcalPer60} KCAL / 60 MIN</span>
+                      <h4 className="font-black text-xs text-slate-800 uppercase tracking-widest">{step.title}</h4>
+                      <p className="text-[11px] text-slate-500 font-medium">{step.desc}</p>
                     </div>
-                    <button 
-                      onClick={() => {
-                        setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== act.id) }));
-                        setToast({ msg: 'Activiteit verwijderd', type: 'info' });
-                      }}
-                      className="text-slate-200 hover:text-red-500 transition-all p-2 active:scale-90"
-                      title="Verwijder activiteit"
-                    >
-                      <Trash2 size={22} />
-                    </button>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
+
+            <section className="bg-orange-50 rounded-[24px] p-6 border border-orange-100 space-y-3">
+              <h3 className="font-black text-xs text-orange-600 uppercase tracking-widest flex items-center gap-2"><Activity size={16}/> {t.infoModal.howItWorksTitle}</h3>
+              <p className="text-[11px] text-orange-700 leading-relaxed font-medium">{t.infoModal.howItWorksText}</p>
+              <div className="bg-white/50 p-3 rounded-xl">
+                 <p className="text-[10px] font-bold text-orange-600 italic leading-tight">{t.infoModal.caloriesNote}</p>
+              </div>
+            </section>
+
+            <footer className="pt-8 border-t border-slate-100 flex flex-col items-center gap-2 opacity-30">
+               <Target size={32} className="text-slate-300" />
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.infoModal.copyright}</p>
+            </footer>
           </div>
         </div>
       )}
 
-      <header className="bg-white sticky top-0 z-30 p-3 pt-4 px-5 border-b border-slate-50">
-        <div className="flex justify-between items-start mb-1">
+      <header className="bg-white sticky top-0 z-40 p-3 px-4 border-b border-slate-50 flex flex-col gap-1.5 shrink-0">
+        <div className="flex justify-between items-start">
           <div className="flex flex-col">
-             <h1 className="text-2xl font-black text-orange-500 leading-none tracking-tight mt-1">{t.title}</h1>
-             <h2 className="text-[14px] font-black text-slate-400 tracking-[0.1em] uppercase mt-0.5">{t.subtitle}</h2>
+             <h1 className="text-xl font-black text-orange-500 leading-none">{t.title}</h1>
+             <h2 className="text-[10px] font-black text-slate-400 tracking-[0.1em] uppercase">{t.subtitle}</h2>
           </div>
-          <div className="flex items-start gap-2 pt-1">
+          <div className="flex items-center gap-2">
              <div className="relative">
-                <select 
-                  value={state.language} 
-                  onChange={(e) => setState(prev => ({ ...prev, language: e.target.value as Language }))} 
-                  className="bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase appearance-none pr-6 shadow-sm outline-none cursor-pointer"
-                >
-                  {Object.keys(translations).map(lang => (
-                    <option key={lang} value={lang}>{LANGUAGE_FLAGS[lang as Language]} {lang.toUpperCase()}</option>
-                  ))}
+                <select value={state.language} onChange={(e) => setState(prev => ({ ...prev, language: e.target.value as Language }))} className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[9px] font-black appearance-none pr-5 outline-none uppercase shadow-sm">
+                  {Object.keys(LANGUAGE_FLAGS).map(l => <option key={l} value={l}>{LANGUAGE_FLAGS[l as Language]} {l.toUpperCase()}</option>)}
                 </select>
-                <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={8} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
              </div>
-             <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-[20px] flex flex-col items-center justify-center min-w-[85px] shadow-sm">
-                <div className="flex items-center gap-1">
-                  <TrendingDown size={12} className="text-orange-400" />
-                  <span className="text-[14px] font-black text-slate-800 leading-none">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-400 font-black uppercase">KG</span></span>
-                </div>
+             <div className="bg-white border border-slate-100 px-3 py-1 rounded-2xl flex items-center gap-1 shadow-sm">
+                <TrendingDown size={10} className="text-orange-400" />
+                <span className="text-sm font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
              </div>
           </div>
         </div>
-        <div className="flex items-center justify-between mt-4 px-1">
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 bg-slate-50 rounded-2xl text-slate-300 hover:text-orange-500 transition-colors border border-slate-100"><ChevronLeft size={24}/></button>
-          <div className="flex items-center gap-3">
-             <span className="text-4xl font-black text-orange-500 tabular-nums leading-none">{dateParts.day}</span>
-             <div className="flex flex-col">
-               <span className="text-[12px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">{dateParts.weekday}</span>
-               <span className="text-[14px] font-black text-slate-400 uppercase tracking-widest leading-none">{dateParts.month}</span>
+        <div className="flex items-center justify-between px-2">
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 text-slate-300 active:text-orange-500"><ChevronLeft size={20}/></button>
+          <div className="flex items-center gap-2">
+             <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{dateParts.day}</span>
+             <div className="flex flex-col leading-none">
+               <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">{dateParts.weekday}</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{dateParts.month}</span>
              </div>
           </div>
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-2 bg-slate-50 rounded-2xl text-slate-300 hover:text-orange-500 transition-colors border border-slate-100"><ChevronRight size={24}/></button>
+          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 text-slate-300 active:text-orange-500"><ChevronRight size={20}/></button>
         </div>
       </header>
 
-      <main className="p-4 flex-grow space-y-4 max-h-screen overflow-y-auto custom-scrollbar overscroll-contain pb-32">
+      <main className="p-2 flex-grow space-y-1 overflow-y-auto pb-24 custom-scrollbar">
         {activeTab === 'dashboard' && (
-          <div className="space-y-5 animate-in fade-in duration-500">
-            <div className="bg-orange-50/50 rounded-[32px] p-7 text-slate-800 relative overflow-hidden border border-orange-100/50 shadow-sm flex flex-col">
-               <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none text-orange-500">
-                 <Target size={120} strokeWidth={1} />
+          <div className="flex flex-col gap-1.5 animate-in fade-in duration-500 h-full">
+            <div className="bg-orange-50/40 rounded-[22px] p-2.5 border border-orange-100/50 flex items-center justify-between shadow-sm shrink-0">
+               <div className="flex flex-col">
+                 <span className="text-orange-400 text-[8px] font-black uppercase tracking-widest mb-0.5">{t.targetReached}</span>
+                 <h2 className="text-lg font-black tracking-tight">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</h2>
                </div>
-               <div className="flex flex-col mb-6">
-                 <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-1">BMI</span>
-                 <span className={`text-3xl font-black ${bmiColor} leading-none tracking-tight`}>{bmi}</span>
+               <div className="relative">
+                 <Target size={24} className="text-orange-200" />
+                 <div className="absolute -inset-2 bg-orange-100/30 rounded-full animate-pulse blur-md -z-10" />
                </div>
-               <p className="text-orange-500 text-[12px] font-black uppercase tracking-[0.2em] mb-2">{t.targetReached}</p>
-               <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none">{formatTargetDateDisplay(totals.targetDate)}</h2>
             </div>
-            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-8">
-               <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <Zap size={18} className="text-amber-400 fill-amber-400" />
-                    <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.dailyBudget}</h3>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1">{t.consumed}</span>
-                    <span className="text-[16px] font-black text-orange-500 uppercase leading-none">{totals.actualIntake} <span className="text-[10px] text-orange-300 uppercase">KCAL</span></span>
-                  </div>
+
+            <div className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
+               <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-1.5"><Zap size={14} className="text-amber-400 fill-amber-400" /><h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">{t.dailyBudget}</h3></div>
+                  <span className="text-[10px] font-black text-orange-500 uppercase">{totals.actualIntake} / {totals.currentAdjustedGoal} KCAL</span>
                </div>
-               <div className="flex items-baseline font-black tracking-tighter gap-0.5">
-                  <span className="text-4xl text-slate-300 leading-none">{totals.intakeGoal}</span>
-                  <span className="text-4xl text-green-500 leading-none">+{totals.activityBurn}</span>
-                  <span className="text-4xl text-orange-500 leading-none">={totals.currentAdjustedGoal}</span>
+               <div className="flex items-center justify-center gap-2 bg-slate-50/50 py-2.5 rounded-2xl font-black tabular-nums tracking-tighter">
+                  <span className="text-2xl text-slate-300">{totals.intakeGoal}</span>
+                  <span className="text-2xl text-emerald-500">+{totals.activityBurn}</span>
+                  <span className="text-2xl text-orange-500">={totals.currentAdjustedGoal}</span>
                </div>
-               <div className="h-5 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100 relative">
+               
+               <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
                   <div className={`h-full transition-all duration-1000 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
                </div>
-               <div className="grid grid-cols-2 gap-y-8 gap-x-4">
+
+               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-0.5">
                   <div className="flex flex-col">
-                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.remainingToday}</span>
-                     <span className="text-3xl font-black text-orange-500 leading-none tabular-nums">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</span>
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">{t.remainingToday}</span>
+                    <span className="text-xl font-black text-orange-500 tabular-nums">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</span>
                   </div>
-                  <div className="flex flex-col text-right">
-                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.caloriesPerDay}</span>
-                     <span className="text-3xl font-black text-orange-500 leading-none tabular-nums">{totals.intakeGoal}</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">PER DAG</span>
+                    <span className="text-xl font-black text-orange-500 tabular-nums">{totals.intakeGoal}</span>
                   </div>
                   <div className="flex flex-col">
-                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.activityCalories}</span>
-                     <span className="text-3xl font-black text-orange-500 leading-none tabular-nums">{totals.activityBurn}</span>
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">ACTIVITEITEN</span>
+                    <span className="text-xl font-black text-orange-500 tabular-nums">{totals.activityBurn}</span>
                   </div>
-                  <div className="flex flex-col text-right">
-                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.consumedTodayLabel}</span>
-                     <span className="text-3xl font-black text-orange-500 leading-none tabular-nums">{Math.round(totals.intakePercent)}%</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">VERBRUIKT</span>
+                    <span className="text-xl font-black text-orange-500 tabular-nums">{Math.round(totals.intakePercent)}%</span>
                   </div>
                </div>
             </div>
-            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm space-y-4">
+
+            <div className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2 shrink-0">
                <div className="flex justify-between items-center">
-                 <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest">{t.myJourney}</h3>
-                 <span className={`text-[16px] font-black ${totals.weightLostSoFar >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                   {totals.weightLogExists ? (totals.weightLostSoFar >= 0 ? '-' : '+') : ''}
-                   {totals.weightLogExists ? Math.abs(totals.weightLostSoFar).toFixed(1) : t.noDataYet} {totals.weightLogExists ? 'KG' : ''}
+                 <h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">{t.myJourney}</h3>
+                 <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${currentLog.weight ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                   {currentLog.weight ? t.save : 'Nog geen metingen'}
                  </span>
                </div>
-               <div className="space-y-1.5">
-                  <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100 relative">
-                    <div className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_10px_rgba(16,185,129,0.3)]" style={{ width: `${totals.weightProgressPercent}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <span>{state.profile.startWeight} KG</span>
-                    <span>{state.profile.targetWeight} KG</span>
-                  </div>
+               <div className="grid grid-cols-3 text-center">
+                 <div className="flex flex-col"><span className="text-[7px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t.startWeight}</span><span className="text-[12px] font-black text-slate-700">{state.profile.startWeight} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[7px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t.nowWeight}</span><span className="text-[12px] font-black text-orange-500">{globalLatestWeight.toFixed(1)} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[7px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t.goalWeight}</span><span className="text-[12px] font-black text-slate-700">{state.profile.targetWeight} KG</span></div>
+               </div>
+               <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                  <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${totals.weightProgressPercent}%` }} />
                </div>
             </div>
-            <div className="bg-white rounded-[32px] p-7 border border-slate-100 shadow-sm">
-              <h3 className="font-black text-slate-800 text-[12px] uppercase tracking-widest mb-4 flex items-center gap-2"><Scale size={18} className="text-orange-400" /> {t.weighMoment}</h3>
-              <div className="flex items-center gap-3 bg-slate-50 p-5 rounded-3xl border border-slate-100 shadow-inner">
-                <input type="number" step="0.1" placeholder={t.placeholders.weight} value={state.dailyLogs[selectedDate]?.weight || ''} onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : undefined;
-                  setState(prev => {
-                    const logs = { ...prev.dailyLogs };
-                    logs[selectedDate] = { ...(logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] }), weight: val };
-                    return { ...prev, dailyLogs: logs };
-                  });
-                }} className="w-full bg-transparent border-none p-0 text-4xl font-black text-orange-500 focus:ring-0 placeholder:text-slate-200" />
-                <span className="text-sm font-black text-slate-300 uppercase tracking-widest">kg</span>
+
+            <div className="bg-white rounded-[24px] p-2.5 border border-slate-100 shadow-sm flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2"><div className="bg-orange-50 p-1.5 rounded-xl text-orange-500"><Scale size={14} /></div><h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">{t.weighMoment.toUpperCase()}</h3></div>
+              <div className="flex items-center gap-1 bg-slate-50 p-1.5 px-3 rounded-xl border border-slate-100 shadow-inner max-w-[110px]">
+                <input type="number" step="0.1" placeholder="00.0" value={currentLog?.weight || ''} onChange={(e) => {
+                   const val = e.target.value ? Number(e.target.value) : undefined;
+                   setState(prev => {
+                     const logs = { ...prev.dailyLogs };
+                     logs[selectedDate] = { ...((logs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }), weight: val };
+                     return { ...prev, dailyLogs: logs };
+                   });
+                }} className="w-full bg-transparent border-none p-0 text-lg font-black text-orange-500 focus:ring-0 text-right placeholder:text-slate-200" /><span className="text-[9px] font-black text-slate-300 uppercase">kg</span>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'meals' && (
-          <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+          <div className="space-y-2 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
-              <div className="flex flex-col">
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">{t.mealSchedule}</h2>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel}:</span>
-                  <span className="text-[12px] font-black text-orange-500 uppercase">{totals.actualIntake} KCAL</span>
-                </div>
-              </div>
-              <button onClick={() => setShowMyList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-4 py-2 rounded-2xl font-black text-xs uppercase active:scale-95 transition-all"><ListFilter size={18} /> {t.myList}</button>
+              <h2 className="text-lg font-black text-slate-800 tracking-tight">ETEN & DRINKEN</h2>
+              <button onClick={() => setShowMyList(!showMyList)} className={`flex items-center gap-1 px-3 py-1 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all border ${showMyList ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-orange-500 border-slate-200'}`}><ListFilter size={14} /> {t.myList}</button>
             </div>
-            
-            <div className="bg-slate-50/50 p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-              <div className="relative">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] block mb-4 pl-1">{t.moments[openPickerMoment || 'Ontbijt'].toUpperCase()}</label>
-                <div className="relative group">
-                  <select 
-                    className="w-full bg-white px-6 py-4.5 rounded-[22px] font-black border-2 border-orange-400/30 text-[14px] shadow-sm outline-none appearance-none cursor-pointer text-slate-800 transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-100 group-hover:border-orange-400 uppercase tracking-widest"
-                    onChange={(e) => {
-                      setOpenPickerMoment(e.target.value as MealMoment);
-                      setSearchTerm(''); 
-                      setShowProductList(true);
-                    }}
-                    value={openPickerMoment || ''}
-                  >
-                    <option value="" disabled>{t.placeholders.select}</option>
-                    {MEAL_MOMENTS.map(moment => <option key={moment} value={moment}>{t.moments[moment]}</option>)}
-                  </select>
-                  <ChevronDown size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-orange-500 pointer-events-none group-hover:scale-110 transition-transform" />
+
+            {showMyList ? (
+              <div className="bg-orange-50/10 rounded-[24px] p-3 border border-orange-100/30 shadow-sm space-y-3">
+                <div className="space-y-2">
+                   <div className="flex gap-2">
+                     <button onClick={() => setNewFood(p => ({...p, isDrink: false}))} className={`flex-1 py-1.5 rounded-xl flex items-center justify-center gap-2 border transition-all font-black text-[10px] uppercase ${!newFood.isDrink ? 'bg-white border-orange-500 shadow-sm text-orange-600' : 'bg-white/50 border-slate-100 text-slate-300'}`}><Utensils size={14}/> ETEN</button>
+                     <button onClick={() => setNewFood(p => ({...p, isDrink: true}))} className={`flex-1 py-1.5 rounded-xl flex items-center justify-center gap-2 border transition-all font-black text-[10px] uppercase ${newFood.isDrink ? 'bg-white border-orange-500 shadow-sm text-orange-600' : 'bg-white/50 border-slate-100 text-slate-300'}`}><GlassWater size={14}/> DRINKEN</button>
+                   </div>
+
+                   <input type="text" placeholder="PRODUCTNAAM" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-white border border-slate-100 p-2.5 rounded-xl font-black text-[10px] uppercase placeholder:text-slate-200 outline-none shadow-sm" />
+                   
+                   <div className="grid grid-cols-2 gap-2">
+                     <input type="number" placeholder="Kcal" value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-white border border-slate-100 p-2.5 rounded-xl font-black text-[10px] uppercase placeholder:text-slate-200 outline-none shadow-sm" />
+                     <input type="text" placeholder="PORTIE (BIJV 100G)" value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-white border border-slate-100 p-2.5 rounded-xl font-black text-[10px] uppercase placeholder:text-slate-200 outline-none shadow-sm" />
+                   </div>
+
+                   <div className="flex flex-wrap gap-1 pt-0.5">
+                      {['Ontbijt', 'Snack', 'Lunch', 'Diner'].map(m => (
+                        <button key={m} onClick={() => setNewFood(p => ({...p, cats: p.cats.includes(m) ? p.cats.filter(x => x!==m) : [...p.cats, m]}))} className={`px-2.5 py-1 rounded-xl text-[8px] font-black uppercase border transition-all ${newFood.cats.includes(m) ? 'bg-white border-orange-500 text-orange-600 shadow-sm' : 'bg-white text-slate-300 border-slate-100'}`}>{m.toUpperCase()}</button>
+                      ))}
+                   </div>
+
+                   <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-2.5 rounded-xl font-black text-[11px] uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-slate-300 text-white cursor-not-allowed' : 'bg-slate-900 text-white active:scale-95 shadow-md'}`}>
+                     <Plus size={14} strokeWidth={3}/> VOEG TOE AAN LIJST
+                   </button>
+                </div>
+
+                <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                   {(Object.values(state.customOptions).flat() as MealOption[]).filter(o => o.isCustom).filter((v,i,a) => a.findIndex(t=>t.id===v.id)===i).map(opt => (
+                     <div key={opt.id} className="flex justify-between items-center p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-2 truncate">
+                          <div className="text-orange-400 shrink-0">{opt.isDrink ? <GlassWater size={12}/> : <Utensils size={12}/>}</div>
+                          <div className="flex flex-col truncate"><span className="text-[9px] font-black uppercase truncate text-slate-700">{opt.name}</span><span className="text-[7px] font-bold text-orange-400">{opt.kcal} KCAL / {opt.unitName}</span></div>
+                        </div>
+                        <button onClick={() => {
+                          setState(prev => {
+                            const newOpts = { ...prev.customOptions };
+                            Object.keys(newOpts).forEach(k => { newOpts[k as MealMoment] = newOpts[k as MealMoment].filter(x => x.id !== opt.id); });
+                            return { ...prev, customOptions: newOpts };
+                          });
+                        }} className="text-slate-200 hover:text-red-500 p-1.5 shrink-0"><Trash2 size={14}/></button>
+                     </div>
+                   ))}
                 </div>
               </div>
+            ) : (
+              <div className="bg-slate-50/50 p-3 rounded-[24px] border border-slate-100 space-y-2 shadow-inner">
+                 <div className="relative">
+                   <select 
+                     className="w-full bg-white px-3 py-2.5 rounded-xl font-black border border-slate-200 text-[12px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm"
+                     onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setSearchTerm(''); setShowProductList(true); }}
+                     value={openPickerMoment || ''}
+                   >
+                     <option value="" disabled>{t.placeholders.select}</option>
+                     {MEAL_MOMENTS.map(moment => <option key={moment} value={moment}>{t.moments[moment]}</option>)}
+                   </select>
+                   <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-500 pointer-events-none" />
+                 </div>
 
-              {openPickerMoment && (
-                <div className="bg-orange-50/40 rounded-[30px] p-6 shadow-sm border border-orange-100 animate-in slide-in-from-top-4 duration-500">
-                  <div className="flex flex-col gap-4">
-                    <div className="relative">
-                      {currentSelectedProduct ? (
-                         <div className="w-full bg-orange-50/20 border-2 border-orange-500 ring-4 ring-orange-50 rounded-[22px] px-6 py-4 text-[14px] font-bold shadow-sm flex items-center justify-between min-h-[68px]">
-                            <div className="text-left leading-tight truncate">
-                              <div className="font-black text-slate-800 text-[14px] mb-1 uppercase tracking-tight flex items-center gap-2">
-                                {getTranslatedName(currentSelectedProduct.id, currentSelectedProduct.name)}
-                                <Check size={16} className="text-emerald-500" />
-                              </div>
-                              <div className="text-[10px] font-black text-orange-400 uppercase tracking-widest">
-                                  {currentSelectedProduct.unitName} = {currentSelectedProduct.kcal} KCAL
-                              </div>
-                            </div>
-                            <button onClick={() => { setMealInputs({ ...mealInputs, [openPickerMoment]: { mealId: '', kcalVal: 0 } }); }} className="p-2 text-orange-500 hover:bg-orange-100 rounded-full transition-colors">
-                              <X size={20} />
-                            </button>
-                         </div>
-                      ) : (
-                        <div className="relative bg-white border-2 border-orange-200/50 hover:border-orange-400 rounded-[22px] px-6 py-4 shadow-sm flex items-center gap-3 min-h-[68px] transition-all">
-                          <Search size={20} className="text-orange-500" />
-                          <input 
-                            className="bg-transparent border-none text-[15px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" 
-                            placeholder={t.searchPlaceholder}
-                            value={searchTerm} 
-                            onChange={(e) => { setSearchTerm(e.target.value); setShowProductList(true); }}
-                            onFocus={() => setShowProductList(true)}
-                          />
+                 {openPickerMoment && (
+                   <div className="bg-orange-50/40 rounded-[20px] p-3 border border-orange-100 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                     <div className="relative">
+                        <div className="relative bg-white border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2 min-h-[44px] shadow-sm">
+                           <Search size={14} className="text-orange-500" />
+                           <input type="text" className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setShowProductList(true); }} onFocus={() => setShowProductList(true)} />
                         </div>
-                      )}
-
-                      {showProductList && (
-                        <div className="absolute top-full left-0 right-0 mt-3 bg-white border-2 border-orange-100 rounded-[26px] shadow-2xl overflow-hidden flex flex-col max-h-[300px] custom-scrollbar z-50 animate-in fade-in zoom-in-95 duration-200">
-                          <div className="overflow-y-auto py-2">
-                            {([...(state.customOptions[openPickerMoment] || [])])
-                              .filter(o => {
-                                const translated = getTranslatedName(o.id, o.name);
-                                return translated.toLowerCase().includes(searchTerm.toLowerCase());
-                              })
-                              .map(opt => (
-                              <button 
-                                key={opt.id} 
-                                onClick={() => { 
-                                  setMealInputs({ ...mealInputs, [openPickerMoment]: { mealId: opt.id, kcalVal: opt.kcal } }); 
-                                  setShowProductList(false);
-                                  setSearchTerm('');
-                                }} 
-                                className="w-full text-left px-7 py-5 hover:bg-orange-50 transition-colors border-b border-slate-50 flex flex-col"
-                              >
-                                <span className="text-[15px] font-black text-slate-800 truncate mb-1 uppercase tracking-tight">{getTranslatedName(opt.id, opt.name)}</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="text-orange-400">
-                                        {opt.isDrink ? <GlassWater size={12} /> : <Utensils size={12} />}
+                        {showProductList && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-orange-100 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[220px] z-50 animate-in fade-in zoom-in-95 duration-200 custom-scrollbar overflow-y-auto">
+                             {(state.customOptions[openPickerMoment] || []).filter(o => getTranslatedName(o.id, o.name).toLowerCase().includes(searchTerm.toLowerCase())).map(opt => (
+                               <button key={opt.id} onClick={() => { addMealItem(openPickerMoment, { name: opt.name, kcal: opt.kcal, quantity: 1, mealId: opt.id, isDrink: opt.isDrink }); setShowProductList(false); setOpenPickerMoment(null); }} className="w-full text-left px-3 py-2.5 hover:bg-orange-50 border-b border-slate-50 flex items-center justify-between group transition-colors">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <div className="text-slate-300 group-hover:text-orange-500 transition-colors shrink-0">{opt.isDrink ? <GlassWater size={14}/> : <Utensils size={14}/>}</div>
+                                    <div className="flex flex-col truncate">
+                                      <span className="text-[11px] font-black text-slate-800 uppercase truncate">{getTranslatedName(opt.id, opt.name)}</span>
+                                      <span className="text-[8px] font-black text-slate-400 uppercase">{opt.unitName}</span>
                                     </div>
-                                    <span className="text-[11px] font-black text-orange-500 uppercase tracking-widest">{opt.unitName || '1 PORTIE'} = {opt.kcal} KCAL</span>
-                                </div>
-                              </button>
-                            ))}
+                                  </div>
+                                  <div className="text-orange-500 font-black text-[10px] tabular-nums shrink-0">{opt.kcal} KCAL</div>
+                               </button>
+                             ))}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {!showProductList && currentSelectedProduct && (
-                      <div className="flex gap-3 items-stretch animate-in fade-in slide-in-from-top-2 duration-300 h-[68px]">
-                        <div className="flex-grow relative min-w-0">
-                          <input 
-                            type="number" 
-                            className="w-full bg-white border-2 border-orange-200/50 rounded-[24px] px-6 py-4 text-[26px] font-black text-center h-full focus:border-orange-500 outline-none shadow-sm pr-16" 
-                            value={mealInputs[openPickerMoment]?.kcalVal || ''} 
-                            onChange={(e) => setMealInputs({ ...mealInputs, [openPickerMoment]: { ...mealInputs[openPickerMoment], kcalVal: Number(e.target.value) } })} 
-                          />
-                          <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[11px] font-black text-orange-500 uppercase pointer-events-none">KCAL</span>
-                        </div>
-                        <button 
-                          className="bg-orange-500 text-white rounded-[24px] w-[68px] flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-orange-200 shrink-0" 
-                          onClick={() => {
-                            const currentInput = mealInputs[openPickerMoment];
-                            const opt = currentSelectedProduct;
-                            if (opt && currentInput) {
-                               const calculatedQty = currentInput.kcalVal / opt.kcal;
-                               addMealItem(openPickerMoment, { 
-                                 name: opt.name, 
-                                 kcal: currentInput.kcalVal, 
-                                 quantity: parseFloat(calculatedQty.toFixed(2)), 
-                                 mealId: opt.id, 
-                                 isDrink: opt.isDrink 
-                               });
-                            }
-                            setMealInputs({ ...mealInputs, [openPickerMoment]: { mealId: '', kcalVal: 0 } });
-                            setOpenPickerMoment(null);
-                          }}
-                        >
-                          <Plus size={32} strokeWidth={4} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                        )}
+                     </div>
+                   </div>
+                 )}
+              </div>
+            )}
 
-            <div className="space-y-6">
-              {groupedLoggedMeals.map(category => (
-                <div key={category.id} className="space-y-3">
-                  <div className="flex items-center gap-3 px-2 border-l-4 border-orange-500">
-                    <h3 className="font-black text-slate-800 text-[14px] uppercase tracking-widest">{category.label}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {category.items.map(item => (
-                      <div key={item.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in duration-300">
-                        <div className="flex items-center gap-3 flex-grow min-w-0 pr-3">
-                          <div className="bg-orange-50 p-2 rounded-xl text-orange-500 shrink-0">
-                            {item.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[14px] font-black text-slate-800 truncate uppercase tracking-tight">{getTranslatedName(item.mealId || '', item.name)}</span>
-                            <span className="text-[11px] font-bold uppercase tracking-tight text-orange-500 mt-0.5">{item.kcal.toFixed(0)} KCAL</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            const momentKeys = Object.keys(currentLog.meals) as MealMoment[];
-                            for (const mk of momentKeys) {
-                              if (currentLog.meals[mk].find(m => m.id === item.id)) {
-                                setState(prev => {
-                                  const logs = { ...prev.dailyLogs };
-                                  logs[selectedDate].meals[mk] = logs[selectedDate].meals[mk].filter(m => m.id !== item.id);
-                                  return { ...prev, dailyLogs: logs };
-                                });
-                                break;
-                              }
-                            }
-                          }} 
-                          className="text-slate-200 hover:text-red-500 transition-colors p-1 active:scale-90"
-                        >
-                          <Trash2 size={18}/>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+            <div className="space-y-1">
+              {Object.keys(currentLog.meals).map(moment => (currentLog.meals[moment] as LoggedMealItem[]).map(item => (
+                <div key={item.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                   <div className="flex items-center gap-2 truncate pr-2">
+                     <div className="bg-orange-50 p-1.5 rounded-xl text-orange-500 shrink-0">{item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}</div>
+                     <div className="flex flex-col truncate leading-tight">
+                       <span className="text-[10px] font-black text-slate-800 uppercase truncate">{getTranslatedName(item.mealId || '', item.name)}</span>
+                       <span className="text-[8px] font-bold text-orange-400 uppercase">{item.kcal.toFixed(0)} KCAL <span className="text-slate-300 mx-1">•</span> {t.moments[moment as MealMoment]}</span>
+                     </div>
+                   </div>
+                   <button onClick={() => {
+                      setState(prev => {
+                        const logs = { ...prev.dailyLogs };
+                        const log = logs[selectedDate];
+                        if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
+                        return { ...prev, dailyLogs: logs };
+                      });
+                   }} className="text-slate-200 hover:text-red-500 p-1.5 shrink-0"><Trash2 size={16}/></button>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         )}
 
         {activeTab === 'activity' && (
-          <div className="space-y-4 pb-12 animate-in fade-in duration-300">
+          <div className="space-y-2 animate-in fade-in duration-300">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">{t.movement}</h2>
-              <button onClick={() => setShowMyActivityList(true)} className="flex items-center gap-1.5 bg-slate-50 text-orange-500 border border-slate-200 shadow-sm px-4 py-2 rounded-2xl font-black text-xs uppercase active:scale-95 transition-all">
-                <ListFilter size={18} /> {t.myList}
-              </button>
+               <h2 className="text-lg font-black text-slate-800 tracking-tight">{t.movement}</h2>
+               <button onClick={() => setShowMyActivityList(!showMyActivityList)} className={`flex items-center gap-1 px-3 py-1 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all border ${showMyActivityList ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-orange-500 border-slate-200'}`}><ListFilter size={14} /> {t.myList}</button>
             </div>
-            <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-200 shadow-sm space-y-4">
-              <select 
-                value={selectedActivityId} 
-                onChange={(e) => setSelectedActivityId(e.target.value)} 
-                className="w-full bg-white p-4 rounded-2xl font-black border border-slate-100 text-[15px] shadow-sm outline-none appearance-none cursor-pointer"
-              >
-                {[...ACTIVITY_TYPES, ...(state.customActivities || [])].map(act => (
-                  <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>
-                ))}
-              </select>
-              <div className="flex gap-4">
-                <input id="act-val" type="number" placeholder={t.amount} className="flex-grow bg-white p-4 rounded-2xl font-black border border-slate-100 text-[15px] shadow-sm outline-none" />
-                <button onClick={() => { const val = (document.getElementById('act-val') as HTMLInputElement).value; if (val) addActivity(selectedActivityId, Number(val)); }} className="bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all"><Plus size={28} strokeWidth={3} /></button>
+
+            {showMyActivityList ? (
+              <div className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-3">
+                 <div className="bg-orange-50/50 p-2.5 rounded-2xl border border-orange-100 space-y-1.5">
+                    <input type="text" placeholder="Activiteitnaam" value={newAct.name} onChange={e => setNewAct({...newAct, name: e.target.value})} className="w-full bg-white border border-slate-100 p-2 rounded-xl font-black text-[10px] uppercase shadow-sm" />
+                    <input type="number" placeholder="Kcal per 60 min" value={newAct.met} onChange={e => setNewAct({...newAct, met: e.target.value})} className="w-full bg-white border border-slate-100 p-2 rounded-xl font-black text-[10px] shadow-sm" />
+                    <button onClick={() => {
+                      if (!newAct.name || !newAct.met) return;
+                      const item: ActivityType = { id: 'act_cust_' + generateId(), name: newAct.name, met: Number(newAct.met), unit: 'minuten', isCustom: true };
+                      setState(prev => ({ ...prev, customActivities: [...prev.customActivities, item] }));
+                      setNewAct({ name: '', met: '' });
+                      setToast({ msg: t.addActivity + ' ' + t.save });
+                    }} className="w-full bg-slate-900 text-white p-2.5 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-md"><Plus size={12}/> VOEG TOE</button>
+                 </div>
+                 <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {state.customActivities.map(act => (
+                      <div key={act.id} className="flex justify-between items-center p-2 bg-slate-50 rounded-xl border border-slate-100">
+                         <div className="flex flex-col truncate"><span className="text-[9px] font-black uppercase truncate text-slate-700">{act.name}</span><span className="text-[7px] font-bold text-orange-400">{act.met} KCAL/UUR</span></div>
+                         <button onClick={() => setState(prev => ({ ...prev, customActivities: prev.customActivities.filter(a => a.id !== act.id) }))} className="text-slate-200 hover:text-red-500 p-1.5"><Trash2 size={14}/></button>
+                      </div>
+                    ))}
+                 </div>
               </div>
-            </div>
-            <div className="space-y-3 pr-1 overscroll-contain">
+            ) : (
+              <div className="bg-slate-50/50 p-3 rounded-[24px] border border-slate-100 space-y-2 shadow-inner">
+                 <select value={selectedActivityId} onChange={(e) => setSelectedActivityId(e.target.value)} className="w-full bg-white p-2.5 rounded-xl font-black border border-slate-200 text-[12px] outline-none appearance-none cursor-pointer uppercase shadow-sm">
+                   {[...ACTIVITY_TYPES, ...(state.customActivities || [])].map(act => <option key={act.id} value={act.id}>{getTranslatedName(act.id, act.name)}</option>)}
+                 </select>
+                 <div className="flex gap-2">
+                   <input id="act-val" type="number" placeholder={t.amount} className="flex-grow bg-white p-2.5 rounded-xl font-black border border-slate-200 text-[12px] outline-none text-center shadow-sm" />
+                   <button onClick={() => { const val = (document.getElementById('act-val') as HTMLInputElement).value; if (val) { addActivity(selectedActivityId, Number(val)); (document.getElementById('act-val') as HTMLInputElement).value = ''; } }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg active:scale-95 transition-all"><Plus size={20} strokeWidth={4} /></button>
+                 </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
               {currentLog.activities.map(act => {
                 const type = [...ACTIVITY_TYPES, ...(state.customActivities || [])].find(t => t.id === act.typeId);
                 return (
-                  <div key={act.id} className="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm flex justify-between items-center mb-1 animate-in slide-in-from-right-4 duration-300">
-                    <div className="flex flex-col">
-                      <span className="text-[15px] font-black text-slate-800 leading-tight uppercase tracking-tight">{getTranslatedName(act.typeId, type?.name || '')}</span>
-                      <span className="text-[12px] font-bold uppercase tracking-tight text-slate-400 mt-1">{act.value} {t.amount} • <span className="text-emerald-500 font-black">+{Math.round(act.burnedKcal)} KCAL</span></span>
-                    </div>
-                    <button 
-                        onClick={() => setState(prev => { 
-                            const logs = { ...prev.dailyLogs }; 
-                            logs[selectedDate].activities = logs[selectedDate].activities.filter(a => a.id !== act.id); 
-                            return { ...prev, dailyLogs: logs }; 
-                        })} 
-                        className="text-slate-200 hover:text-red-500 transition-colors p-2 active:scale-90"
-                    >
-                        <Trash2 size={20}/>
-                    </button>
+                  <div key={act.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div className="flex flex-col leading-tight"><span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{getTranslatedName(act.typeId, type?.name || '')}</span><span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{act.value} {t.amount} • <span className="text-emerald-500">+{Math.round(act.burnedKcal)} KCAL</span></span></div>
+                    <button onClick={() => setState(prev => {
+                       const logs = { ...prev.dailyLogs };
+                       const log = logs[selectedDate];
+                       if (log) log.activities = log.activities.filter(a => a.id !== act.id);
+                       return { ...prev, dailyLogs: logs };
+                    })} className="text-slate-200 hover:text-red-500 p-1.5 shrink-0"><Trash2 size={16}/></button>
                   </div>
                 );
               })}
@@ -1113,156 +703,121 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="space-y-6 animate-in fade-in duration-300 pb-12 w-full block">
-             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-6">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{t.gender}</label>
-                  <button 
-                    onClick={() => setShowInfo(true)}
-                    className="p-1.5 bg-slate-50 border border-slate-200 rounded-full text-orange-500 shadow-sm active:scale-90 transition-all hover:bg-orange-50"
-                  >
-                    <Info size={18} />
-                  </button>
+          <div className="flex flex-col gap-1.5 animate-in fade-in duration-300 h-full">
+             <section className="bg-white rounded-[22px] p-2.5 border border-slate-100 shadow-sm space-y-2 shrink-0">
+                <div className="flex justify-between items-center px-1">
+                   <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest leading-none">GESLACHT</label>
+                   <button onClick={() => setShowInfo(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-400 active:scale-95 shadow-sm transition-all hover:bg-slate-100"><Info size={14}/></button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'man' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.man}</button>
-                  <button onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, gender: 'woman' } }))} className={`py-4 rounded-2xl font-black text-[14px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-white text-orange-500 border-orange-200 shadow-md ring-1 ring-orange-100' : 'bg-slate-50 text-slate-300 border-transparent'}`}>{t.woman}</button>
+                
+                <div className="flex gap-2 px-1">
+                  <button onClick={() => updateProfile({ gender: 'man' })} className={`flex-1 py-2 rounded-xl font-black text-[10px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.man}</button>
+                  <button onClick={() => updateProfile({ gender: 'woman' })} className={`flex-1 py-2 rounded-xl font-black text-[10px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.woman}</button>
                 </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block">{t.age}</label>
+
+                <div className="grid grid-cols-4 gap-1.5 pt-1 px-1">
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">GEBOORTE</label>
                     <div className="relative">
-                      <select value={state.profile.birthYear} onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, birthYear: Number(e.target.value) } }))} className="w-full bg-slate-50 border border-slate-100 py-4 px-5 rounded-2xl font-black text-[16px] outline-none appearance-none cursor-pointer">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2 px-1 rounded-xl font-black text-[10px] outline-none appearance-none cursor-pointer text-center shadow-inner">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                      <ChevronDown size={6} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block">{t.height}</label>
-                    <input type="number" value={state.profile.height} onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, height: Number(e.target.value) } }))} className="w-full bg-slate-50 border border-slate-100 py-4 px-5 rounded-2xl font-black text-[16px] outline-none" />
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">LENGTE</label>
+                    <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block">{t.startWeight}</label>
-                    <input type="number" value={state.profile.startWeight} onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, startWeight: Number(e.target.value) } }))} className="w-full bg-slate-50 border border-slate-100 py-4 px-5 rounded-2xl font-black text-[16px] outline-none" />
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">START</label>
+                    <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block">{t.targetWeight}</label>
-                    <input type="number" value={state.profile.targetWeight} onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, targetWeight: Number(e.target.value) } }))} className="w-full bg-orange-50 border border-orange-100 py-4 px-5 rounded-2xl font-black text-[16px] outline-none text-orange-500 shadow-sm" />
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black text-orange-400 uppercase tracking-widest block text-center truncate leading-none">DOEL</label>
+                    <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 py-2 px-1 rounded-xl font-black text-[10px] outline-none text-orange-600 text-center shadow-inner" />
                   </div>
                 </div>
              </section>
-             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
-                <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block">{t.activityLevelLabel}</label>
-                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none mb-2">{t.activityLevelDesc}</p>
-                <div className="grid grid-cols-3 gap-3">
+
+             <section className="bg-white rounded-[22px] p-2.5 border border-slate-100 shadow-sm space-y-1.5 shrink-0">
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">DAGELIJKSE ACTIVITEIT (BASIS)</label>
+                <div className="grid grid-cols-3 gap-1.5 px-1">
                   {[
-                    { id: 'light', icon: Laptop, label: t.levelLight },
-                    { id: 'moderate', icon: Briefcase, label: t.levelModerate },
-                    { id: 'heavy', icon: Hammer, label: t.levelHeavy }
+                    { id: 'light', icon: Laptop, label: 'ZITTEND' },
+                    { id: 'moderate', icon: Briefcase, label: 'GEMIDDELD' },
+                    { id: 'heavy', icon: Hammer, label: 'ZWAAR WERK' }
                   ].map(lvl => (
-                    <button 
-                      key={lvl.id}
-                      onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, activityLevel: lvl.id as any } }))}
-                      className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 ring-2 ring-orange-50 shadow-md' : 'bg-slate-50 border-transparent grayscale'}`}
-                    >
-                      <lvl.icon size={20} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[9px] font-black uppercase mt-2 tracking-tighter ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
+                    <button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 shadow-sm scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
+                      <lvl.icon size={12} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <span className={`text-[7px] font-black uppercase mt-0.5 tracking-tight text-center leading-none ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
                     </button>
                   ))}
                 </div>
              </section>
-             <section className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
-                <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest leading-none text-center mb-1">{t.chooseSpeed}</p>
-                <div className="grid grid-cols-4 gap-2">
+
+             <section className="bg-white rounded-[22px] p-2.5 border border-slate-100 shadow-sm space-y-1.5 shrink-0">
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">STREEF TEMPO</label>
+                <div className="grid grid-cols-3 gap-1.5 px-1">
                   {[
-                    { id: 'slow', icon: Turtle, label: t.speedSlow },
-                    { id: 'average', icon: Footprints, label: t.speedAverage },
-                    { id: 'fast', icon: Flame, label: t.speedFast },
-                    { id: 'custom', icon: Settings, label: t.speedCustom }
+                    { id: 'slow', icon: Turtle, label: 'RUSTIG' },
+                    { id: 'average', icon: Footprints, label: 'GEMIDDELD' },
+                    { id: 'fast', icon: Flame, label: 'SNEL' }
                   ].map(sp => (
-                    <button 
-                      key={sp.id}
-                      onClick={() => setState(prev => ({ ...prev, profile: { ...prev.profile, weightLossSpeed: sp.id as any } }))}
-                      className={`flex flex-col items-center justify-center py-3 px-1 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 ring-1 ring-orange-50 shadow-sm' : 'bg-slate-50 border-transparent grayscale opacity-60'}`}
-                    >
-                      <sp.icon size={14} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[10px] font-black uppercase mt-1 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                    <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 shadow-sm scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
+                      <sp.icon size={12} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
+                      <span className={`text-[7px] font-black uppercase mt-0.5 tracking-tight text-center leading-none ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
-             </section>
-             <section className="bg-orange-50 border border-orange-200 rounded-[32px] p-6 flex flex-col gap-4 shadow-sm relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-black text-orange-400 uppercase tracking-[0.2em] leading-none mb-1">{t.dailyBudgetLabel}</span>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black text-orange-600 tabular-nums">{state.profile.dailyBudget}</span>
-                      <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">KCAL</span>
-                    </div>
-                  </div>
-                  <div className="bg-orange-500 p-2.5 rounded-xl text-white shadow-lg shadow-orange-100">
-                    <Zap size={20} fill="currentColor" />
-                  </div>
-                </div>
-                <div className="h-px w-full bg-orange-200/50" />
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">{t.targetDateLabel}</span>
-                     {state.profile.weightLossSpeed === 'custom' ? (
-                       <div className="relative w-full max-w-[150px]">
-                         <input 
-                           type="date" 
-                           value={state.profile.customTargetDate || ''} 
-                           onChange={(e) => setState(prev => ({ ...prev, profile: { ...prev.profile, customTargetDate: e.target.value } }))} 
-                           className="w-full bg-white border-2 border-orange-300 py-1.5 px-3 rounded-xl font-black text-[12px] text-orange-600 focus:ring-0 focus:border-orange-500 outline-none appearance-none"
-                         />
-                         <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none" />
-                       </div>
-                     ) : (
-                       <span className="text-xl font-black text-orange-600 tracking-tight">{formatTargetDateDisplay(totals.targetDate)}</span>
-                     )}
-                  </div>
-                  <div className="bg-orange-500 p-2.5 rounded-xl text-white shadow-lg shadow-orange-100">
-                    <Calendar size={20} />
-                  </div>
-                </div>
-             </section>
-             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
-                <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest flex items-center gap-2"><Database size={16} className="text-slate-400" /> {t.dataManagement.title}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 font-black text-[11px] uppercase hover:bg-slate-100 transition-all active:scale-95 shadow-sm">
-                    <FileDown size={16} /> {t.dataManagement.export}
-                  </button>
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 font-black text-[11px] uppercase hover:bg-slate-100 transition-all active:scale-95 shadow-sm">
-                    <FileUp size={16} /> {t.dataManagement.restore}
-                  </button>
-                </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleRestoreData} 
-                  accept=".json" 
-                  className="hidden" 
-                />
-                <button onClick={resetAllData} className="w-full py-3.5 rounded-2xl border border-red-100 text-red-300 font-black text-[11px] uppercase hover:bg-red-50 transition-all active:scale-95 mt-2">
-                  <Trash2 size={16} className="inline mr-1" /> {t.dataManagement.clearAll}
+                <button onClick={() => updateProfile({ weightLossSpeed: 'custom' })} className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-40'}`}>
+                  <Settings size={10} />
+                  <span className="text-[7px] font-black uppercase tracking-widest">EIGEN TEMPO</span>
                 </button>
+             </section>
+
+             <section className="bg-orange-50/50 border border-orange-100 rounded-[22px] p-3 flex flex-col gap-2 shadow-inner shrink-0">
+                <div className="flex flex-col gap-1.5 border-b border-orange-100 pb-2">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[7px] font-black text-orange-400 uppercase tracking-widest">OUD BUDGET (ONDERHOUD)</span>
+                    <span className="text-[11px] font-black text-orange-600/50 tabular-nums">{maintenanceKcal} KCAL</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest">NIEUW DAGBUDGET</span>
+                    <span className="text-xl font-black text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} KCAL</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-0.5">
+                  <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">STREEFDATUM</span>
+                  {state.profile.weightLossSpeed === 'custom' ? (
+                    <div className="relative inline-flex"><input type="date" value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border border-orange-200 py-1 px-2 rounded-lg font-black text-[9px] text-orange-600 outline-none shadow-sm" /></div>
+                  ) : (
+                    <span className="text-[13px] font-black text-orange-600 tracking-tight uppercase leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</span>
+                  )}
+                </div>
+             </section>
+
+             <section className="bg-white rounded-[22px] p-2 px-3 border border-slate-100 shadow-sm flex items-center justify-between shrink-0">
+                <span className="font-black text-slate-800 text-[8px] uppercase tracking-widest">DATA & OPSLAG</span>
+                <div className="flex gap-2.5">
+                  <button onClick={handleExportData} className="p-1.5 rounded-lg bg-slate-50 text-slate-400 transition-colors hover:bg-slate-100 shadow-sm"><FileDown size={14} /></button>
+                  <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-lg bg-slate-50 text-slate-400 transition-colors hover:bg-slate-100 shadow-sm"><FileUp size={14} /></button>
+                  <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="p-1.5 rounded-lg bg-red-50 text-red-200 transition-colors hover:bg-red-100 shadow-sm"><Trash2 size={14} /></button>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
              </section>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-6 py-5 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom,20px)]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-2 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom,10px)]">
         {[
-          { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
-          { id: 'meals', icon: Utensils, label: t.tabs.meals }, 
-          { id: 'activity', icon: Activity, label: t.tabs.activity }, 
-          { id: 'profile', icon: UserIcon, label: t.tabs.profile }
+          { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard.toUpperCase() }, 
+          { id: 'meals', icon: Utensils, label: 'ETEN & DRINKEN' }, 
+          { id: 'activity', icon: Activity, label: 'BEWEEG' }, 
+          { id: 'profile', icon: UserIcon, label: t.tabs.profile.toUpperCase() }
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-2 transition-all group ${activeTab === tab.id ? 'text-orange-500 scale-105' : 'text-slate-300'}`}>
-            <tab.icon size={26} strokeWidth={activeTab === tab.id ? 3 : 2} className="group-active:scale-90 transition-transform" />
-            <span className="text-[11px] font-black uppercase tracking-[0.15em] text-center">{tab.label}</span>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all w-20 ${activeTab === tab.id ? 'text-orange-500 scale-110' : 'text-slate-300 scale-100'}`}>
+            <tab.icon size={18} strokeWidth={activeTab === tab.id ? 3 : 2} />
+            <span className="text-[7.5px] font-black uppercase tracking-[0.1em] text-center leading-none">{tab.label}</span>
           </button>
         ))}
       </nav>
@@ -1271,18 +826,10 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #f1f5f9; border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #e2e8f0; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="date"]::-webkit-calendar-picker-indicator {
-          background: transparent;
-          bottom: 0;
-          color: transparent;
-          cursor: pointer;
-          height: auto;
-          left: 0;
-          position: absolute;
-          right: 0;
-          top: 0;
-          width: auto;
+          background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
         }
       `}</style>
     </div>

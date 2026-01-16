@@ -1,6 +1,13 @@
 
 import { Language } from './types';
 
+const genericSteps = (l: string) => [
+  { title: l === 'nl' ? 'Instellen' : 'Set up', desc: l === 'nl' ? 'Vul bij "Ik" je gegevens in.' : 'Enter your details in the profile section.' },
+  { title: l === 'nl' ? 'Planning' : 'Planning', desc: l === 'nl' ? 'Kies een tempo.' : 'Choose a weight loss pace.' },
+  { title: l === 'nl' ? 'Registreren' : 'Log', desc: l === 'nl' ? 'Voer je voeding en beweging in.' : 'Enter your food and activities.' },
+  { title: l === 'nl' ? 'Installeren' : 'Install', desc: l === 'nl' ? 'Zet de app op je startscherm.' : 'Add the app to your home screen.' }
+];
+
 export const translations: Record<Language, any> = {
   nl: {
     title: 'DOELGEWICHT',
@@ -31,6 +38,8 @@ export const translations: Record<Language, any> = {
     startWeight: 'STARTGEWICHT',
     targetWeight: 'DOELGEWICHT',
     dailyBudgetLabel: 'CALORIE BUDGET PER DAG',
+    oldBudgetLabel: 'OUD BUDGET PER DAG (ONDERHOUD)',
+    newBudgetLabel: 'NIEUW CALORIE BUDGET PER DAG',
     targetDateLabel: 'STREEFDATUM',
     projectedDate: 'Datum',
     speedSlow: 'RUSTIG',
@@ -59,6 +68,7 @@ export const translations: Record<Language, any> = {
     isDrink: 'Dit is drinken (glas-icoon)',
     save: 'Opslaan in lijst',
     delete: 'Verwijderen',
+    snack: 'SNACK',
     dataManagement: {
       title: 'Data & Opslag',
       export: 'Exporteer (Backup)',
@@ -67,21 +77,17 @@ export const translations: Record<Language, any> = {
       clearConfirm: 'Weet je zeker dat je alle gegevens wilt wissen?'
     },
     infoModal: {
-      title: 'Handleiding & Info',
-      manualTitle: 'Handleiding',
-      manualText: 'Deze app helpt je om op een gezonde manier je streefwewicht te bereiken.',
-      steps: [
-        { title: 'Instellen', desc: 'Vul bij "Ik" je gegevens in. We berekenen direct je energiebehoefte.' },
-        { title: 'Planning', desc: 'Kies een tempo. Wij berekenen het dagelijks calorie-budget voor je.' },
-        { title: 'Registreren', desc: 'Voer je voeding in bij "Eten & Drinken" en beweging bij "Beweeg".' },
-        { title: 'Installeren', desc: 'Tik in Chrome op de 3 puntjes en kies "App installeren" om deze op je startscherm te plaatsen.' }
-      ],
-      howItWorksTitle: 'Hoe het werkt',
-      howItWorksText: 'Onze berekeningen zijn gebaseerd na de Mifflin-St Jeor vergelijking, de meest nauwkeurige methode voor BMR.',
-      caloriesNote: 'Voor 1 kg vetverlies is een tekort van 7.700 kcal nodig. De app plant dit tekort op basis van jouw tempo.',
-      privacyTitle: 'Privacy-First Design',
-      privacyText: 'Alle gegevens worden uitsluitend op je eigen apparaat opgeslagen. Wij hebben geen toegang tot je data.',
-      copyright: '2025 My Healthy Planning'
+      title: 'Over My Healthy Planning',
+      manualTitle: 'Gebruikershandleiding',
+      manualText: 'Welkom bij My Healthy Planning. Deze applicatie is ontworpen om u te helpen uw streefgewicht te bereiken door middel van nauwkeurige calorieberekeningen en activiteitsmetingen.',
+      steps: genericSteps('nl'),
+      howItWorksTitle: 'Wetenschappelijke Basis',
+      howItWorksText: 'Wij maken gebruik van de Mifflin-St Jeor formule om uw Basal Metabolic Rate (BMR) te berekenen. Uw Total Daily Energy Expenditure (TDEE) wordt vervolgens bepaald op basis van uw activiteitsniveau. Om 1 kg vet te verliezen, is een cumulatief tekort van 7.700 kcal nodig.',
+      medicalTitle: 'Medische Opmerking',
+      medicalNote: 'Raadpleeg altijd een arts voordat u aan een ingrijpend dieet- of trainingsprogramma begint. De berekende calorieën zijn schattingen; individuele resultaten kunnen variëren. Stop onmiddellijk bij duizeligheid of extreme vermoeidheid.',
+      privacyTitle: 'Privacy & Copyright',
+      privacyText: 'Alle gegevens worden lokaal in uw browser opgeslagen via IndexedDB. Er worden geen gegevens gedeeld met externe servers.',
+      copyright: '© 2025 My Healthy Planning - Alle rechten voorbehouden.'
     },
     placeholders: { select: '+ Kies moment...', weight: '00.0' },
     moments: {
@@ -101,18 +107,18 @@ export const translations: Record<Language, any> = {
     nowWeight: 'NOW',
     goalWeight: 'GOAL',
     myJourney: 'MY WEIGHT PROGRESSION',
-    weighMoment: 'Today\'s Weight',
+    weighMoment: 'Weight today',
     dailyBudget: 'DAILY CALORIE BUDGET',
     consumed: 'CONSUMED',
     mealSchedule: 'Food & Drinks',
-    todayPlanning: 'Today\'s Log',
+    todayPlanning: 'Today\'s registration',
     myList: 'My List',
     nothingPlanned: 'Nothing logged yet',
     movement: 'Activity',
     planActivities: 'Log your activities',
     activity: 'Activity',
     amount: 'Minutes',
-    qtyLabel: 'Amount',
+    qtyLabel: 'Quantity',
     inLabel: 'in',
     settings: 'Settings',
     age: 'BIRTH YEAR',
@@ -123,13 +129,15 @@ export const translations: Record<Language, any> = {
     startWeight: 'START WEIGHT',
     targetWeight: 'TARGET WEIGHT',
     dailyBudgetLabel: 'CALORIE BUDGET PER DAY',
+    oldBudgetLabel: 'OLD BUDGET PER DAY (MAINTENANCE)',
+    newBudgetLabel: 'NEW CALORIE BUDGET PER DAY',
     targetDateLabel: 'TARGET DATE',
     projectedDate: 'Date',
     speedSlow: 'SLOW',
     speedAverage: 'AVERAGE',
     speedFast: 'FAST',
     speedCustom: 'CUSTOM PACE',
-    chooseSpeed: 'CHOOSE HOW FAST YOU WANT TO REACH YOUR TARGET WEIGHT',
+    chooseSpeed: 'CHOOSE HOW FAST YOU WANT TO REACH YOUR TARGET',
     activityLevelLabel: 'DAILY ACTIVITY (BASE)',
     activityLevelDesc: 'HOW ACTIVE IS YOUR WORK OR DAILY LIFE?',
     levelLight: 'SEDENTARY',
@@ -138,44 +146,41 @@ export const translations: Record<Language, any> = {
     language: 'Language',
     searchPlaceholder: 'Type to search...',
     remainingToday: 'CALORIES LEFT',
-    activityCalories: 'Activity',
+    activityCalories: 'Activities',
     consumedTodayLabel: 'Consumed',
     caloriesPerDay: 'PER DAY',
     timeGroups: { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' },
-    noDataYet: 'No data yet',
-    addActivity: 'Add Activity',
-    addProduct: 'Add Product',
+    noDataYet: 'No measurements yet',
+    addActivity: 'Add activity',
+    addProduct: 'Add product',
     kcalPer60: 'Kcal per 60 min',
     unitPlaceholder: 'e.g. 100g or 250ml',
-    categories: 'Which list?',
+    categories: 'In which list?',
     isDrink: 'This is a drink (glass icon)',
     save: 'Save to list',
     delete: 'Delete',
+    snack: 'SNACK',
     dataManagement: {
       title: 'Data & Storage',
       export: 'Export (Backup)',
-      restore: 'Restore File',
-      clearAll: 'Clear Data',
+      restore: 'Restore file',
+      clearAll: 'Clear data',
       clearConfirm: 'Are you sure you want to clear all data?'
     },
     infoModal: {
-      title: 'Manual & Info',
-      manualTitle: 'Manual',
-      manualText: 'This app helps you reach your target weight in a healthy way.',
-      steps: [
-        { title: 'Set up', desc: 'Enter your details in "Me". We calculate your energy needs instantly.' },
-        { title: 'Planning', desc: 'Choose a pace. We calculate your daily calorie budget.' },
-        { title: 'Log', desc: 'Enter food in "Food & Drinks" and exercise in "Move".' },
-        { title: 'Install', desc: 'Tap the 3 dots in Chrome and choose "Install app" to place it on your home screen.' }
-      ],
-      howItWorksTitle: 'How it works',
-      howItWorksText: 'Our calculations are based on the Mifflin-St Jeor equation, the most accurate method for BMR.',
-      caloriesNote: 'Losing 1 kg of fat requires a 7,700 kcal deficit. The app plans this based on your pace.',
-      privacyTitle: 'Privacy-First Design',
-      privacyText: 'All data is stored exclusively on your own device. We have no access to your data.',
-      copyright: '2025 My Healthy Planning'
+      title: 'About My Healthy Planning',
+      manualTitle: 'User Manual',
+      manualText: 'Welcome to My Healthy Planning. This application is designed to help you reach your target weight through accurate calorie calculations.',
+      steps: genericSteps('en'),
+      howItWorksTitle: 'Scientific Basis',
+      howItWorksText: 'We use the Mifflin-St Jeor equation to calculate your BMR. Your TDEE is determined by your activity level. A deficit of 7,700 kcal is needed to lose 1 kg of fat.',
+      medicalTitle: 'Medical Notice',
+      medicalNote: 'Always consult a physician before starting any diet or exercise program.',
+      privacyTitle: 'Privacy & Copyright',
+      privacyText: 'All data is stored locally. No data is shared with external servers.',
+      copyright: '© 2025 My Healthy Planning - All rights reserved.'
     },
-    placeholders: { select: '+ Select moment...', weight: '00.0' },
+    placeholders: { select: '+ Choose moment...', weight: '00.0' },
     moments: {
       'Ontbijt': 'Breakfast',
       'Ochtend snack': 'Snack',
@@ -184,54 +189,14 @@ export const translations: Record<Language, any> = {
       'Diner': 'Dinner',
       'Avondsnack': 'Evening snack'
     },
-    tabs: { dashboard: 'Plan', meals: 'Food & Drinks', activity: 'Move', profile: 'Me' }
+    tabs: { dashboard: 'Plan', meals: 'Food & Drink', activity: 'Move', profile: 'Me' }
   },
-  es: {
-    title: 'PESO OBJETIVO',
-    subtitle: 'A LA VISTA',
-    tabs: { dashboard: 'Plan', meals: 'Comida y Bebida', activity: 'Actividad', profile: 'Perfil' },
-    moments: { 'Ontbijt': 'Desayuno', 'Lunch': 'Almuerzo', 'Diner': 'Cena' }
-  },
-  de: {
-    title: 'ZIELGEWICHT',
-    subtitle: 'IM BLICK',
-    tabs: { dashboard: 'Plan', meals: 'Essen & Trinken', activity: 'Bewegung', profile: 'Ich' },
-    moments: { 'Ontbijt': 'Frühstück', 'Lunch': 'Mittagessen', 'Diner': 'Abendessen' }
-  },
-  pt: {
-    title: 'PESO IDEAL',
-    subtitle: 'À VISTA',
-    tabs: { dashboard: 'Plano', meals: 'Comida e Bebida', activity: 'Atividade', profile: 'Eu' },
-    moments: { 'Ontbijt': 'Pequeno-almoço', 'Lunch': 'Almoço', 'Diner': 'Jantar' }
-  },
-  zh: {
-    title: '目标体重',
-    subtitle: '在望',
-    tabs: { dashboard: '计划', meals: '饮食', activity: '运动', profile: '我' },
-    moments: { 'Ontbijt': '早餐', 'Lunch': '午餐', 'Diner': '晚餐' }
-  },
-  ja: {
-    title: '目標体重',
-    subtitle: '視野内',
-    tabs: { dashboard: '計画', meals: '食事', activity: '運動', profile: 'プロフィール' },
-    moments: { 'Ontbijt': '朝食', 'Lunch': '昼食', 'Diner': '夕食' }
-  },
-  ko: {
-    title: '목표 체중',
-    subtitle: '달성 가능',
-    tabs: { dashboard: '계획', meals: '식사', activity: '운동', profile: '프로필' },
-    moments: { 'Ontbijt': '아침', 'Lunch': '점심', 'Diner': '저녁' }
-  },
-  hi: {
-    title: 'लक्ष्य वजन',
-    subtitle: 'नज़दीक है',
-    tabs: { dashboard: 'योजना', meals: 'भोजन', activity: 'व्यायाम', profile: 'मैं' },
-    moments: { 'Ontbijt': 'नाश्ता', 'Lunch': 'दोपहर का भोजन', 'Diner': 'रात का खाना' }
-  },
-  ar: {
-    title: 'الوزن المستهدف',
-    subtitle: 'في الأفق',
-    tabs: { dashboard: 'الخطة', meals: 'الطعام', activity: 'النشاط', profile: 'أنا' },
-    moments: { 'Ontbijt': 'الفطور', 'Lunch': 'الغداء', 'Diner': 'العشاء' }
-  }
+  es: { title: 'PESO OBJETIVO', subtitle: 'A LA VISTA', targetReached: 'META ALCANZADA EL', nowWeight: 'AHORA', goalWeight: 'META', myJourney: 'MI PROGRESO', weighMoment: 'Peso hoy', dailyBudget: 'PRESUPUESTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Comidas y Bebidas', todayPlanning: 'Registro de hoy', myList: 'Mi Lista', nothingPlanned: 'Nada registrado aún', movement: 'Actividad', planActivities: 'Registra tus actividades', activity: 'Actividad', amount: 'Minutos', qtyLabel: 'Cantidad', inLabel: 'en', settings: 'Ajustes', age: 'AÑO DE NACIMIENTO', gender: 'GÉNERO', man: 'HOMBRE', woman: 'MUJER', height: 'ALTURA (CM)', startWeight: 'PESO INICIAL', targetWeight: 'PESO OBJETIVO', dailyBudgetLabel: 'PRESUPUESTO DIARIO', oldBudgetLabel: 'MANTENIMIENTO', newBudgetLabel: 'NUEVO PRESUPUESTO', targetDateLabel: 'FECHA OBJETIVO', projectedDate: 'Fecha', speedSlow: 'LENTO', speedAverage: 'PROMEDIO', speedFast: 'RÁPIDO', speedCustom: 'RITMO PERSONAL', chooseSpeed: 'ELIGE TU RITMO', activityLevelLabel: 'ACTIVIDAD DIARIA', activityLevelDesc: '¿QUÉ TAN ACTIVO ERES?', levelLight: 'SEDENTARIO', levelModerate: 'MODERADO', levelHeavy: 'TRABAJO PESADO', language: 'Idioma', searchPlaceholder: 'Buscar...', remainingToday: 'CALORÍAS RESTANTES', activityCalories: 'Actividades', consumedTodayLabel: 'Consumido', caloriesPerDay: 'POR DÍA', timeGroups: { morning: 'Mañana', afternoon: 'Tarde', evening: 'Noche' }, noDataYet: 'Sin datos', addActivity: 'Añadir actividad', addProduct: 'Añadir producto', kcalPer60: 'Kcal por 60 min', unitPlaceholder: 'ej. 100g', categories: '¿En qué lista?', isDrink: 'Es bebida', save: 'Guardar', delete: 'Eliminar', snack: 'REFRIGERIO', dataManagement: { title: 'Datos', export: 'Exportar', restore: 'Restaurar', clearAll: 'Borrar todo', clearConfirm: '¿Borrar todo?' }, infoModal: { title: 'Sobre Nosotros', manualTitle: 'Guía', manualText: 'Bienvenido.', steps: genericSteps('en'), howItWorksTitle: 'Ciencia', howItWorksText: 'Mifflin-St Jeor.', medicalTitle: 'Aviso Médico', medicalNote: 'Consulte a su médico.', privacyTitle: 'Privacidad', privacyText: 'Local.', copyright: '© 2025' }, placeholders: { select: '+ Elegir...', weight: '00.0' }, moments: { 'Ontbijt': 'Desayuno', 'Ochtend snack': 'Snack', 'Lunch': 'Almuerzo', 'Middag snack': 'Snack', 'Diner': 'Cena', 'Avondsnack': 'Snack noche' }, tabs: { dashboard: 'Plan', meals: 'Comida', activity: 'Mover', profile: 'Yo' } },
+  de: { title: 'ZIELGEWICHT', subtitle: 'IM BLICK', targetReached: 'ZIEL ERREICHT AM', nowWeight: 'JETZT', goalWeight: 'ZIEL', myJourney: 'FORTSCHRITT', weighMoment: 'Gewicht heute', dailyBudget: 'KALORIENBUDGET', consumed: 'VERBRAUCHT', mealSchedule: 'Essen & Trinken', todayPlanning: 'Heutige Registrierung', myList: 'Meine Liste', nothingPlanned: 'Noch nichts geloggt', movement: 'Aktivität', planActivities: 'Aktivitäten loggen', activity: 'Aktivität', amount: 'Minuten', qtyLabel: 'Menge', inLabel: 'in', settings: 'Einstellungen', age: 'GEBURTSDATUM', gender: 'GESCHLECHT', man: 'MANN', woman: 'FRAU', height: 'GRÖSSE (CM)', startWeight: 'STARTGEWICHT', targetWeight: 'ZIELGEWICHT', dailyBudgetLabel: 'KALORIENBUDGET', oldBudgetLabel: 'ERHALTUNG', newBudgetLabel: 'NEUES BUDGET', targetDateLabel: 'ZIELDATUM', projectedDate: 'Datum', speedSlow: 'LANGSAM', speedAverage: 'DURCHSCHNITT', speedFast: 'SCHNELL', speedCustom: 'EIGENES TEMPO', chooseSpeed: 'TEMPO WÄHLEN', activityLevelLabel: 'AKTIVITÄT', activityLevelDesc: 'WIE AKTIV BIST DU?', levelLight: 'SITZEND', levelModerate: 'MODERAT', levelHeavy: 'SCHWERARBEIT', language: 'Sprache', searchPlaceholder: 'Suchen...', remainingToday: 'RESTLICHE KALORIEN', activityCalories: 'Aktivitäten', consumedTodayLabel: 'Verbraucht', caloriesPerDay: 'PRO TAG', timeGroups: { morning: 'Morgen', afternoon: 'Mittag', evening: 'Abend' }, noDataYet: 'Keine Daten', addActivity: 'Aktivität hinzufügen', addProduct: 'Produkt hinzufügen', kcalPer60: 'Kcal pro 60 min', unitPlaceholder: 'z.B. 100g', categories: 'Welche Liste?', isDrink: 'Getränk', save: 'Speichern', delete: 'Löschen', snack: 'IMBISS', dataManagement: { title: 'Daten', export: 'Exportieren', restore: 'Wiederherstellen', clearAll: 'Löschen', clearConfirm: 'Alles löschen?' }, infoModal: { title: 'Über uns', manualTitle: 'Handbuch', manualText: 'Willkommen.', steps: genericSteps('en'), howItWorksTitle: 'Wissenschaft', howItWorksText: 'Mifflin-St Jeor.', medicalTitle: 'Medizinischer Hinweis', medicalNote: 'Arzt fragen.', privacyTitle: 'Datenschutz', privacyText: 'Lokal.', copyright: '© 2025' }, placeholders: { select: '+ Wählen...', weight: '00.0' }, moments: { 'Ontbijt': 'Frühstück', 'Ochtend snack': 'Snack', 'Lunch': 'Mittagessen', 'Middag snack': 'Snack', 'Diner': 'Abendessen', 'Avondsnack': 'Abendsnack' }, tabs: { dashboard: 'Plan', meals: 'Essen', activity: 'Bewegen', profile: 'Ich' } },
+  pt: { title: 'PESO ALVO', subtitle: 'À VISTA', targetReached: 'META ATINGIDA EM', nowWeight: 'AGORA', goalWeight: 'META', myJourney: 'PROGRESSO', weighMoment: 'Peso hoje', dailyBudget: 'ORÇAMENTO CALÓRICO', consumed: 'CONSUMIDO', mealSchedule: 'Comida e Bebida', todayPlanning: 'Registo de hoje', myList: 'Minha Lista', nothingPlanned: 'Nada registado', movement: 'Atividade', planActivities: 'Registe atividades', activity: 'Atividade', amount: 'Minutos', qtyLabel: 'Quantidade', inLabel: 'em', settings: 'Definições', age: 'ANO NASCIMENTO', gender: 'GÉNERO', man: 'HOMEM', woman: 'MULHER', height: 'ALTURA (CM)', startWeight: 'PESO INICIAL', targetWeight: 'PESO ALVO', dailyBudgetLabel: 'ORÇAMENTO DIÁRIO', oldBudgetLabel: 'MANUTENÇÃO', newBudgetLabel: 'NOVO ORÇAMENTO', targetDateLabel: 'DATA ALVO', projectedDate: 'Data', speedSlow: 'LENTO', speedAverage: 'MÉDIO', speedFast: 'RÁPIDO', speedCustom: 'RITMO PRÓPRIO', chooseSpeed: 'ESCOLHA O RITMO', activityLevelLabel: 'ATIVIDADE', activityLevelDesc: 'QUÃO ATIVO É?', levelLight: 'SEDENTÁRIO', levelModerate: 'MODERADO', levelHeavy: 'TRABALHO PESADO', language: 'Língua', searchPlaceholder: 'Pesquisar...', remainingToday: 'RESTANTES', activityCalories: 'Atividades', consumedTodayLabel: 'Consumido', caloriesPerDay: 'POR DIA', timeGroups: { morning: 'Manhã', afternoon: 'Tarde', evening: 'Noite' }, noDataYet: 'Sem dados', addActivity: 'Adicionar atividade', addProduct: 'Adicionar producto', kcalPer60: 'Kcal por 60 min', unitPlaceholder: 'ex. 100g', categories: 'Qual lista?', isDrink: 'É bebida', save: 'Guardar', delete: 'Apagar', snack: 'LANCHE', dataManagement: { title: 'Dados', export: 'Exportar', restore: 'Restaurar', clearAll: 'Limpar', clearConfirm: 'Limpar tudo?' }, infoModal: { title: 'Sobre', manualTitle: 'Guia', manualText: 'Bem-vindo.', steps: genericSteps('en'), howItWorksTitle: 'Ciência', howItWorksText: 'Mifflin-St Jeor.', medicalTitle: 'Aviso Médico', medicalNote: 'Consulte um médico.', privacyTitle: 'Privacidade', privacyText: 'Local.', copyright: '© 2025' }, placeholders: { select: '+ Escolher...', weight: '00.0' }, moments: { 'Ontbijt': 'Pequeno-almoço', 'Ochtend snack': 'Snack', 'Lunch': 'Almoço', 'Middag snack': 'Snack', 'Diner': 'Jantar', 'Avondsnack': 'Ceia' }, tabs: { dashboard: 'Plano', meals: 'Comida', activity: 'Mover', profile: 'Eu' } },
+  zh: { title: '目标体重', subtitle: '在望', targetReached: '目标达成于', nowWeight: '现在', goalWeight: '目标', myJourney: '进度', weighMoment: '今日体重', dailyBudget: '今日预算', consumed: '已消耗', mealSchedule: '饮食记录', todayPlanning: '今日计划', myList: '我的列表', nothingPlanned: '暂无记录', movement: '运动', planActivities: '记录运动', activity: '运动', amount: '分钟', qtyLabel: '数量', inLabel: '于', settings: '设置', age: '出生年份', gender: '性别', man: '男', woman: '女', height: '身高 (CM)', startWeight: '起始体重', targetWeight: '目标体重', dailyBudgetLabel: '每日预算', oldBudgetLabel: '基础代谢', newBudgetLabel: '新预算', targetDateLabel: '目标日期', projectedDate: '日期', speedSlow: '较慢', speedAverage: '一般', speedFast: '较快', speedCustom: '自定义', chooseSpeed: '选择速度', activityLevelLabel: '活动等级', activityLevelDesc: '日常生活活跃度', levelLight: '久坐', levelModerate: '中度', levelHeavy: '重体力', language: '语言', searchPlaceholder: '搜索...', remainingToday: '剩余热量', activityCalories: '运动', consumedTodayLabel: '已摄入', caloriesPerDay: '每天', timeGroups: { morning: '早上', afternoon: '中午', evening: '晚上' }, noDataYet: '暂无数据', addActivity: '添加运动', addProduct: '添加食物', kcalPer60: '每小时千卡', unitPlaceholder: '如 100g', categories: '分类', isDrink: '是饮品', save: '保存', delete: '删除', snack: '点心', dataManagement: { title: '数据管理', export: '导出', restore: '还原', clearAll: '清除', clearConfirm: '确认清除?' }, infoModal: { title: '关于', manualTitle: '指南', manualText: '欢迎.', steps: genericSteps('en'), howItWorksTitle: '原理', howItWorksText: 'Mifflin-St Jeor 公式.', medicalTitle: '医学声明', medicalNote: '请咨询医生.', privacyTitle: '隐私', privacyText: '本地存储.', copyright: '© 2025' }, placeholders: { select: '+ 选择...', weight: '00.0' }, moments: { 'Ontbijt': '早餐', 'Ochtend snack': '加餐', 'Lunch': '午餐', 'Middag snack': '加餐', 'Diner': '晚餐', 'Avondsnack': '夜宵' }, tabs: { dashboard: '计划', meals: '饮食', activity: '运动', profile: '我的' } },
+  ja: { title: '目標体重', subtitle: '達成へ', targetReached: '達成予定日', nowWeight: '現在', goalWeight: '目標', myJourney: '進捗', weighMoment: '今日の体重', dailyBudget: '目標カロリー', consumed: '摂取済み', mealSchedule: '食事と飲み物', todayPlanning: '今日の記録', myList: 'マイリスト', nothingPlanned: '記録なし', movement: '運動', planActivities: '活動を記録', activity: '活動', amount: '分', qtyLabel: '量', inLabel: 'で', settings: '設定', age: '誕生年', gender: '性別', man: '男性', woman: '女性', height: '身長 (CM)', startWeight: '開始体重', targetWeight: '目標体重', dailyBudgetLabel: '1日の予算', oldBudgetLabel: '維持カロリー', newBudgetLabel: '新しい予算', targetDateLabel: '目標日', projectedDate: '日付', speedSlow: 'ゆっくり', speedAverage: '普通', speedFast: '早い', speedCustom: 'カスタム', chooseSpeed: 'ペースを選択', activityLevelLabel: '活動レベル', activityLevelDesc: '日常の活動量', levelLight: '座り仕事', levelModerate: '普通', levelHeavy: '重労働', language: '言語', searchPlaceholder: '検索...', remainingToday: '残りカロリー', activityCalories: '運動', consumedTodayLabel: '摂取', caloriesPerDay: '1日あたり', timeGroups: { morning: '朝', afternoon: '昼', evening: '夜' }, noDataYet: 'データなし', addActivity: '活動を追加', addProduct: '商品を追加', kcalPer60: '60分あたりのKcal', unitPlaceholder: '例: 100g', categories: 'カテゴリー', isDrink: '飲み物', save: '保存', delete: '削除', snack: '軽食', dataManagement: { title: 'データ管理', export: 'エクスポート', restore: '復元', clearAll: '削除', clearConfirm: 'すべて削除しますか？' }, infoModal: { title: 'について', manualTitle: 'マニュアル', manualText: 'ようこそ。', steps: genericSteps('en'), howItWorksTitle: '科学的根拠', howItWorksText: 'Mifflin-St Jeor 式.', medicalTitle: '医療上の注意', medicalNote: '医師に相談してください。', privacyTitle: 'プライバシー', privacyText: 'ローカル保存.', copyright: '© 2025' }, placeholders: { select: '+ 選択...', weight: '00.0' }, moments: { 'Ontbijt': '朝食', 'Ochtend snack': '間食', 'Lunch': '昼食', 'Middag snack': '間食', 'Diner': '夕食', 'Avondsnack': '夜食' }, tabs: { dashboard: '計画', meals: '食事', activity: '運動', profile: 'プロフィール' } },
+  ko: { title: '목표 체중', subtitle: '눈앞에', targetReached: '목표 달성일', nowWeight: '현재', goalWeight: '목표', myJourney: '진행 상황', weighMoment: '오늘의 체중', dailyBudget: '일일 예산', consumed: '섭취함', mealSchedule: '식사 및 음료', todayPlanning: '오늘의 기록', myList: '마이 리스트', nothingPlanned: '기록 없음', movement: '활동', planActivities: '활동 기록', activity: '활동', amount: '분', qtyLabel: '수량', inLabel: '에', settings: '설정', age: '출생 연도', gender: '성별', man: '남성', woman: '여성', height: '키 (CM)', startWeight: '시작 체중', targetWeight: '목표 체중', dailyBudgetLabel: '일일 예산', oldBudgetLabel: '유지 칼로리', newBudgetLabel: '새 예산', targetDateLabel: '목표 날짜', projectedDate: '날짜', speedSlow: '천천히', speedAverage: '보통', speedFast: '빠르게', speedCustom: '사용자 정의', chooseSpeed: '속도 선택', activityLevelLabel: '활동 수준', activityLevelDesc: '일상 활동량', levelLight: '좌식', levelModerate: '보통', levelHeavy: '활동적', language: '언어', searchPlaceholder: '검색...', remainingToday: '남은 칼로리', activityCalories: '활동', consumedTodayLabel: '섭취', caloriesPerDay: '하루', timeGroups: { morning: '아침', afternoon: '점심', evening: '저녁' }, noDataYet: '데이터 없음', addActivity: '활동 추가', addProduct: '제품 추가', kcalPer60: '시간당 Kcal', unitPlaceholder: '예: 100g', categories: '카테고리', isDrink: '음료', save: '저장', delete: '삭제', snack: '간식', dataManagement: { title: '데이터 관리', export: '내보내기', restore: '복구', clearAll: '삭제', clearConfirm: '모두 삭제하시겠습니까?' }, infoModal: { title: '정보', manualTitle: '메뉴얼', manualText: '환영합니다.', steps: genericSteps('en'), howItWorksTitle: '과학적 근거', howItWorksText: 'Mifflin-St Jeor 공식.', medicalTitle: '의학적 주의', medicalNote: '의사와 상담하십시오.', privacyTitle: '개인정보', privacyText: '로컬 저장.', copyright: '© 2025' }, placeholders: { select: '+ 선택...', weight: '00.0' }, moments: { 'Ontbijt': '아침', 'Ochtend snack': '간식', 'Lunch': '점심', 'Middag snack': '간식', 'Diner': '저녁', 'Avondsnack': '야식' }, tabs: { dashboard: '계획', meals: '식사', activity: '운동', profile: '정보' } },
+  hi: { title: 'लक्ष्य वजन', subtitle: 'नज़र में', targetReached: 'लक्ष्य तिथि', nowWeight: 'अभी', goalWeight: 'लक्ष्य', myJourney: 'प्रगति', weighMoment: 'आज का वजन', dailyBudget: 'कैलोरी बजट', consumed: 'उपभोग', mealSchedule: 'खाना और पीना', todayPlanning: 'आज का रिकॉर्ड', myList: 'मेरी सूची', nothingPlanned: 'कोई रिकॉर्ड नहीं', movement: 'गतिविधि', planActivities: 'गतिविधि जोड़ें', activity: 'गतिविधि', amount: 'मिनट', qtyLabel: 'मात्रा', inLabel: 'में', settings: 'सेटअप', age: 'जन्म वर्ष', gender: 'लिंग', man: 'पुरुष', woman: 'महिला', height: 'लंबाई (CM)', startWeight: 'शुरुआती वजन', targetWeight: 'लक्ष्य वजन', dailyBudgetLabel: 'दैनिक बजट', oldBudgetLabel: 'रखरखाव', newBudgetLabel: 'नया बजट', targetDateLabel: 'लक्ष्य तिथि', projectedDate: 'तारीख', speedSlow: 'धीरे', speedAverage: 'औसत', speedFast: 'तेज़', speedCustom: 'कस्टम', chooseSpeed: 'गति चुनें', activityLevelLabel: 'गतिविधि स्तर', activityLevelDesc: 'दैनिक जीवन', levelLight: 'गतिहीन', levelModerate: 'मध्यम', levelHeavy: 'भारी काम', language: 'भाषा', searchPlaceholder: 'खोजें...', remainingToday: 'शेष कैलोरी', activityCalories: 'गतिविधियाँ', consumedTodayLabel: 'उपभोग', caloriesPerDay: 'प्रति दिन', timeGroups: { morning: 'सुबह', afternoon: 'दोपहर', evening: 'शाम' }, noDataYet: 'कोई डेटा नहीं', addActivity: 'गतिविधि जोड़ें', addProduct: 'उत्पाद जोड़ें', kcalPer60: 'Kcal प्रति घंटा', unitPlaceholder: 'जैसे 100g', categories: 'श्रेणी', isDrink: 'पेय है', save: 'सहेजें', delete: 'हटाएं', snack: 'नाश्ता', dataManagement: { title: 'डेटा', export: 'निर्यात', restore: 'पुनर्स्थापित', clearAll: 'साफ़ करें', clearConfirm: 'सब साफ़ करें?' }, infoModal: { title: 'जानकारी', manualTitle: 'मैनुअल', manualText: 'स्वागत है।', steps: genericSteps('en'), howItWorksTitle: 'विज्ञान', howItWorksText: 'Mifflin-St Jeor.', medicalTitle: 'चिकित्सा सूचना', medicalNote: 'डॉक्टर से सलाह लें।', privacyTitle: 'गोपनीयता', privacyText: 'स्थानीय।', copyright: '© 2025' }, placeholders: { select: '+ चुनें...', weight: '00.0' }, moments: { 'Ontbijt': 'नाश्ता', 'Ochtend snack': 'स्नैक', 'Lunch': 'लंच', 'Middag snack': 'स्नैक', 'Diner': 'डिनर', 'Avondsnack': 'देर रात स्नैक' }, tabs: { dashboard: 'प्लान', meals: 'खाना', activity: 'व्यायाम', profile: 'प्रोफ़ाइल' } },
+  ar: { title: 'الوزن المستهدف', subtitle: 'في الأفق', targetReached: 'يتحقق في', nowWeight: 'الآن', goalWeight: 'الهدف', myJourney: 'تقدمي', weighMoment: 'الوزن اليوم', dailyBudget: 'ميزانية السعرات', consumed: 'مستهلك', mealSchedule: 'الأكل والشرب', todayPlanning: 'سجل اليوم', myList: 'قائمتي', nothingPlanned: 'لا يوجد سجل', movement: 'الحركة', planActivities: 'سجل نشاطك', activity: 'نشاط', amount: 'دقائق', qtyLabel: 'الكمية', inLabel: 'في', settings: 'الإعدادات', age: 'سنة الميلاد', gender: 'الجنس', man: 'رجل', woman: 'امرأة', height: 'الطول (سم)', startWeight: 'الوزن الابتدائي', targetWeight: 'الوزن المستهدف', dailyBudgetLabel: 'الميزانية اليومية', oldBudgetLabel: 'المحافظة', newBudgetLabel: 'الميزانية الجديدة', targetDateLabel: 'التاريخ المستهدف', projectedDate: 'التاريخ', speedSlow: 'بطيء', speedAverage: 'متوسط', speedFast: 'سريع', speedCustom: 'مخصص', chooseSpeed: 'اختر السرعة', activityLevelLabel: 'مستوى النشاط', activityLevelDesc: 'نشاطك اليومي', levelLight: 'خامل', levelModerate: 'متوسط', levelHeavy: 'نشيط جداً', language: 'اللغة', searchPlaceholder: 'بحث...', remainingToday: 'المتبقي', activityCalories: 'الأنشطة', consumedTodayLabel: 'المستهلك', caloriesPerDay: 'يومياً', timeGroups: { morning: 'الصباح', afternoon: 'الظهر', evening: 'المساء' }, noDataYet: 'لا توجد بيانات', addActivity: 'إضافة نشاط', addProduct: 'إضافة منتج', kcalPer60: 'سعرة/ساعة', unitPlaceholder: 'مثلاً 100جم', categories: 'التصنيف', isDrink: 'شراب', save: 'حفظ', delete: 'حذف', snack: 'سناك', dataManagement: { title: 'البيانات', export: 'تصدير', restore: 'استعادة', clearAll: 'مسح', clearConfirm: 'هل أنت متأكد؟' }, infoModal: { title: 'عن التطبيق', manualTitle: 'دليل المستخدم', manualText: 'مرحباً بك.', steps: genericSteps('en'), howItWorksTitle: 'الأساس العلمي', howItWorksText: 'Mifflin-St Jeor.', medicalTitle: 'تنبيه طبي', medicalNote: 'استشر طبيبك.', privacyTitle: 'الخصوصية', privacyText: 'محلي.', copyright: '© 2025' }, placeholders: { select: '+ اختر...', weight: '00.0' }, moments: { 'Ontbijt': 'فطور', 'Ochtend snack': 'سناك', 'Lunch': 'غداء', 'Middag snack': 'سناك', 'Diner': 'عشاء', 'Avondsnack': 'سناك مسائي' }, tabs: { dashboard: 'الخطة', meals: 'الأكل', activity: 'تحرك', profile: 'أنا' } }
 };

@@ -74,6 +74,7 @@
             padding: 12px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
+            white-space: pre-wrap;
         }
     </style>
 <script type="importmap">
@@ -110,7 +111,20 @@
         // Foutafhandeling voor scripts
         window.addEventListener('error', (e) => {
             console.error('Boot error:', e);
-            const msg = e.message || 'Onbekende fout bij het opstarten';
+            let msg = 'Onbekende fout bij het opstarten';
+            
+            if (e.error && e.error.message) {
+                msg = e.error.message;
+            } else if (e.message) {
+                msg = e.message;
+            } else if (typeof e === 'object') {
+                try {
+                    msg = JSON.stringify(e, null, 2);
+                } catch(err) {
+                    msg = String(e);
+                }
+            }
+
             if (msg.toLowerCase().includes('script error')) {
                 showError('Beveiligingsblokkade: De browser blokkeert de app-bestanden.');
             } else {
@@ -119,10 +133,15 @@
         }, true);
 
         function showError(msg) {
-            document.getElementById('loading-text').classList.add('hidden');
-            document.querySelector('.spinner').classList.add('hidden');
-            document.getElementById('error-box').classList.remove('hidden');
-            document.getElementById('error-msg').innerText = msg;
+            const loadingText = document.getElementById('loading-text');
+            const spinner = document.querySelector('.spinner');
+            const errorBox = document.getElementById('error-box');
+            const errorMsg = document.getElementById('error-msg');
+            
+            if (loadingText) loadingText.classList.add('hidden');
+            if (spinner) spinner.classList.add('hidden');
+            if (errorBox) errorBox.classList.remove('hidden');
+            if (errorMsg) errorMsg.innerText = msg;
         }
 
         async function deepResetApp() {
@@ -157,7 +176,7 @@
             }
         }
 
-        // Failsafe timer: 12 seconden (iets langer voor mobiel)
+        // Failsafe timer: 12 seconden
         const bootTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
