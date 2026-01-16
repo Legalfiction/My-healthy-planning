@@ -36,7 +36,8 @@ import {
   Moon,
   Apple,
   Cherry,
-  Beef
+  Cookie,
+  Beer
 } from 'lucide-react';
 import { 
   AppState, 
@@ -172,7 +173,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [stagedProduct, setStagedProduct] = useState<{ opt: MealOption, currentKcal: number } | null>(null);
-  const [pickerFilter, setPickerFilter] = useState<'all' | 'breakfast' | 'lunch' | 'diner' | 'food' | 'drink' | 'fruit'>('all');
+  const [pickerFilter, setPickerFilter] = useState<'all' | 'breakfast' | 'lunch' | 'diner' | 'snacks' | 'drink' | 'fruit' | 'alcohol'>('all');
 
   const [selectedActivityId, setSelectedActivityId] = useState<string>(ACTIVITY_TYPES[0].id);
   const [selectedCustomIds, setSelectedCustomIds] = useState<string[]>([]);
@@ -789,8 +790,9 @@ export default function App() {
                                  { id: 'breakfast', icon: Sun, label: 'ONTBIJT' },
                                  { id: 'lunch', icon: Utensils, label: 'LUNCH' },
                                  { id: 'diner', icon: Moon, label: 'DINER' },
-                                 { id: 'food', icon: Beef, label: 'ETEN' },
+                                 { id: 'snacks', icon: Cookie, label: 'SNACKS' },
                                  { id: 'drink', icon: GlassWater, label: 'DRINKEN' },
+                                 { id: 'alcohol', icon: Beer, label: 'ALCOHOL' },
                                  { id: 'fruit', icon: Cherry, label: 'FRUIT' }
                                ].map(f => (
                                  <button 
@@ -816,14 +818,34 @@ export default function App() {
                                 .filter(o => {
                                   const name = getTranslatedName(o.id, o.name).toLowerCase();
                                   const matchesSearch = name.includes(searchTerm.toLowerCase());
+                                  
+                                  const isFruit = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht') || name.includes('appel');
+                                  const isSnack = o.id.includes('snack') || o.id === 'b_ontbijtkoek' || o.id === 'b_beschuit' || o.id === 'b_knackebrod';
+                                  const isAlcohol = !!o.isAlcohol;
+                                  
                                   let matchesFilter = true;
                                   
-                                  if (pickerFilter === 'breakfast') matchesFilter = o.id.startsWith('b_');
-                                  else if (pickerFilter === 'lunch') matchesFilter = o.id.startsWith('l_');
-                                  else if (pickerFilter === 'diner') matchesFilter = o.id.startsWith('m_');
-                                  else if (pickerFilter === 'drink') matchesFilter = !!o.isDrink;
-                                  else if (pickerFilter === 'food') matchesFilter = !o.isDrink;
-                                  else if (pickerFilter === 'fruit') matchesFilter = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht');
+                                  if (pickerFilter === 'breakfast') {
+                                    matchesFilter = o.id.startsWith('b_') && !o.isDrink && !isFruit && !isSnack && !isAlcohol;
+                                  }
+                                  else if (pickerFilter === 'lunch') {
+                                    matchesFilter = o.id.startsWith('l_') && !o.isDrink && !isFruit && !isAlcohol;
+                                  }
+                                  else if (pickerFilter === 'diner') {
+                                    matchesFilter = o.id.startsWith('m_') && !o.isDrink && !isFruit && !isAlcohol;
+                                  }
+                                  else if (pickerFilter === 'drink') {
+                                    matchesFilter = !!o.isDrink && !isAlcohol;
+                                  }
+                                  else if (pickerFilter === 'alcohol') {
+                                    matchesFilter = isAlcohol;
+                                  }
+                                  else if (pickerFilter === 'fruit') {
+                                    matchesFilter = isFruit;
+                                  }
+                                  else if (pickerFilter === 'snacks') {
+                                    matchesFilter = isSnack && !o.isDrink && !isFruit && !isAlcohol;
+                                  }
                                   
                                   return matchesSearch && matchesFilter;
                                 })
@@ -831,7 +853,7 @@ export default function App() {
                                   <button key={opt.id} onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })} className="w-full text-left px-4 py-3.5 hover:bg-orange-50/50 rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-orange-100">
                                     <div className="flex items-center gap-3 truncate">
                                       <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:bg-white group-hover:text-[#ff7300] transition-colors">
-                                        {opt.isDrink ? <GlassWater size={16} /> : <Utensils size={16} />}
+                                        {opt.isAlcohol ? <Beer size={16} /> : opt.isDrink ? <GlassWater size={16} /> : <Utensils size={16} />}
                                       </div>
                                       <div className="flex flex-col truncate leading-none">
                                         <span className="text-[12px] font-black text-[#1e293b] uppercase truncate mb-0.5">{getTranslatedName(opt.id, opt.name)}</span>
@@ -848,7 +870,7 @@ export default function App() {
                           <div className="bg-slate-50 p-4 rounded-[24px] border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                              <div className="flex items-center gap-3">
                                 <div className="bg-white p-2.5 rounded-[16px] text-[#ff7300] shadow-sm">
-                                  {stagedProduct.opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
+                                  {stagedProduct.opt.isAlcohol ? <Beer size={20} /> : stagedProduct.opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
                                 </div>
                                 <div className="flex flex-col truncate">
                                   <span className="text-[13px] font-black text-[#1e293b] uppercase truncate">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
@@ -869,7 +891,7 @@ export default function App() {
                              </div>
 
                              <button onClick={() => {
-                                addMealItem(openPickerMoment, { name: stagedProduct.opt.name, kcal: stagedProduct.currentKcal, quantity: 1, mealId: stagedProduct.opt.id, isDrink: stagedProduct.opt.isDrink });
+                                addMealItem(openPickerMoment, { name: stagedProduct.opt.name, kcal: stagedProduct.currentKcal, quantity: 1, mealId: stagedProduct.opt.id, isDrink: stagedProduct.opt.isDrink, isAlcohol: stagedProduct.opt.isAlcohol });
                                 setOpenPickerMoment(null);
                                 setStagedProduct(null);
                                 setSearchTerm('');
@@ -901,7 +923,7 @@ export default function App() {
                     <div key={item.id} className="flex justify-between items-center bg-white p-3 px-4 rounded-[24px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
                       <div className="flex items-center gap-3 truncate flex-1">
                         <div className="bg-[#fff7ed] p-2 rounded-[16px] text-[#ff7300] shrink-0">
-                          {item.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
+                          {item.isAlcohol ? <Beer size={18} /> : item.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
                         </div>
                         <div className="flex flex-col truncate">
                           <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">{getTranslatedName(item.mealId || '', item.name)}</span>

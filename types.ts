@@ -29,6 +29,7 @@ export interface MealOption {
   unitName?: string;
   isCustom?: boolean;
   isDrink?: boolean;
+  isAlcohol?: boolean;
 }
 
 export interface LoggedMealItem {
@@ -38,6 +39,7 @@ export interface LoggedMealItem {
   kcal: number;
   quantity: number;
   isDrink?: boolean;
+  isAlcohol?: boolean;
 }
 
 export interface ActivityType {

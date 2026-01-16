@@ -1,3 +1,4 @@
+
 import { MealOption, ActivityType, MealMoment, Language } from './types';
 
 export const MEAL_MOMENTS: MealMoment[] = [
@@ -15,7 +16,7 @@ export const PRODUCT_TRANSLATIONS: Record<Language, Record<string, string>> = {
     b_skyr: 'Skyr Natuur (IJslands)', b_griekse_yoghurt: 'Griekse Yoghurt (10%)', b_magere_kwark: 'Magere Kwark (Eiwitrijk)', b_havermout: 'Havermout (Pap)', b_muesli: 'Muesli (Vruchten)', b_granola: 'Granola (Honing)', b_crusli: 'Crusli (Chocolade)', b_volkoren_brood: 'Volkoren Brood', b_waldkorn_brood: 'Waldkorn Brood', b_spelt_brood: 'Spelt Brood', b_ei_gekookt: 'Ei (Gekookt, L)', b_banaan: 'Banaan (Gemiddeld)', b_appel: 'Appel (Elstar)', b_ontbijtkoek: 'Ontbijtkoek (Plak)', b_blauwe_bessen: 'Blauwe Bessen (Vers)', b_beschuit: 'Beschuit', b_knackebrod: 'Knäckebröd',
     l_soep_tomaat: 'Tomatensoep (Vers)', l_wrap_zalm: 'Wrap (Zalm & Roomkaas)', l_wrap_kip: 'Wrap (Kip & Avocado)', l_salade_caesar: 'Caesar Salade (Maaltijd)', l_uitsmijter: 'Uitsmijter (3 eieren)', l_tosti: 'Tosti (Ham/Kaas)', l_broodje_gezond: 'Broodje Gezond', l_krentenbol: 'Krentenbol',
     m_macaroni: 'Macaroni (Bolognese)', m_spaghetti: 'Spaghetti (Bolognese)', m_pizza_margherita: 'Pizza (Margherita)', m_hutspot: 'Hutspot (Klapstuk)', m_aardappel_gekookt: 'Aardappels (Gekookt)', m_aardappel_gebakken: 'Aardappels (Gebakken)', m_kip_filet: 'Kipfilet (Gebraden)', m_biefstuk: 'Biefstuk (Mager)', m_zalm: 'Zalmmoot (Gegrild)', m_broccoli: 'Broccoli (Gestoomd)', m_stamppot_boerenkool: 'Stamppot (Boerenkool)',
-    act_wandelen_slow: 'Wandelen (Rustig)', act_wandelen_brisk: 'Wandelen (Stevig)', act_hardlopen_8: 'Hardlopen (8 km/u)', act_hardlopen_10: 'Hardlopen (10 km/u)', act_fietsen_rustig: 'Fietsen (Stads)', act_fietsen_tempo: 'Fietsen (Snel)', act_zwemmen: 'Zwemmen (Baantjes)', act_padel: 'Padel (Wedstrijd)', act_fitness: 'Fitness (Training)', act_voetbal: 'Voetbal (Training)', act_yoga: 'Yoga (Flow)', act_tuinieren: 'Tuinieren', act_schoonmaken: 'Schoonmaken', act_koken: 'Koken', act_dansen: 'Dansen', act_crossfit: 'Crossfit', act_boksen: 'Boksen', act_golf: 'Golf', act_hiken: 'Hiken', act_roeien: 'Roeien', act_skien: 'Skiën', act_schaatsen: 'Schaatsen', act_klimmen: 'Klimmen', act_squash: 'Squash', act_volleybal: 'Volleybal', act_badminton: 'Badminton', act_tafeltennis: 'Tafeltennis', act_basketbal: 'Basketbal', act_staan_werk: 'Staand werk', act_aerobics: 'Aerobics', act_pilates: 'Pilates', act_spinnen: 'Spinning', act_bootcamp: 'Bootcamp', act_wandelen_hond: 'Hond uitlaten', act_trap_lopen: 'Traplopen', act_klussen: 'Klussen', act_verhuizen: 'Verhuizen', act_paardrijden: 'Paardrijden'
+    act_wandelen_slow: 'Wandelen (Rustig)', act_wandelen_brisk: 'Wandelen (Stevig)', act_hardlopen_8: 'Hardlopen (8 km/u)', act_hardlopen_10: 'Hardlopen (10 km/u)', act_fietsen_rustig: 'Fietsen (Stads)', act_fietsen_tempo: 'Fietsen (Snel)', act_zwemmen: 'Zwemmen (Baantjes)', act_padel: 'Padel (Wedstrijd)', act_fitness: 'Fitness (Training)', act_voetbal: 'Voetbal (Training)', act_yoga: 'Yoga (Flow)', act_tuinieren: 'Tuinieren', act_schoonmaken: 'Schoonmaken', act_koken: 'Koken', act_dansen: 'Dansen', act_crossfit: 'Crossfit', act_boksen: 'Boksen', act_golf: 'Golf', act_hiken: 'Hiken', act_roeien: 'Roeien', act_skien: 'Skiën', act_schaatsen: 'Schaatsen', act_klimmen: 'Klettern', act_squash: 'Squash', act_volleybal: 'Volleybal', act_badminton: 'Badminton', act_tafeltennis: 'Tafeltennis', act_basketbal: 'Basketbal', act_staan_werk: 'Staand werk', act_aerobics: 'Aerobics', act_pilates: 'Pilates', act_spinnen: 'Spinning', act_bootcamp: 'Bootcamp', act_wandelen_hond: 'Hond uitlaten', act_trap_lopen: 'Traplopen', act_klussen: 'Klussen', act_verhuizen: 'Verhuizen', act_paardrijden: 'Paardrijden'
   },
   en: {
     d_water: 'Water (Spring)', d_koffie: 'Coffee (Black)', d_thee: 'Tea (Green/Black)', d_melk_half: 'Milk (Semi-skimmed)', d_melk_vol: 'Milk (Whole)', d_sap_vers: 'Orange Juice (Fresh)', d_cola_zero: 'Cola Zero',
@@ -29,7 +30,7 @@ export const PRODUCT_TRANSLATIONS: Record<Language, Record<string, string>> = {
     b_skyr: 'Skyr Natural', b_griekse_yoghurt: 'Yogur Griego (10%)', b_magere_kwark: 'Queso Quark (Alto Proteína)', b_havermout: 'Avena (Gachas)', b_muesli: 'Muesli (Fruta)', b_granola: 'Granola (Miel)', b_crusli: 'Cereales (Choco)', b_volkoren_brood: 'Pan Integral', b_ei_gekookt: 'Huevo Cocido', b_banaan: 'Plátano', b_appel: 'Manzana', b_ontbijtkoek: 'Bizcocho', b_blauwe_bessen: 'Arándanos', b_beschuit: 'Biscote', b_knackebrod: 'Pan Sueco',
     l_soep_tomaat: 'Sopa de Tomate', l_wrap_zalm: 'Wrap de Salmón', l_wrap_kip: 'Wrap de Pollo', l_salade_caesar: 'Ensalada César', l_uitsmijter: 'Huevos con Pan', l_tosti: 'Sandwich Mixto', l_broodje_gezond: 'Bocadillo Saludable', l_krentenbol: 'Pan de Pasas',
     m_macaroni: 'Macarrones Boloñesa', m_spaghetti: 'Espaguetis Boloñesa', m_pizza_margherita: 'Pizza Margarita', m_hutspot: 'Puré de Zanahoria', m_aardappel_gekookt: 'Patatas Cocidas', m_aardappel_gebakken: 'Patatas Salteadas', m_kip_filet: 'Pechuga Pollo', m_biefstuk: 'Filete de Ternera', m_zalm: 'Salmón Plancha', m_broccoli: 'Brócoli', m_stamppot_boerenkool: 'Puré de Col Rizada',
-    act_wandelen_slow: 'Caminar (Lento)', act_wandelen_brisk: 'Caminar (Rápido)', act_hardlopen_8: 'Correr (8 km/h)', act_hardlopen_10: 'Correr (10 km/h)', act_fietsen_rustig: 'Ciclismo (Lento)', act_fietsen_tempo: 'Ciclismo (Rápido)', act_zwemmen: 'Natación', act_padel: 'Pádel', act_fitness: 'Fitness', act_voetbal: 'Fútbol', act_yoga: 'Yoga', act_tuinieren: 'Jardinería', act_schoonmaken: 'Limpieza', act_koken: 'Cocinar', act_dansen: 'Bailar', act_crossfit: 'Crossfit', act_boksen: 'Boxeo', act_golf: 'Golf', act_hiken: 'Hike', act_roeien: 'Remo', act_skien: 'Esquí', act_schaatsen: 'Patinagem', act_klimmen: 'Escalada', act_squash: 'Squash', act_volleybal: 'Voleibol', act_badminton: 'Bádminton', act_tafeltennis: 'Tenis Mesa', act_basketbal: 'Baloncesto', act_staan_werk: 'Trabajo Pie', act_aerobics: 'Aeróbic', act_pilates: 'Pilates', act_spinnen: 'Spinning', act_bootcamp: 'Bootcamp', act_wandelen_hond: 'Pasear Perro', act_trap_lopen: 'Escaleras', act_klussen: 'Bricolaje', act_verhuizen: 'Mudanza', act_paardrijden: 'Equitación'
+    act_wandelen_slow: 'Caminar (Lento)', act_wandelen_brisk: 'Caminar (Rápido)', act_hardlopen_8: 'Correr (8 km/h)', act_hardlopen_10: 'Correr (10 km/h)', act_fietsen_rustig: 'Ciclismo (Lento)', act_fietsen_tempo: 'Ciclismo (Rápido)', act_zwemmen: 'Natación', act_padel: 'Pádel', act_fitness: 'Fitness', act_voetbal: 'Fútbol', act_yoga: 'Yoga', act_tuinieren: 'Jardinería', act_schoonmaken: 'Limpieza', act_koken: 'Cocinar', act_dansen: 'Bailar', act_crossfit: 'Crossfit', act_boksen: 'Boxeo', act_golf: 'Golf', act_hiken: 'Hike', act_roeien: 'Remo', act_skien: 'Esquī', act_schaatsen: 'Patinagem', act_klimmen: 'Escalada', act_squash: 'Squash', act_volleybal: 'Voleibol', act_badminton: 'Bádminton', act_tafeltennis: 'Tenis Mesa', act_basketbal: 'Baloncesto', act_staan_werk: 'Trabajo Pie', act_aerobics: 'Aeróbic', act_pilates: 'Pilates', act_spinnen: 'Spinning', act_bootcamp: 'Bootcamp', act_wandelen_hond: 'Pasear Perro', act_trap_lopen: 'Escaleras', act_klussen: 'Bricolaje', act_verhuizen: 'Mudanza', act_paardrijden: 'Equitación'
   },
   de: {
     d_water: 'Wasser', d_koffie: 'Kaffee (Schwarz)', d_thee: 'Tee', d_melk_half: 'Milch (Fettarm)', d_melk_vol: 'Vollmilch', d_sap_vers: 'Orangensaft (Frisch)', d_cola_zero: 'Cola Zero',
@@ -77,18 +78,56 @@ export const PRODUCT_TRANSLATIONS: Record<Language, Record<string, string>> = {
     d_water: 'ماء', d_koffie: 'قهوة (سوداء)', d_thee: 'شاي', d_melk_half: 'حليب (نصف دسم)', d_melk_vol: 'حليب (كامل الدسم)', d_sap_vers: 'عصير برتقال طازج', d_cola_zero: 'كولا زيرو',
     b_skyr: 'زبادي سكير طبيعي', b_griekse_yoghurt: 'زبادي يوناني', b_magere_kwark: 'جبنة كوارك (بروتين عالي)', b_havermout: 'عصيدة الشوفان', b_muesli: 'موسلي (فواكه)', b_granola: 'جرانولا (عسل)', b_crusli: 'حبوب مقرمشة (شوكولاتة)', b_volkoren_brood: 'خبz قمح كامل', b_ei_gekookt: 'بيضة مسلوقة', b_banaan: 'موز', b_appel: 'تفاح', b_ontbijtkoek: 'كيك الزنجبيل', b_blauwe_bessen: 'توت أزرق', b_beschuit: 'بقسماط', b_knackebrod: 'خبز مقرمش',
     l_soep_tomaat: 'شوربة طماطم', l_wrap_zalm: 'لفافة سلمون', l_wrap_kip: 'لفافة دجاج', l_salade_caesar: 'سلطة سيزر', l_uitsmijter: 'بيض مقلي مع خبز', l_tosti: 'توست جبن وحبش', l_broodje_gezond: 'ساندوتش صحي', l_krentenbol: 'خبز الزبيب',
-    m_macaroni: 'معكرونة بولونيز', m_spaghetti: 'سباغيتي بولونيز', m_pizza_margherita: 'بيتزا مارغريتا', m_hutspot: 'مهروس جزر وبطاطس', m_aardappel_gekookt: 'بطاطس مسلوقة', m_aardappel_gebakken: 'بطاطس مقلية', m_kip_filet: 'صدر دجاج', m_biefstuk: 'ستيك لحم بقر', m_zalm: 'سلمون مشوي', m_broccoli: 'بروكلي', m_stamppot_boerenكول: 'مهروس الكرنب',
+    m_macaroni: 'معكرونة بولونيز', m_spaghetti: 'سباغيتي بولونيز', m_pizza_margherita: 'بيتزا مارغريتا', m_hutspot: 'مهروس جزر وبطاطس', m_aardappel_gekookt: 'بطاطس مسلوقة', m_aardappel_gebakken: 'بطاطس مقلية', m_kip_filet: 'صدر دجاج', m_biefstuk: 'ستيك لحم بقر', m_zalm: 'سلمon مشوي', m_broccoli: 'بروكلي', m_stamppot_boerenكول: 'مهروس الكرنب',
     act_wandelen_slow: 'مشي (بطيء)', act_wandelen_brisk: 'مشي (سريع)', act_hardlopen_8: 'جري (8 كم/ساعة)', act_hardlopen_10: 'جري (10 كم/ساعة)', act_fietsen_rustig: 'ركوب دراجة (بطيء)', act_fietsen_tempo: 'ركوب دراجة (سريع)', act_zwemmen: 'سباحة', act_padel: 'بادل', act_fitness: 'تدريب لياقة', act_voetbal: 'كرة قدم', act_yoga: 'يوغا', act_tuinieren: 'بستنة', act_schoonmaken: 'تنظيف', act_koken: 'طبخ', act_dansen: 'رقص', act_crossfit: 'كروس فيت', act_boksen: 'ملاكمة', act_golf: 'غولف', act_hiken: 'هايكنج', act_roeien: 'تجديف', act_skien: 'تزلج', act_schaatsen: 'تزلج على الجليد', act_klimmen: 'تسلق', act_squash: 'اسكواش', act_volleybal: 'كرة طائرة', act_badminton: 'ريشة طائرة', act_tafeltennis: 'تنس طاولة', act_basketbal: 'كرة سلة', act_staan_werk: 'عمل واقفاً', act_aerobics: 'أيروبيكس', act_pilates: 'بيلاتس', act_spinnen: 'سبينينج', act_bootcamp: 'بوت كامب', act_wandelen_hond: 'تمشية الكلب', act_trap_lopen: 'صعود الدرج', act_klussen: 'أعمال منزلية', act_verhuizen: 'نقل منزل', act_paardrijden: 'ركوب خيل'
   }
 };
 
 const COMMON_DRINKS: MealOption[] = [
-  { id: 'd_water', name: 'Water', kcal: 0, isDrink: true, unitName: '250 ML' },
-  { id: 'd_koffie', name: 'Koffie (Zwart)', kcal: 2, isDrink: true, unitName: '200 ML' },
-  { id: 'd_thee', name: 'Thee (Zonder suiker)', kcal: 2, isDrink: true, unitName: '200 ML' },
-  { id: 'd_melk_half', name: 'Melk (Halfvol)', kcal: 115, isDrink: true, unitName: '250 ML' },
+  // Koude dranken
+  { id: 'd_water', name: 'Water (Plat/Bruis)', kcal: 0, isDrink: true, unitName: '250 ML' },
+  { id: 'd_cola', name: 'Cola (Regulier)', kcal: 139, isDrink: true, unitName: '330 ML' },
+  { id: 'd_cola_zero', name: 'Cola Zero / Light', kcal: 0, isDrink: true, unitName: '250 ML' },
+  { id: 'd_fanta', name: 'Fanta Orange', kcal: 160, isDrink: true, unitName: '330 ML' },
+  { id: 'd_sprite', name: 'Sprite / 7-Up', kcal: 115, isDrink: true, unitName: '330 ML' },
+  { id: 'd_icetea', name: 'Ice Tea Sparkling', kcal: 90, isDrink: true, unitName: '250 ML' },
+  { id: 'd_icetea_green', name: 'Ice Tea Green', kcal: 60, isDrink: true, unitName: '250 ML' },
+  { id: 'd_rivella', name: 'Rivella', kcal: 13, isDrink: true, unitName: '250 ML' },
+  { id: 'd_tonic', name: 'Tonic / Bitter Lemon', kcal: 120, isDrink: true, unitName: '250 ML' },
+  { id: 'd_ginger_ale', name: 'Ginger Ale', kcal: 90, isDrink: true, unitName: '250 ML' },
   { id: 'd_sap_vers', name: 'Sinaasappelsap (Vers)', kcal: 115, isDrink: true, unitName: '250 ML' },
-  { id: 'd_cola_zero', name: 'Cola Zero', kcal: 0, isDrink: true, unitName: '250 ML' },
+  { id: 'd_appelsap', name: 'Appelsap', kcal: 110, isDrink: true, unitName: '250 ML' },
+  { id: 'd_melk_half', name: 'Melk (Halfvol)', kcal: 115, isDrink: true, unitName: '250 ML' },
+  { id: 'd_chocomel', name: 'Chocomel', kcal: 210, isDrink: true, unitName: '250 ML' },
+  { id: 'd_fristi', name: 'Fristi', kcal: 185, isDrink: true, unitName: '250 ML' },
+  // Warme dranken
+  { id: 'd_koffie', name: 'Koffie (Zwart)', kcal: 2, isDrink: true, unitName: '200 ML' },
+  { id: 'd_espresso', name: 'Espresso', kcal: 2, isDrink: true, unitName: '35 ML' },
+  { id: 'd_cappuccino', name: 'Cappuccino (Halfvol)', kcal: 55, isDrink: true, unitName: '200 ML' },
+  { id: 'd_koffie_verkeerd', name: 'Koffie Verkeerd', kcal: 85, isDrink: true, unitName: '200 ML' },
+  { id: 'd_latte', name: 'Latte Macchiato', kcal: 125, isDrink: true, unitName: '250 ML' },
+  { id: 'd_thee', name: 'Thee (Zonder suiker)', kcal: 2, isDrink: true, unitName: '200 ML' },
+  { id: 'd_muntthee', name: 'Verse Muntthee (Zonder honing)', kcal: 5, isDrink: true, unitName: '250 ML' },
+  { id: 'd_warme_choco', name: 'Warme Chocolademelk', kcal: 200, isDrink: true, unitName: '250 ML' },
+];
+
+const ALCOHOLIC_DRINKS: MealOption[] = [
+  { id: 'a_bier_pils', name: 'Bier (Pils, 5%)', kcal: 135, isDrink: true, isAlcohol: true, unitName: '300 ML' },
+  { id: 'a_bier_speciaal', name: 'Speciaalbier (Zwaar, 8%)', kcal: 210, isDrink: true, isAlcohol: true, unitName: '330 ML' },
+  { id: 'a_bier_ipa', name: 'IPA Bier', kcal: 180, isDrink: true, isAlcohol: true, unitName: '330 ML' },
+  { id: 'a_bier_wit', name: 'Witbier / Weizen', kcal: 150, isDrink: true, isAlcohol: true, unitName: '300 ML' },
+  { id: 'a_bier_00', name: 'Alcoholvrij bier (0.0%)', kcal: 65, isDrink: true, isAlcohol: false, unitName: '300 ML' },
+  { id: 'a_wijn_rood', name: 'Rode Wijn', kcal: 125, isDrink: true, isAlcohol: true, unitName: '150 ML' },
+  { id: 'a_wijn_wit_droog', name: 'Witte Wijn (Droog)', kcal: 120, isDrink: true, isAlcohol: true, unitName: '150 ML' },
+  { id: 'a_wijn_wit_zoet', name: 'Witte Wijn (Zoet)', kcal: 150, isDrink: true, isAlcohol: true, unitName: '150 ML' },
+  { id: 'a_wijn_rose', name: 'Rosé Wijn', kcal: 115, isDrink: true, isAlcohol: true, unitName: '150 ML' },
+  { id: 'a_prosecco', name: 'Prosecco / Champagne', kcal: 110, isDrink: true, isAlcohol: true, unitName: '125 ML' },
+  { id: 'a_gin_tonic', name: 'Gin Tonic', kcal: 175, isDrink: true, isAlcohol: true, unitName: '250 ML' },
+  { id: 'a_whiskey', name: 'Whiskey', kcal: 85, isDrink: true, isAlcohol: true, unitName: '35 ML' },
+  { id: 'a_rum_cola', name: 'Rum Cola', kcal: 180, isDrink: true, isAlcohol: true, unitName: '250 ML' },
+  { id: 'a_vodka_lemon', name: 'Vodka Lemon', kcal: 165, isDrink: true, isAlcohol: true, unitName: '250 ML' },
+  { id: 'a_aperol', name: 'Aperol Spritz', kcal: 140, isDrink: true, isAlcohol: true, unitName: '200 ML' },
+  { id: 'a_shotje', name: 'Shotje (Likeur/Sterk)', kcal: 90, isDrink: true, isAlcohol: true, unitName: '35 ML' },
 ];
 
 export const MEAL_OPTIONS: Record<MealMoment, MealOption[]> = {
@@ -123,11 +162,13 @@ export const MEAL_OPTIONS: Record<MealMoment, MealOption[]> = {
   ],
   'Middag snack': [
     ...COMMON_DRINKS,
+    ...ALCOHOLIC_DRINKS,
     { id: 'b_beschuit', name: 'Beschuit', kcal: 40, unitName: '1 STUK' },
     { id: 'b_knackebrod', name: 'Knäckebröd', kcal: 35, unitName: '1 STUK' },
   ],
   'Diner': [
     ...COMMON_DRINKS,
+    ...ALCOHOLIC_DRINKS,
     { id: 'm_macaroni', name: 'Macaroni Bolognese', kcal: 650, unitName: '1 BORD (450G)' },
     { id: 'm_spaghetti', name: 'Spaghetti Bolognese', kcal: 700, unitName: '1 BORD (450G)' },
     { id: 'm_pizza_margherita', name: 'Pizza Margherita', kcal: 850, unitName: '1 STUK (350G)' },
@@ -142,6 +183,7 @@ export const MEAL_OPTIONS: Record<MealMoment, MealOption[]> = {
   ],
   'Avondsnack': [
     ...COMMON_DRINKS,
+    ...ALCOHOLIC_DRINKS,
     { id: 'b_ontbijtkoek', name: 'Ontbijtkoek', kcal: 65, unitName: '1 PLAK (30G)' },
   ],
 };
