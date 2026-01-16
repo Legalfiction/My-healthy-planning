@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -37,7 +36,9 @@ import {
   Apple,
   Cherry,
   Cookie,
-  Beer
+  Beer,
+  CalendarDays,
+  BarChart3
 } from 'lucide-react';
 import { 
   AppState, 
@@ -166,6 +167,7 @@ export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [toast, setToast] = useState<{msg: string, type?: 'success' | 'error' | 'info'} | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showWeeklyPopover, setShowWeeklyPopover] = useState(false);
   
   const [showMyList, setShowMyList] = useState(false);
   const [showMyActivityList, setShowMyActivityList] = useState(false);
@@ -183,6 +185,7 @@ export default function App() {
   const [newActivityInput, setNewActivityInput] = useState({ name: '', kcalPerHour: '' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
@@ -214,6 +217,19 @@ export default function App() {
   useEffect(() => {
     if (isLoaded) idb.set(state);
   }, [state, isLoaded]);
+
+  // Handle click outside popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setShowWeeklyPopover(false);
+      }
+    };
+    if (showWeeklyPopover) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showWeeklyPopover]);
 
   const globalLatestWeight = useMemo((): number => {
     const datesWithWeight = Object.keys(state.dailyLogs)
@@ -272,6 +288,47 @@ export default function App() {
       targetDate: state.profile.weightLossSpeed === 'custom' && state.profile.customTargetDate ? state.profile.customTargetDate : calculateTargetDate({ ...state.profile, currentWeight: globalLatestWeight }, intakeGoal)
     };
   }, [state.profile, state.dailyLogs, selectedDate, globalLatestWeight]);
+
+  const weeklyStats = useMemo(() => {
+    const stats = {
+      totalIntake: 0,
+      avgDailyIntake: 0,
+      totalBurned: 0,
+      weightChange: 0
+    };
+    
+    const end = new Date(selectedDate);
+    const windowWeights: {date: string, weight: number}[] = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(end);
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split('T')[0];
+      const log = (state.dailyLogs[ds] as DailyLog);
+      
+      if (log) {
+        const dayIntake = Object.values(log.meals || {}).reduce((acc, items) => 
+          acc + (items as LoggedMealItem[]).reduce((sum, m) => sum + m.kcal, 0), 0);
+        stats.totalIntake += dayIntake;
+        
+        const dayBurn = (log.activities || []).reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0);
+        stats.totalBurned += dayBurn;
+
+        if (log.weight) {
+          windowWeights.push({date: ds, weight: log.weight});
+        }
+      }
+    }
+
+    stats.avgDailyIntake = Math.round(stats.totalIntake / 7);
+    
+    if (windowWeights.length >= 2) {
+      windowWeights.sort((a,b) => a.date.localeCompare(b.date));
+      stats.weightChange = windowWeights[windowWeights.length - 1].weight - windowWeights[0].weight;
+    }
+
+    return stats;
+  }, [state.dailyLogs, selectedDate]);
 
   const currentLog = useMemo(() => {
     return (state.dailyLogs[selectedDate] as DailyLog) || { meals: {}, activities: [] };
@@ -546,7 +603,7 @@ export default function App() {
              <h1 className="text-2xl font-black text-orange-500 leading-none mb-1">{t.title}</h1>
              <h2 className="text-[11px] font-black text-slate-400 tracking-[0.15em] uppercase">{t.subtitle}</h2>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 relative">
              <div className="relative">
                 <select 
                   value={state.language} 
@@ -557,9 +614,59 @@ export default function App() {
                 </select>
                 <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
              </div>
-             <div className="bg-white border border-slate-100 px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
-                <TrendingDown size={12} className="text-orange-400" />
-                <span className="text-sm font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
+             
+             {/* Interactive Weight Button & Popover */}
+             <div className="relative" ref={popoverRef}>
+               <button 
+                  onClick={() => setShowWeeklyPopover(!showWeeklyPopover)}
+                  className={`bg-white border px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95 ${showWeeklyPopover ? 'border-orange-500 bg-orange-50/20' : 'border-slate-100'}`}
+               >
+                  <TrendingDown size={12} className="text-orange-400" />
+                  <span className="text-sm font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
+                  <ChevronDown size={10} className={`text-slate-400 transition-transform ${showWeeklyPopover ? 'rotate-180' : ''}`} />
+               </button>
+
+               {/* Weekly Summary Popover */}
+               {showWeeklyPopover && (
+                 <div className="absolute top-full right-0 mt-2 w-72 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-5 z-[100] animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CalendarDays size={16} className="text-orange-500" />
+                      <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-800">{t.weeklySummary}</h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2.5">
+                       <div className="bg-slate-50/50 p-3 rounded-[18px] border border-slate-50 flex justify-between items-center">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest shrink">{t.totalIntake}</span>
+                          <span className="text-sm font-black text-slate-700 tabular-nums whitespace-nowrap shrink-0 ml-2">
+                            {weeklyStats.totalIntake.toLocaleString()} <span className="text-[8px] font-bold uppercase ml-0.5">KCAL</span>
+                          </span>
+                       </div>
+                       <div className="bg-slate-50/50 p-3 rounded-[18px] border border-slate-50 flex justify-between items-center">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest shrink">{t.avgDaily}</span>
+                          <span className="text-sm font-black text-slate-700 tabular-nums whitespace-nowrap shrink-0 ml-2">
+                            {weeklyStats.avgDailyIntake.toLocaleString()} <span className="text-[8px] font-bold uppercase ml-0.5">KCAL</span>
+                          </span>
+                       </div>
+                       <div className="bg-slate-50/50 p-3 rounded-[18px] border border-slate-50 flex justify-between items-center">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest shrink">{t.totalBurn}</span>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <Flame size={12} className="text-emerald-500" />
+                            <span className="text-sm font-black text-emerald-500 tabular-nums whitespace-nowrap">
+                              {weeklyStats.totalBurned.toLocaleString()} <span className="text-[8px] font-bold uppercase ml-0.5">KCAL</span>
+                            </span>
+                          </div>
+                       </div>
+                       <div className="bg-slate-50/50 p-3 rounded-[18px] border border-slate-50 flex justify-between items-center">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest shrink">{t.weeklyWeightChange}</span>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <Scale size={12} className={weeklyStats.weightChange <= 0 ? "text-emerald-500" : "text-red-500"} />
+                            <span className={`text-sm font-black tabular-nums whitespace-nowrap ${weeklyStats.weightChange <= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                              {weeklyStats.weightChange > 0 ? '+' : ''}{weeklyStats.weightChange.toFixed(1)} <span className="text-[9px] font-black uppercase ml-0.5">KG</span>
+                            </span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+               )}
              </div>
           </div>
         </div>
@@ -617,8 +724,8 @@ export default function App() {
                </div>
                <div className="flex items-center justify-center gap-3 bg-slate-50/70 py-4 rounded-[20px] font-black tabular-nums tracking-tighter">
                   <span className="text-3xl text-slate-300">{totals.intakeGoal}</span>
-                  <span className="text-3xl text-emerald-500">+{totals.activityBurn}</span>
-                  <span className="text-3xl text-orange-500">={totals.currentAdjustedGoal}</span>
+                  <span className="text-3xl text-emerald-500">+ {totals.activityBurn}</span>
+                  <span className="text-3xl text-orange-500">= {totals.currentAdjustedGoal}</span>
                </div>
                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-100 shadow-inner">
                   <div className={`h-full transition-all duration-1000 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} />
@@ -783,7 +890,6 @@ export default function App() {
                         
                         {!stagedProduct ? (
                           <>
-                            {/* Filter Icons Row */}
                             <div className="flex justify-between items-center w-full gap-1 mb-4 overflow-x-auto pb-1 no-scrollbar">
                                {[
                                  { id: 'all', icon: LayoutDashboard, label: 'ALLES' },
@@ -821,32 +927,29 @@ export default function App() {
                                   
                                   if (pickerFilter === 'all') return matchesSearch;
 
-                                  const isFruit = name.includes('appel') || name.includes('banaan') || name.includes('bes') || name.includes('vrucht') || name.includes('mango') || name.includes('aardbeien') || name.includes('kiwi') || name.includes('perzik') || name.includes('pruimen');
-                                  const isSnack = o.id.includes('snack') || o.id === 'b_ontbijtkoek' || o.id === 'b_beschuit' || o.id === 'b_knackebrod' || o.id === 'b_notenmix' || o.id === 'b_dadels';
-                                  const isAlcohol = !!o.isAlcohol;
-                                  
+                                  // DETERMINISTISCHE FILTERS OP BASIS VAN PREFIX (FIX)
                                   let matchesFilter = true;
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = (o.id.startsWith('b_') || (state.customOptions['Ontbijt'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isSnack && !isAlcohol;
+                                    matchesFilter = o.id.startsWith('b_');
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = (o.id.startsWith('l_') || (state.customOptions['Lunch'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isAlcohol;
+                                    matchesFilter = o.id.startsWith('l_');
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = (o.id.startsWith('m_') || (state.customOptions['Diner'] || []).some(co => co.id === o.id)) && !o.isDrink && !isFruit && !isAlcohol;
+                                    matchesFilter = o.id.startsWith('m_');
                                   }
                                   else if (pickerFilter === 'drink') {
-                                    matchesFilter = !!o.isDrink && !isAlcohol;
+                                    matchesFilter = o.id.startsWith('d_');
                                   }
                                   else if (pickerFilter === 'alcohol') {
-                                    matchesFilter = isAlcohol;
+                                    matchesFilter = o.id.startsWith('a_');
                                   }
                                   else if (pickerFilter === 'fruit') {
-                                    matchesFilter = isFruit;
+                                    matchesFilter = o.id.startsWith('f_');
                                   }
                                   else if (pickerFilter === 'snacks') {
-                                    matchesFilter = isSnack && !o.isDrink && !isFruit && !isAlcohol;
+                                    matchesFilter = o.id.startsWith('s_');
                                   }
                                   
                                   return matchesSearch && matchesFilter;
