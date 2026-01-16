@@ -586,12 +586,12 @@ export default function App() {
 
       <main className="p-2 flex-grow overflow-y-auto pb-24 custom-scrollbar bg-slate-50/10">
         
-        {/* Dashboard Tab - Compacted significantly by reducing gaps and padding */}
+        {/* Dashboard Tab - Enhanced label readability */}
         {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-3 py-2 animate-in fade-in duration-500 min-h-full">
             <div className="bg-orange-50/40 rounded-[32px] p-4 border border-orange-100/50 flex items-center justify-between shadow-sm">
                <div className="flex flex-col">
-                 <span className="text-orange-400 text-[10px] font-black uppercase tracking-widest mb-1">{t.targetReached}</span>
+                 <span className="text-orange-400 text-[12px] font-black uppercase tracking-widest mb-1">{t.targetReached}</span>
                  <h2 className="text-xl font-black tracking-tight">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</h2>
                </div>
                <div className="relative">
@@ -601,8 +601,8 @@ export default function App() {
 
             <div className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2"><Zap size={16} className="text-amber-400 fill-amber-400" /><h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.dailyBudget}</h3></div>
-                  <span className="text-[11px] font-black text-orange-500 uppercase tracking-wide">{totals.actualIntake} / {totals.currentAdjustedGoal} KCAL</span>
+                  <div className="flex items-center gap-2"><Zap size={16} className="text-amber-400 fill-amber-400" /><h3 className="font-black text-[12px] uppercase tracking-widest text-slate-400">{t.dailyBudget}</h3></div>
+                  <span className="text-[13px] font-black text-orange-500 uppercase tracking-wide">{totals.actualIntake} / {totals.currentAdjustedGoal} KCAL</span>
                </div>
                <div className="flex items-center justify-center gap-3 bg-slate-50/70 py-4 rounded-[20px] font-black tabular-nums tracking-tighter">
                   <span className="text-3xl text-slate-300">{totals.intakeGoal}</span>
@@ -614,30 +614,30 @@ export default function App() {
                </div>
                <div className="grid grid-cols-2 gap-4 pt-1">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.remainingToday}</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.remainingToday}</span>
                     <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</span>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.caloriesPerDay}</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.caloriesPerDay}</span>
                     <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{totals.intakeGoal}</span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.activityCalories.toUpperCase()}</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.activityCalories.toUpperCase()}</span>
                     <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{totals.activityBurn}</span>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel.toUpperCase()}</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel.toUpperCase()}</span>
                     <span className="text-2xl font-black text-orange-500 tabular-nums leading-none">{Math.round(totals.intakePercent)}%</span>
                   </div>
                </div>
             </div>
 
             <div className="bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm space-y-4">
-               <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.myJourney}</h3>
+               <h3 className="font-black text-[12px] uppercase tracking-widest text-slate-400">{t.myJourney}</h3>
                <div className="grid grid-cols-3 text-center gap-2">
-                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.startWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.startWeight} KG</span></div>
-                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.nowWeight}</span><span className="text-[14px] font-black text-orange-500">{globalLatestWeight.toFixed(1)} KG</span></div>
-                 <div className="flex flex-col"><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{t.goalWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.targetWeight} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t.startWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.startWeight} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t.nowWeight}</span><span className="text-[14px] font-black text-orange-500">{globalLatestWeight.toFixed(1)} KG</span></div>
+                 <div className="flex flex-col"><span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t.goalWeight}</span><span className="text-[14px] font-black text-slate-700">{state.profile.targetWeight} KG</span></div>
                </div>
                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-100">
                   <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${totals.weightProgressPercent}%` }} />
@@ -645,7 +645,7 @@ export default function App() {
             </div>
 
             <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3"><div className="bg-orange-50 p-2 rounded-[16px] text-orange-500 shadow-sm"><Scale size={20} /></div><h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.weighMoment.toUpperCase()}</h3></div>
+              <div className="flex items-center gap-3"><div className="bg-orange-50 p-2 rounded-[16px] text-orange-500 shadow-sm"><Scale size={20} /></div><h3 className="font-black text-[12px] uppercase tracking-widest text-slate-400">{t.weighMoment.toUpperCase()}</h3></div>
               <div className="flex items-center gap-2 bg-slate-50 p-2 px-4 rounded-[20px] border border-slate-100 shadow-inner max-w-[130px]">
                 <input type="number" step="0.1" placeholder="00.0" value={(state.dailyLogs[selectedDate] as DailyLog)?.weight || ''} onChange={(e) => {
                    const val = e.target.value ? Number(e.target.value) : undefined;
@@ -1011,12 +1011,12 @@ export default function App() {
           </div>
         )}
 
-        {/* IK Tab - No changes permitted */}
+        {/* IK Tab - Modified labels and values for profile */}
         {activeTab === 'profile' && (
           <div className="flex flex-col gap-2 animate-in fade-in duration-300 h-full">
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-3 shrink-0">
                 <div className="flex justify-between items-center px-1">
-                   <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">{t.gender}</label>
+                   <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest leading-none">{t.gender}</label>
                    <button onClick={() => setShowInfo(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-400 active:scale-95 shadow-sm transition-all hover:bg-slate-100"><Info size={16}/></button>
                 </div>
                 <div className="flex gap-2 px-1">
@@ -1025,29 +1025,29 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1 px-1">
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.age.split(' ')[0]}</label>
+                    <label className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block text-center leading-none">{t.age.split(' ')[0]}</label>
                     <div className="relative">
-                      <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none appearance-none text-center shadow-inner">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                      <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[13px] outline-none appearance-none text-center shadow-inner">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
                       <ChevronDown size={6} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.height.split(' ')[0]}</label>
-                    <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
+                    <label className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block text-center leading-none">{t.height.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[13px] outline-none text-center shadow-inner" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.startWeight.split(' ')[0]}</label>
-                    <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
+                    <label className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block text-center leading-none">{t.startWeight.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[13px] outline-none text-center shadow-inner" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-orange-400 uppercase tracking-widest block text-center truncate leading-none">{t.targetWeight.split(' ')[0]}</label>
-                    <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-orange-600 text-center shadow-inner" />
+                    <label className="text-[8.5px] font-black text-orange-400 uppercase tracking-widest block text-center leading-none">{t.targetWeight.split(' ')[0]}</label>
+                    <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 py-2.5 px-1 rounded-xl font-black text-[13px] outline-none text-orange-600 text-center shadow-inner" />
                   </div>
                 </div>
              </section>
 
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
-                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.activityLevelLabel}</label>
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.activityLevelLabel}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
                     { id: 'light', icon: Laptop, label: t.levelLight },
@@ -1056,14 +1056,14 @@ export default function App() {
                   ].map(lvl => (
                     <button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
                       <lvl.icon size={16} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
+                      <span className={`text-[9px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.activityLevel === lvl.id ? 'text-slate-800' : 'text-slate-300'}`}>{lvl.label}</span>
                     </button>
                   ))}
                 </div>
              </section>
 
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
-                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.paceTitle}</label>
+                <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.paceTitle}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
                     { id: 'slow', icon: Turtle, label: t.speedSlow },
@@ -1072,29 +1072,29 @@ export default function App() {
                   ].map(sp => (
                     <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
                       <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                      <span className={`text-[9px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
                 <button onClick={() => updateProfile({ weightLossSpeed: 'custom' })} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-40'}`}>
                   <Settings size={12} className="text-slate-400" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">{t.customPace}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">{t.customPace}</span>
                 </button>
              </section>
 
              <section className="bg-orange-50/50 border border-orange-100 rounded-[24px] p-3 flex flex-col gap-2 shadow-inner flex-grow">
                 <div className="flex flex-col gap-2 border-b border-orange-100 pb-3">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">{t.oldBudgetLabel}</span>
+                    <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">{t.oldBudgetLabel}</span>
                     <span className="text-sm font-black text-orange-600/50 tabular-nums">{maintenanceKcal} {t.kcalLabel}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span>
+                    <span className="text-[11px] font-black text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span>
                     <span className="text-2xl font-black text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} {t.kcalLabel}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-1">
-                  <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t.targetDate}</span>
+                  <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">{t.targetDate}</span>
                   {state.profile.weightLossSpeed === 'custom' ? (
                     <div className="relative inline-flex"><input type="date" min={minSafeDate} value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border border-orange-200 py-1.5 px-3 rounded-[12px] font-black text-[11px] text-orange-600 outline-none" /></div>
                   ) : (
@@ -1104,7 +1104,7 @@ export default function App() {
              </section>
 
              <section className="bg-white rounded-[24px] p-2.5 px-5 border border-slate-100 shadow-sm flex items-center justify-between mt-auto shrink-0">
-                <span className="font-black text-slate-800 text-[8px] uppercase tracking-[0.15em]">{t.dataStorage}</span>
+                <span className="font-black text-slate-800 text-[10px] uppercase tracking-[0.15em]">{t.dataStorage}</span>
                 <div className="flex gap-3">
                   <button onClick={handleExportData} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileDown size={18} /></button>
                   <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileUp size={18} /></button>
