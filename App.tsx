@@ -419,19 +419,19 @@ export default function App() {
     return years;
   }, []);
 
-  const allCustomProducts = useMemo(() => {
+  const allProductsForManagement = useMemo(() => {
     const seenIds = new Set<string>();
     const list: MealOption[] = [];
     MEAL_MOMENTS.forEach(m => {
       (state.customOptions[m] || []).forEach(o => {
-        if (o.isCustom && !seenIds.has(o.id)) {
+        if (!seenIds.has(o.id)) {
           seenIds.add(o.id);
           list.push(o);
         }
       });
     });
-    return list;
-  }, [state.customOptions]);
+    return list.sort((a, b) => getTranslatedName(a.id, a.name).localeCompare(getTranslatedName(b.id, b.name)));
+  }, [state.customOptions, state.language]);
 
   if (!isLoaded) return null;
 
@@ -495,7 +495,6 @@ export default function App() {
           </div>
         </div>
         
-        {/* Improved Date Selector for Mobile Readability */}
         <div className="flex items-center justify-between px-1 bg-slate-50/30 rounded-2xl py-1">
           <button 
             onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} 
@@ -646,21 +645,24 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* List of custom products with multi-delete */}
+                {/* Overhauled Manage Products List */}
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Eigen Producten</h3>
+                    <div className="flex flex-col">
+                      <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Database Beheren</h3>
+                      <p className="text-[7px] font-bold text-slate-300 uppercase">Verwijder items uit de picker</p>
+                    </div>
                     {selectedCustomIds.length > 0 && (
-                      <button onClick={deleteCustomOptions} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all">
+                      <button onClick={deleteCustomOptions} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all animate-in zoom-in duration-200">
                         <Trash2 size={14} /> Verwijder ({selectedCustomIds.length})
                       </button>
                     )}
                   </div>
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-                    {allCustomProducts.map(opt => (
+                    {allProductsForManagement.map(opt => (
                       <div key={opt.id} className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border border-slate-50 group hover:border-orange-100 transition-all">
-                        <div className="relative flex items-center justify-center">
+                        <div className="relative flex items-center justify-center shrink-0">
                           <input 
                             type="checkbox" 
                             checked={selectedCustomIds.includes(opt.id)}
@@ -669,16 +671,24 @@ export default function App() {
                           />
                         </div>
                         <div className="flex flex-col flex-grow truncate">
-                           <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">{opt.name}</span>
-                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{opt.kcal} KCAL • {opt.unitName}</span>
+                           <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">
+                             {getTranslatedName(opt.id, opt.name)}
+                           </span>
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">
+                             {opt.kcal} KCAL • {opt.unitName} {opt.isCustom ? '• EIGEN' : ''}
+                           </span>
                         </div>
-                        <button onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
+                        <button 
+                          onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} 
+                          className="text-slate-200 active:text-red-500 transition-colors p-2 shrink-0"
+                          title="Direct verwijderen"
+                        >
                            <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
-                    {allCustomProducts.length === 0 && (
-                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">Nog geen eigen producten</p>
+                    {allProductsForManagement.length === 0 && (
+                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">Geen producten beschikbaar</p>
                     )}
                   </div>
                 </div>
