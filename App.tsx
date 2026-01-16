@@ -633,11 +633,23 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {['ONTBIJT', 'SNACK', 'LUNCH', 'DINER'].map(m => (
-                      <button key={m} onClick={() => setNewFood(p => ({...p, cats: p.cats.includes(m) ? p.cats.filter(x => x!==m) : [...p.cats, m]}))} className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase border transition-all ${newFood.cats.includes(m) ? 'bg-white border-[#ff7300] text-[#ff7300]' : 'bg-white text-slate-300 border-slate-100'}`}>
-                        {m}
-                      </button>
-                    ))}
+                    {['ONTBIJT', 'LUNCH', 'DINER', 'SNACK'].map(m => {
+                      const isSnack = m === 'SNACK';
+                      const isSelected = newFood.cats.includes(m);
+                      return (
+                        <button 
+                          key={m} 
+                          onClick={() => setNewFood(p => ({...p, cats: p.cats.includes(m) ? p.cats.filter(x => x!==m) : [...p.cats, m]}))} 
+                          className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase border transition-all ${
+                            isSelected 
+                              ? isSnack ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white border-[#ff7300] text-[#ff7300]' 
+                              : isSnack ? 'bg-amber-50 text-slate-400 border-amber-100' : 'bg-white text-slate-300 border-slate-100'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-[#cbd5e1] text-white' : 'bg-[#ff7300] text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
