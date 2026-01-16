@@ -471,35 +471,59 @@ export default function App() {
       )}
 
       {/* Header */}
-      <header className="bg-white sticky top-0 z-40 p-3 px-4 border-b border-slate-50 flex flex-col gap-1 shrink-0">
+      <header className="bg-white sticky top-0 z-40 p-4 px-5 border-b border-slate-50 flex flex-col gap-3 shrink-0">
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
-             <h1 className="text-lg font-black text-orange-500 leading-none">{t.title}</h1>
-             <h2 className="text-[9px] font-black text-slate-400 tracking-[0.1em] uppercase">{t.subtitle}</h2>
+             <h1 className="text-2xl font-black text-orange-500 leading-none mb-1">{t.title}</h1>
+             <h2 className="text-[11px] font-black text-slate-400 tracking-[0.15em] uppercase">{t.subtitle}</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
              <div className="relative">
-                <select value={state.language} onChange={(e) => setState(prev => ({ ...prev, language: e.target.value as Language }))} className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[8px] font-black appearance-none pr-5 outline-none uppercase shadow-sm">
+                <select 
+                  value={state.language} 
+                  onChange={(e) => setState(prev => ({ ...prev, language: e.target.value as Language }))} 
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 text-[10px] font-black appearance-none pr-7 outline-none uppercase shadow-sm active:bg-slate-100"
+                >
                   {Object.keys(LANGUAGE_FLAGS).map(l => <option key={l} value={l}>{LANGUAGE_FLAGS[l as Language]} {l.toUpperCase()}</option>)}
                 </select>
-                <ChevronDown size={8} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
              </div>
-             <div className="bg-white border border-slate-100 px-2 py-1 rounded-2xl flex items-center gap-1 shadow-sm">
-                <TrendingDown size={9} className="text-orange-400" />
-                <span className="text-xs font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[7px] text-slate-300 uppercase">KG</span></span>
+             <div className="bg-white border border-slate-100 px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
+                <TrendingDown size={12} className="text-orange-400" />
+                <span className="text-sm font-black tabular-nums">{globalLatestWeight.toFixed(1)} <span className="text-[8px] text-slate-300 uppercase">KG</span></span>
              </div>
           </div>
         </div>
-        <div className="flex items-center justify-between px-2">
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 text-slate-300 active:text-orange-500"><ChevronLeft size={18}/></button>
-          <div className="flex items-center gap-2">
-             <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{dateParts.day}</span>
-             <div className="flex flex-col leading-none">
-               <span className="text-[7px] font-black text-orange-400 uppercase tracking-widest">{dateParts.weekday}</span>
-               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{dateParts.month}</span>
+        
+        {/* Improved Date Selector for Mobile Readability */}
+        <div className="flex items-center justify-between px-1 bg-slate-50/30 rounded-2xl py-1">
+          <button 
+            onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} 
+            className="p-2 text-slate-300 active:text-orange-500 transition-colors"
+          >
+            <ChevronLeft size={24} strokeWidth={3} />
+          </button>
+          
+          <div className="flex items-center gap-3">
+             <span className="text-4xl font-black text-orange-500 tabular-nums leading-none tracking-tighter">
+               {dateParts.day}
+             </span>
+             <div className="flex flex-col leading-tight pt-0.5">
+               <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.1em]">
+                 {dateParts.weekday}
+               </span>
+               <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
+                 {dateParts.month}
+               </span>
              </div>
           </div>
-          <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 text-slate-300 active:text-orange-500"><ChevronRight size={18}/></button>
+          
+          <button 
+            onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} 
+            className="p-2 text-slate-300 active:text-orange-500 transition-colors"
+          >
+            <ChevronRight size={24} strokeWidth={3} />
+          </button>
         </div>
       </header>
 
