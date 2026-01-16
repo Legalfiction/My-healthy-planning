@@ -255,7 +255,7 @@ export default function App() {
 
   const dateParts = useMemo(() => {
     const d = new Date(selectedDate);
-    const locale = state.language === 'nl' ? 'nl-NL' : 'en-US';
+    const locale = state.language === 'nl' ? 'nl-NL' : (state.language === 'en' ? 'en-US' : state.language);
     const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d);
     return { 
       day: parts.find(p => p.type === 'day')?.value || '', 
@@ -318,7 +318,7 @@ export default function App() {
       return { ...prev, customOptions: newOptions };
     });
     setSelectedCustomIds([]);
-    setToast({ msg: 'Geselecteerde producten verwijderd' });
+    setToast({ msg: t.removeItems });
   };
 
   const deleteCustomActivities = () => {
@@ -328,7 +328,7 @@ export default function App() {
       customActivities: prev.customActivities.filter(act => !selectedCustomActivityIds.includes(act.id))
     }));
     setSelectedCustomActivityIds([]);
-    setToast({ msg: 'Geselecteerde activiteiten verwijderd' });
+    setToast({ msg: t.removeItems });
   };
 
   const addActivity = (typeId: string, value: number) => {
@@ -346,7 +346,7 @@ export default function App() {
     const newAct: any = {
       id: 'custom_act_' + generateId(),
       name: newActivityInput.name,
-      met: 0, // Using kcalPer60 instead
+      met: 0,
       kcalPer60: Number(newActivityInput.kcalPerHour),
       unit: 'minuten',
       isCustom: true
@@ -356,7 +356,7 @@ export default function App() {
       customActivities: [...(prev.customActivities || []), newAct]
     }));
     setNewActivityInput({ name: '', kcalPerHour: '' });
-    setToast({ msg: 'Activiteit toegevoegd aan lijst' });
+    setToast({ msg: t.newActivity + ' ' + t.save });
   };
 
   const handleExportData = () => {
@@ -377,7 +377,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(re.target?.result as string);
         setState(parsed);
-      } catch (err) { alert('Fout bij laden bestand'); }
+      } catch (err) { alert('Error loading file'); }
     };
     reader.readAsText(file);
   };
@@ -591,15 +591,15 @@ export default function App() {
                     <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</span>
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">PER DAG</span>
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.caloriesPerDay}</span>
                     <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{totals.intakeGoal}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">ACTIVITEITEN</span>
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.activityCalories.toUpperCase()}</span>
                     <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{totals.activityBurn}</span>
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">VERBRUIKT</span>
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{t.consumedTodayLabel.toUpperCase()}</span>
                     <span className="text-xl font-black text-orange-500 tabular-nums leading-none">{Math.round(totals.intakePercent)}%</span>
                   </div>
                </div>
@@ -637,7 +637,7 @@ export default function App() {
         {activeTab === 'meals' && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-300 min-h-full">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black text-[#1e293b] tracking-tight uppercase">Eten & Drinken</h2>
+              <h2 className="text-xl font-black text-[#1e293b] tracking-tight uppercase">{t.mealSchedule}</h2>
               <button onClick={() => setShowMyList(!showMyList)} className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-[10px] uppercase shadow-sm transition-all border ${showMyList ? 'bg-[#ff7300] text-white border-[#ff7300]' : 'bg-white text-[#ff7300] border-slate-200'}`}>
                 <ListFilter size={16} className={showMyList ? 'text-white' : 'text-[#ff7300]'} /> {t.myList.toUpperCase()}
               </button>
@@ -648,18 +648,18 @@ export default function App() {
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
                   <div className="flex gap-2">
                     <button onClick={() => setNewFood(p => ({...p, isDrink: false}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${!newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
-                      <Utensils size={18} className={!newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> ETEN
+                      <Utensils size={18} className={!newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.mealLabel}
                     </button>
                     <button onClick={() => setNewFood(p => ({...p, isDrink: true}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
-                      <GlassWater size={18} className={newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> DRINKEN
+                      <GlassWater size={18} className={newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.drinkLabel}
                     </button>
                   </div>
 
-                  <input type="text" placeholder="PRODUCTNAAM" value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                  <input type="text" placeholder={t.productName} value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
                   
                   <div className="grid grid-cols-2 gap-3">
-                    <input type="number" placeholder="KCAL" value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
-                    <input type="text" placeholder="PORTIE (BIJV 100G)" value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                    <input type="number" placeholder={t.kcalLabel} value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
+                    <input type="text" placeholder={t.portionPlaceholder} value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-[#f8fafc] border border-slate-100 p-4 rounded-2xl font-black text-[12px] uppercase placeholder:text-slate-300 outline-none" />
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -683,7 +683,7 @@ export default function App() {
                   </div>
 
                   <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-[#cbd5e1] text-white' : 'bg-[#ff7300] text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    <Plus size={18} strokeWidth={4} /> VOEG TOE AAN LIJST
+                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
                   </button>
                 </div>
 
@@ -691,12 +691,12 @@ export default function App() {
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center">
                     <div className="flex flex-col">
-                      <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Database Beheren</h3>
-                      <p className="text-[7px] font-bold text-slate-300 uppercase">Verwijder items uit de picker</p>
+                      <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.manageDb}</h3>
+                      <p className="text-[7px] font-bold text-slate-300 uppercase">{t.removeItems}</p>
                     </div>
                     {selectedCustomIds.length > 0 && (
                       <button onClick={deleteCustomOptions} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all animate-in zoom-in duration-200">
-                        <Trash2 size={14} /> Verwijder ({selectedCustomIds.length})
+                        <Trash2 size={14} /> {t.delete} ({selectedCustomIds.length})
                       </button>
                     )}
                   </div>
@@ -717,20 +717,19 @@ export default function App() {
                              {getTranslatedName(opt.id, opt.name)}
                            </span>
                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">
-                             {opt.kcal} KCAL • {opt.unitName} {opt.isCustom ? '• EIGEN' : ''}
+                             {opt.kcal} {t.kcalLabel} • {opt.unitName} {opt.isCustom ? '• EIGEN' : ''}
                            </span>
                         </div>
                         <button 
                           onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} 
                           className="text-slate-200 active:text-red-500 transition-colors p-2 shrink-0"
-                          title="Direct verwijderen"
                         >
                            <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
                     {allProductsForManagement.length === 0 && (
-                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">Geen producten beschikbaar</p>
+                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">{t.noDataYet}</p>
                     )}
                   </div>
                 </div>
@@ -742,7 +741,7 @@ export default function App() {
                    {openPickerMoment ? (
                      <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
                         <div className="flex justify-between items-center mb-3">
-                           <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]} Toevoegen</h3>
+                           <h3 className="font-black text-[14px] text-[#1e293b] uppercase tracking-widest">{t.moments[openPickerMoment]} {t.addActivity}</h3>
                            <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); }} className="p-1.5 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-all"><X size={16}/></button>
                         </div>
                         
@@ -750,7 +749,7 @@ export default function App() {
                           <>
                             <div className="relative bg-[#f8fafc] border border-slate-100 rounded-[22px] px-5 py-3 flex items-center gap-3 mb-2">
                                <Search size={18} className="text-slate-300" />
-                               <input type="text" autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder="ZOEK PRODUCT..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                               <input type="text" autoFocus className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                             
                             <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
@@ -764,7 +763,7 @@ export default function App() {
                                       </div>
                                       <div className="flex flex-col truncate leading-none">
                                         <span className="text-[12px] font-black text-[#1e293b] uppercase truncate mb-0.5">{getTranslatedName(opt.id, opt.name)}</span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{opt.kcal} KCAL • {opt.unitName}</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{opt.kcal} {t.kcalLabel} • {opt.unitName}</span>
                                       </div>
                                     </div>
                                     <ChevronRight size={16} className="text-[#ff7300] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -786,12 +785,12 @@ export default function App() {
                              </div>
 
                              <div className="flex flex-col gap-1.5">
-                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">HOEVEELHEID AANPASSEN</label>
+                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{t.adjustQuantity}</label>
                                <div className="flex items-center justify-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                                   <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - 50)} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Minus size={20} strokeWidth={4}/></button>
                                   <div className="flex items-center gap-1">
                                     <input type="number" className="w-20 bg-transparent border-none p-0 text-2xl font-black text-[#ff7300] focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} />
-                                    <span className="text-[10px] font-black text-slate-300 uppercase">kcal</span>
+                                    <span className="text-[10px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
                                   </div>
                                   <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + 50} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Plus size={20} strokeWidth={4}/></button>
                                </div>
@@ -802,7 +801,7 @@ export default function App() {
                                 setOpenPickerMoment(null);
                                 setStagedProduct(null);
                                 setSearchTerm('');
-                                setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} toegevoegd`});
+                                setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} ${t.save}`});
                              }} className="w-full py-4 bg-[#ff7300] text-white rounded-2xl font-black text-[14px] uppercase shadow-lg shadow-orange-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                                OK <Check size={18} strokeWidth={4} />
                              </button>
@@ -816,7 +815,7 @@ export default function App() {
                           onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); }}
                           value=""
                         >
-                          <option value="" disabled>+ PRODUCT TOEVOEGEN...</option>
+                          <option value="" disabled>{t.addFoodDrink}</option>
                           {MEAL_MOMENTS.map(moment => <option key={moment} value={moment}>{t.moments[moment]}</option>)}
                         </select>
                         <ChevronDown size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-[#ff7300] pointer-events-none" />
@@ -838,7 +837,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Interactive Kcal Adjustment */}
                       <div className="flex items-center gap-2 bg-slate-50 p-1 px-2 rounded-2xl border border-slate-100 shadow-inner">
                         <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={14} strokeWidth={3} /></button>
                         <div className="flex items-center gap-0.5">
@@ -848,7 +846,7 @@ export default function App() {
                             value={Math.round(item.kcal)} 
                             onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
                           />
-                           <span className="text-[7px] font-black text-slate-300 uppercase">kcal</span>
+                           <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
                         </div>
                         <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={14} strokeWidth={3} /></button>
                       </div>
@@ -866,7 +864,7 @@ export default function App() {
                   {Object.keys(currentLog.meals).length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full opacity-20 py-20">
                       <Utensils size={48} className="text-slate-300 mb-4" />
-                      <p className="text-[11px] font-black uppercase tracking-widest">Niets geregistreerd</p>
+                      <p className="text-[11px] font-black uppercase tracking-widest">{t.nothingPlanned}</p>
                     </div>
                   )}
                 </div>
@@ -879,7 +877,7 @@ export default function App() {
         {activeTab === 'activity' && (
           <div className="space-y-4 animate-in fade-in duration-300 min-h-full flex flex-col">
             <div className="flex justify-between items-center px-1">
-               <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Beweging</h2>
+               <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">{t.movement}</h2>
                <button onClick={() => setShowMyActivityList(!showMyActivityList)} className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-[10px] uppercase shadow-sm border transition-all ${showMyActivityList ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-500 border-slate-200'}`}>
                  <ListFilter size={16} /> {t.myList.toUpperCase()}
                </button>
@@ -888,29 +886,28 @@ export default function App() {
             {showMyActivityList ? (
               <div className="flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
-                  <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Nieuwe Activiteit</h3>
+                  <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.newActivity}</h3>
                   <div className="space-y-3">
                     <div className="relative bg-[#f8fafc] border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
                        <Activity size={18} className="text-slate-300" />
-                       <input type="text" placeholder="NAAM ACTIVITEIT" value={newActivityInput.name} onChange={e => setNewActivityInput({...newActivityInput, name: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
+                       <input type="text" placeholder={t.activityName} value={newActivityInput.name} onChange={e => setNewActivityInput({...newActivityInput, name: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
                     </div>
                     <div className="relative bg-[#f8fafc] border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
                        <Clock size={18} className="text-slate-300" />
-                       <input type="number" placeholder="KCAL PER UUR" value={newActivityInput.kcalPerHour} onChange={e => setNewActivityInput({...newActivityInput, kcalPerHour: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
+                       <input type="number" placeholder={t.kcalPerHour} value={newActivityInput.kcalPerHour} onChange={e => setNewActivityInput({...newActivityInput, kcalPerHour: e.target.value})} className="bg-transparent border-none text-[12px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" />
                     </div>
                   </div>
                   <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-[#cbd5e1] text-white' : 'bg-orange-500 text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    <Plus size={18} strokeWidth={4} /> VOEG TOE AAN LIJST
+                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
                   </button>
                 </div>
 
-                {/* List of custom activities with multi-delete */}
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Eigen Activiteiten</h3>
+                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.ownActivities}</h3>
                     {selectedCustomActivityIds.length > 0 && (
                       <button onClick={deleteCustomActivities} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all">
-                        <Trash2 size={14} /> Verwijder ({selectedCustomActivityIds.length})
+                        <Trash2 size={14} /> {t.delete} ({selectedCustomActivityIds.length})
                       </button>
                     )}
                   </div>
@@ -926,7 +923,7 @@ export default function App() {
                         />
                         <div className="flex flex-col flex-grow truncate">
                            <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{act.name}</span>
-                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} KCAL / UUR</span>
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} {t.kcalLabel} / {t.timeGroups.afternoon}</span>
                         </div>
                         <button onClick={() => { setSelectedCustomActivityIds([act.id]); setTimeout(deleteCustomActivities, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
                            <Trash2 size={16} />
@@ -934,7 +931,7 @@ export default function App() {
                       </div>
                     ))}
                     {(state.customActivities || []).length === 0 && (
-                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">Nog geen eigen activiteiten</p>
+                      <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">{t.noDataYet}</p>
                     )}
                   </div>
                 </div>
@@ -950,7 +947,7 @@ export default function App() {
                  
                  <div className="flex gap-3">
                    <div className="relative flex-grow">
-                     <input id="act-val" type="number" placeholder="MINUTEN" className="w-full bg-slate-50 p-4 rounded-2xl font-black border border-slate-100 text-[13px] outline-none text-center shadow-sm placeholder:text-slate-200" />
+                     <input id="act-val" type="number" placeholder={t.minutes} className="w-full bg-slate-50 p-4 rounded-2xl font-black border border-slate-100 text-[13px] outline-none text-center shadow-sm placeholder:text-slate-200" />
                    </div>
                    <button onClick={() => { const val = (document.getElementById('act-val') as HTMLInputElement).value; if (val) { addActivity(selectedActivityId, Number(val)); (document.getElementById('act-val') as HTMLInputElement).value = ''; } }} className="bg-orange-500 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center"><Plus size={24} strokeWidth={4} /></button>
                  </div>
@@ -966,7 +963,7 @@ export default function App() {
                              </div>
                              <div className="flex flex-col leading-tight">
                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{getTranslatedName(act.typeId, type?.name || '')}</span>
-                               <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{act.value} MINUTEN • <span className="text-emerald-500">+{Math.round(act.burnedKcal)} KCAL</span></span>
+                               <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{act.value} {t.minutes} • <span className="text-emerald-500">+{Math.round(act.burnedKcal)} {t.kcalLabel}</span></span>
                              </div>
                           </div>
                           <button onClick={() => setState(prev => {
@@ -981,7 +978,7 @@ export default function App() {
                     {currentLog.activities.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-20 opacity-20">
                         <Activity size={48} className="text-slate-300 mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Nog geen beweging</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</p>
                       </div>
                     )}
                  </div>
@@ -995,43 +992,43 @@ export default function App() {
           <div className="flex flex-col gap-2 animate-in fade-in duration-300 h-full">
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-3 shrink-0">
                 <div className="flex justify-between items-center px-1">
-                   <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">GESLACHT</label>
+                   <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">{t.gender}</label>
                    <button onClick={() => setShowInfo(true)} className="p-1.5 bg-slate-50 rounded-full text-slate-400 active:scale-95 shadow-sm transition-all hover:bg-slate-100"><Info size={16}/></button>
                 </div>
                 <div className="flex gap-2 px-1">
-                  <button onClick={() => updateProfile({ gender: 'man' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>MAN</button>
-                  <button onClick={() => updateProfile({ gender: 'woman' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>VROUW</button>
+                  <button onClick={() => updateProfile({ gender: 'man' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.man}</button>
+                  <button onClick={() => updateProfile({ gender: 'woman' })} className={`flex-1 py-3 rounded-[16px] font-black text-[11px] uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-300 border-transparent opacity-60'}`}>{t.woman}</button>
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1 px-1">
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">GEBOORTE</label>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.age.split(' ')[0]}</label>
                     <div className="relative">
                       <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none appearance-none text-center shadow-inner">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
                       <ChevronDown size={6} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">LENGTE</label>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.height.split(' ')[0]}</label>
                     <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">START</label>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest block text-center truncate leading-none">{t.startWeight.split(' ')[0]}</label>
                     <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-center shadow-inner" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[7px] font-black text-orange-400 uppercase tracking-widest block text-center truncate leading-none">DOEL</label>
+                    <label className="text-[7px] font-black text-orange-400 uppercase tracking-widest block text-center truncate leading-none">{t.targetWeight.split(' ')[0]}</label>
                     <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 py-2.5 px-1 rounded-xl font-black text-[10px] outline-none text-orange-600 text-center shadow-inner" />
                   </div>
                 </div>
              </section>
 
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
-                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">DAGELIJKSE ACTIVITEIT (BASIS)</label>
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.activityLevelLabel}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
-                    { id: 'light', icon: Laptop, label: 'ZITTEND' },
-                    { id: 'moderate', icon: Briefcase, label: 'GEMIDDELD' },
-                    { id: 'heavy', icon: Hammer, label: 'ZWAAR WERK' }
+                    { id: 'light', icon: Laptop, label: t.levelLight },
+                    { id: 'moderate', icon: Briefcase, label: t.levelModerate },
+                    { id: 'heavy', icon: Hammer, label: t.levelHeavy }
                   ].map(lvl => (
                     <button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
                       <lvl.icon size={16} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-300'} />
@@ -1042,48 +1039,48 @@ export default function App() {
              </section>
 
              <section className="bg-white rounded-[24px] p-3 border border-slate-100 shadow-sm space-y-2.5 shrink-0">
-                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">STREEF TEMPO</label>
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block px-1 leading-none">{t.paceTitle}</label>
                 <div className="grid grid-cols-3 gap-2 px-1">
                   {[
-                    { id: 'slow', icon: Turtle, label: 'RUSTIG' },
-                    { id: 'average', icon: Footprints, label: 'GEMIDDELD' },
-                    { id: 'fast', icon: Flame, label: 'SNEL' }
+                    { id: 'slow', icon: Turtle, label: t.speedSlow },
+                    { id: 'average', icon: Footprints, label: t.speedAverage },
+                    { id: 'fast', icon: Flame, label: t.speedFast }
                   ].map(sp => (
                     <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-white border-orange-500 shadow-md scale-100' : 'bg-slate-50 border-transparent opacity-40 scale-[0.98]'}`}>
                       <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-300'} />
-                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.activityLevel === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
+                      <span className={`text-[7px] font-black uppercase mt-1.5 tracking-tight text-center leading-tight ${state.profile.weightLossSpeed === sp.id ? 'text-slate-800' : 'text-slate-300'}`}>{sp.label}</span>
                     </button>
                   ))}
                 </div>
                 <button onClick={() => updateProfile({ weightLossSpeed: 'custom' })} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-[14px] border transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-white border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-40'}`}>
                   <Settings size={12} className="text-slate-400" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">EIGEN TEMPO</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">{t.customPace}</span>
                 </button>
              </section>
 
              <section className="bg-orange-50/50 border border-orange-100 rounded-[24px] p-3 flex flex-col gap-2 shadow-inner flex-grow">
                 <div className="flex flex-col gap-2 border-b border-orange-100 pb-3">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">OUD BUDGET (ONDERHOUD)</span>
-                    <span className="text-sm font-black text-orange-600/50 tabular-nums">{maintenanceKcal} KCAL</span>
+                    <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">{t.oldBudgetLabel}</span>
+                    <span className="text-sm font-black text-orange-600/50 tabular-nums">{maintenanceKcal} {t.kcalLabel}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">NIEUW DAGBUDGET</span>
-                    <span className="text-2xl font-black text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} KCAL</span>
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span>
+                    <span className="text-2xl font-black text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} {t.kcalLabel}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-1">
-                  <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">STREEFDATUM</span>
+                  <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{t.targetDate}</span>
                   {state.profile.weightLossSpeed === 'custom' ? (
                     <div className="relative inline-flex"><input type="date" value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border border-orange-200 py-1.5 px-3 rounded-[12px] font-black text-[11px] text-orange-600 outline-none" /></div>
                   ) : (
-                    <span className="text-[14px] font-black text-orange-600 tracking-tight uppercase leading-none">{totals.targetDate ? new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</span>
+                    <span className="text-[14px] font-black text-orange-600 tracking-tight uppercase leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : (state.language === 'en' ? 'en-US' : state.language), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</span>
                   )}
                 </div>
              </section>
 
              <section className="bg-white rounded-[24px] p-2.5 px-5 border border-slate-100 shadow-sm flex items-center justify-between mt-auto shrink-0">
-                <span className="font-black text-slate-800 text-[8px] uppercase tracking-[0.15em]">DATA & OPSLAG</span>
+                <span className="font-black text-slate-800 text-[8px] uppercase tracking-[0.15em]">{t.dataStorage}</span>
                 <div className="flex gap-3">
                   <button onClick={handleExportData} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileDown size={18} /></button>
                   <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileUp size={18} /></button>
@@ -1095,12 +1092,11 @@ export default function App() {
         )}
       </main>
 
-      {/* Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-3 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-[0_-12px_40px_-15px_rgba(0,0,0,0.12)] pb-[env(safe-area-inset-bottom,16px)]">
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard.toUpperCase() }, 
           { id: 'meals', icon: Utensils, label: t.tabs.meals.toUpperCase() }, 
-          { id: 'activity', icon: Activity, label: 'BEWEEG' }, 
+          { id: 'activity', icon: Activity, label: t.tabs.activity.toUpperCase() }, 
           { id: 'profile', icon: UserIcon, label: t.tabs.profile.toUpperCase() }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-1.5 transition-all w-20 ${activeTab === tab.id ? 'text-orange-500 scale-110' : 'text-slate-300 scale-100'}`}>
