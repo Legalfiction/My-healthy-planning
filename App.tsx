@@ -442,29 +442,59 @@ export default function App() {
       {/* Information Modal */}
       {showInfo && (
         <div className="fixed inset-0 z-[200] bg-white/95 backdrop-blur-md p-6 overflow-y-auto animate-in fade-in duration-300">
-          <button onClick={() => setShowInfo(false)} className="fixed top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95"><X size={24}/></button>
-          <div className="space-y-8 pb-12">
+          <button onClick={() => setShowInfo(false)} className="fixed top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95 z-[210]"><X size={24}/></button>
+          <div className="space-y-8 pb-12 max-w-sm mx-auto">
             <div className="pt-8">
               <h2 className="text-3xl font-black text-orange-500 uppercase tracking-tight leading-none mb-1">{t.infoModal.title}</h2>
-              <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">{t.infoModal.manualTitle}</p>
+              <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">My Healthy Planning</p>
             </div>
+
+            <section className="space-y-3">
+              <p className="text-sm font-medium text-slate-600 leading-relaxed italic border-l-4 border-orange-200 pl-4">
+                {t.infoModal.aboutText}
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="font-black text-xs text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <Zap size={14} className="text-orange-500" /> {t.infoModal.scienceTitle}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                {t.infoModal.scienceText}
+              </p>
+            </section>
+
             <section className="space-y-4">
-              <p className="text-sm font-medium text-slate-600 leading-relaxed">{t.infoModal.manualText}</p>
+              <h3 className="font-black text-xs text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <Settings size={14} className="text-orange-500" /> {t.infoModal.manualTitle}
+              </h3>
               <div className="grid grid-cols-1 gap-3">
                 {t.infoModal.steps.map((step: any, i: number) => (
                   <div key={i} className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 flex gap-4">
-                    <span className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-black shrink-0">{i+1}</span>
+                    <span className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-black shrink-0 text-xs shadow-sm">{i+1}</span>
                     <div className="flex flex-col">
-                      <h4 className="font-black text-xs text-slate-800 uppercase tracking-widest">{step.title}</h4>
-                      <p className="text-[11px] text-slate-500 font-medium">{step.desc}</p>
+                      <h4 className="font-black text-[10px] text-slate-800 uppercase tracking-widest">{step.title}</h4>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">{step.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
-            <footer className="pt-8 border-t border-slate-100 flex flex-col items-center gap-2 opacity-30">
+
+            <section className="bg-red-50 p-5 rounded-[24px] border border-red-100 space-y-2">
+              <h3 className="font-black text-[10px] text-red-600 uppercase tracking-widest flex items-center gap-2">
+                <AlertCircle size={14} /> {t.infoModal.disclaimerTitle}
+              </h3>
+              <p className="text-[10px] text-red-400 font-medium leading-relaxed">
+                {t.infoModal.disclaimerText}
+              </p>
+            </section>
+
+            <footer className="pt-8 border-t border-slate-100 flex flex-col items-center gap-3 opacity-40">
                <Target size={32} className="text-slate-300" />
-               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.infoModal.copyright}</p>
+               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center px-4 leading-relaxed">
+                 {t.infoModal.copyright}
+               </p>
             </footer>
           </div>
         </div>

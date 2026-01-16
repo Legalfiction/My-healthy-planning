@@ -97,9 +97,9 @@
         <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">App start op...</p>
         <div id="error-box" class="hidden flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
             <p class="text-slate-800 font-black uppercase text-[14px] mb-2">Kan de app niet laden</p>
-            <p class="text-slate-400 text-[11px] font-medium px-8 leading-relaxed mb-4">Dit gebeurt soms na een update of bij een trage verbinding.</p>
+            <p class="text-slate-400 text-[11px] font-medium px-8 leading-relaxed mb-4">Dit kan komen door een update of verbindingsprobleem.</p>
             <div id="error-msg" class="error-details mb-8"></div>
-            <button class="px-10 py-4 bg-orange-500 text-white rounded-[24px] font-black text-[13px] uppercase shadow-2xl shadow-orange-200 active:scale-95 transition-all" onclick="deepResetApp()">Systeem herstellen</button>
+            <button class="px-10 py-4 bg-orange-500 text-white rounded-[24px] font-black text-[13px] uppercase shadow-2xl shadow-orange-200 active:scale-95 transition-all" onclick="deepResetApp(event)">Systeem herstellen</button>
         </div>
     </div>
 
@@ -116,7 +116,7 @@
             if (loadingText) loadingText.classList.add('hidden');
             if (spinner) spinner.classList.add('hidden');
             if (errorBox) errorBox.classList.remove('hidden');
-            if (errorMsg) errorMsg.innerText = msg;
+            if (errorMsg) errorMsg.innerText = String(msg);
         }
 
         window.addEventListener('error', (e) => {
@@ -124,29 +124,19 @@
             let msg = 'Onbekende fout';
             
             if (e.error) {
-                // Real error object available
                 msg = e.error.stack || e.error.message || String(e.error);
             } else if (e.message) {
-                // Event has a message property
                 msg = e.message;
             } else if (e.target && (e.target.src || e.target.href)) {
-                // Resources like scripts or modules failed to load
                 msg = 'Bestand kon niet laden: ' + (e.target.src || e.target.href);
             } else {
-                // Fallback for generic objects
                 try {
-                  msg = JSON.stringify(e);
-                  if (msg === '{}') msg = String(e);
+                    const stringified = JSON.stringify(e);
+                    msg = stringified === '{}' ? String(e) : stringified;
                 } catch(err) {
-                  msg = String(e);
+                    msg = String(e);
                 }
             }
-            
-            // Clean up common useless string representations
-            if (msg.includes('[object ErrorEvent]')) {
-                msg = 'Module Error: De browser kon een essentieel onderdeel niet laden. Controleer je internetverbinding.';
-            }
-            
             showError(msg);
         }, true);
 
@@ -156,8 +146,8 @@
             showError('Async Error: ' + msg);
         });
 
-        async function deepResetApp() {
-            const btn = event.target;
+        async function deepResetApp(event) {
+            const btn = event.currentTarget;
             btn.innerText = 'BEZIG MET HERSTEL...';
             btn.disabled = true;
             btn.classList.add('opacity-50');
@@ -183,16 +173,16 @@
                 }
                 window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
             } catch (err) {
-                window.location.reload(true);
+                window.location.reload();
             }
         }
 
         const bootTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
-                showError('Time-out: De app-bestanden laden niet. Dit kan komen door een trage verbinding of browserbeperkingen.');
+                showError('Time-out: De app-bestanden laden niet. Controleer je verbinding.');
             }
-        }, 15000);
+        }, 20000);
 
         const observer = new MutationObserver(() => {
             const root = document.getElementById('root');
