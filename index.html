@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -80,13 +79,13 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
-    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.475.0?external=react",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
@@ -108,30 +107,6 @@
     <script type="module" src="index.tsx"></script>
 
     <script>
-        // Foutafhandeling voor scripts
-        window.addEventListener('error', (e) => {
-            console.error('Boot error:', e);
-            let msg = 'Onbekende fout bij het opstarten';
-            
-            if (e.error && e.error.message) {
-                msg = e.error.message;
-            } else if (e.message) {
-                msg = e.message;
-            } else if (typeof e === 'object') {
-                try {
-                    msg = JSON.stringify(e, null, 2);
-                } catch(err) {
-                    msg = String(e);
-                }
-            }
-
-            if (msg.toLowerCase().includes('script error')) {
-                showError('Beveiligingsblokkade: De browser blokkeert de app-bestanden.');
-            } else {
-                showError(msg);
-            }
-        }, true);
-
         function showError(msg) {
             const loadingText = document.getElementById('loading-text');
             const spinner = document.querySelector('.spinner');
@@ -144,47 +119,81 @@
             if (errorMsg) errorMsg.innerText = msg;
         }
 
+        window.addEventListener('error', (e) => {
+            console.error('Boot error event:', e);
+            let msg = 'Onbekende fout';
+            
+            if (e.error) {
+                // Real error object available
+                msg = e.error.stack || e.error.message || String(e.error);
+            } else if (e.message) {
+                // Event has a message property
+                msg = e.message;
+            } else if (e.target && (e.target.src || e.target.href)) {
+                // Resources like scripts or modules failed to load
+                msg = 'Bestand kon niet laden: ' + (e.target.src || e.target.href);
+            } else {
+                // Fallback for generic objects
+                try {
+                  msg = JSON.stringify(e);
+                  if (msg === '{}') msg = String(e);
+                } catch(err) {
+                  msg = String(e);
+                }
+            }
+            
+            // Clean up common useless string representations
+            if (msg.includes('[object ErrorEvent]')) {
+                msg = 'Module Error: De browser kon een essentieel onderdeel niet laden. Controleer je internetverbinding.';
+            }
+            
+            showError(msg);
+        }, true);
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled Rejection:', e.reason);
+            let msg = e.reason?.stack || e.reason?.message || String(e.reason);
+            showError('Async Error: ' + msg);
+        });
+
         async function deepResetApp() {
             const btn = event.target;
             btn.innerText = 'BEZIG MET HERSTEL...';
+            btn.disabled = true;
             btn.classList.add('opacity-50');
             
             try {
-                // 1. Wis alle databases
-                const dbs = await window.indexedDB.databases();
-                for (let db of dbs) {
-                    if (db.name) window.indexedDB.deleteDatabase(db.name);
+                if ('indexedDB' in window && window.indexedDB.databases) {
+                    const dbs = await window.indexedDB.databases();
+                    for (let db of dbs) {
+                        if (db.name) window.indexedDB.deleteDatabase(db.name);
+                    }
                 }
-                // 2. Unregister alle service workers
                 if ('serviceWorker' in navigator) {
                     const registrations = await navigator.serviceWorker.getRegistrations();
                     for (let registration of registrations) {
                         await registration.unregister();
                     }
                 }
-                // 3. Wis alle caches
                 if ('caches' in window) {
                     const keys = await caches.keys();
                     for (let key of keys) {
                         await caches.delete(key);
                     }
                 }
-                // 4. Forceer herladen van de server
                 window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
             } catch (err) {
                 window.location.reload(true);
             }
         }
 
-        // Failsafe timer: 12 seconden
         const bootTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
-                showError('Time-out: De app-bestanden laden niet. Probeer Systeem herstellen.');
+                showError('Time-out: De app-bestanden laden niet. Dit kan komen door een trage verbinding of browserbeperkingen.');
             }
-        }, 12000);
+        }, 15000);
 
-        // Verberg loader zodra er content verschijnt
         const observer = new MutationObserver(() => {
             const root = document.getElementById('root');
             if (root && root.children.length > 0) {
