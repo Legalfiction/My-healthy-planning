@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -39,7 +40,8 @@ import {
   Cookie,
   Beer,
   CalendarDays,
-  BarChart3
+  BarChart3,
+  Pencil
 } from 'lucide-react';
 import { 
   AppState, 
@@ -182,11 +184,16 @@ export default function App() {
   const [selectedCustomIds, setSelectedCustomIds] = useState<string[]>([]);
   const [selectedCustomActivityIds, setSelectedCustomActivityIds] = useState<string[]>([]);
 
-  const [newFood, setNewFood] = useState({ name: '', kcal: '', unit: '', cats: [] as string[], isDrink: false });
+  const [newFood, setNewFood] = useState({ name: '', kcal: '', unit: '', cats: [] as string[], isDrink: false, isAlcohol: false });
   const [newActivityInput, setNewActivityInput] = useState({ name: '', kcalPerHour: '' });
+  
+  const [editingFoodId, setEditingFoodId] = useState<string | null>(null);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const foodFormRef = useRef<HTMLDivElement>(null);
+  const activityFormRef = useRef<HTMLDivElement>(null);
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
@@ -438,20 +445,51 @@ export default function App() {
 
   const addCustomActivity = () => {
     if (!newActivityInput.name || !newActivityInput.kcalPerHour) return;
-    const newAct: any = {
-      id: 'custom_act_' + generateId(),
-      name: newActivityInput.name,
-      met: 0,
-      kcalPer60: Number(newActivityInput.kcalPerHour),
-      unit: 'minuten',
-      isCustom: true
-    };
-    setState(prev => ({
-      ...prev,
-      customActivities: [...(prev.customActivities || []), newAct]
-    }));
+    
+    if (editingActivityId) {
+      const isActuallyCustom = state.customActivities.some(a => a.id === editingActivityId);
+      if (isActuallyCustom) {
+        setState(prev => ({
+          ...prev,
+          customActivities: prev.customActivities.map(act => 
+            act.id === editingActivityId 
+              ? { ...act, name: newActivityInput.name, kcalPer60: Number(newActivityInput.kcalPerHour) } as any 
+              : act
+          )
+        }));
+      } else {
+        // Was editing a built-in one, save as new custom
+        const newAct: any = {
+          id: 'custom_act_' + generateId(),
+          name: newActivityInput.name,
+          met: 0,
+          kcalPer60: Number(newActivityInput.kcalPerHour),
+          unit: 'minuten',
+          isCustom: true
+        };
+        setState(prev => ({
+          ...prev,
+          customActivities: [...(prev.customActivities || []), newAct]
+        }));
+      }
+      setEditingActivityId(null);
+      setToast({ msg: t.save });
+    } else {
+      const newAct: any = {
+        id: 'custom_act_' + generateId(),
+        name: newActivityInput.name,
+        met: 0,
+        kcalPer60: Number(newActivityInput.kcalPerHour),
+        unit: 'minuten',
+        isCustom: true
+      };
+      setState(prev => ({
+        ...prev,
+        customActivities: [...(prev.customActivities || []), newAct]
+      }));
+      setToast({ msg: t.newActivity + ' ' + t.save });
+    }
     setNewActivityInput({ name: '', kcalPerHour: '' });
-    setToast({ msg: t.newActivity + ' ' + t.save });
   };
 
   const handleExportData = () => {
@@ -479,15 +517,7 @@ export default function App() {
 
   const addCustomFood = () => {
     if (!newFood.name || !newFood.kcal || newFood.cats.length === 0) return;
-    const item: MealOption = { 
-      id: 'cust_' + generateId(), 
-      name: newFood.name, 
-      kcal: Number(newFood.kcal), 
-      unitName: newFood.unit.toUpperCase() || 'STUK', 
-      isDrink: newFood.isDrink, 
-      isCustom: true 
-    };
-
+    
     const finalCats: MealMoment[] = [];
     newFood.cats.forEach(c => {
       if (c === 'ONTBIJT') finalCats.push('Ontbijt');
@@ -496,15 +526,94 @@ export default function App() {
       else if (c === 'DINER') finalCats.push('Diner');
     });
 
-    setState(prev => {
-      const newOptions = { ...prev.customOptions };
-      finalCats.forEach(cat => {
-        newOptions[cat] = [...(newOptions[cat] || []), item];
+    if (editingFoodId) {
+      setState(prev => {
+        const newOptions = { ...prev.customOptions };
+        const updatedItem: MealOption = {
+          id: editingFoodId,
+          name: newFood.name,
+          kcal: Number(newFood.kcal),
+          unitName: newFood.unit.toUpperCase() || 'STUK',
+          isDrink: newFood.isDrink,
+          isAlcohol: newFood.isAlcohol,
+          isCustom: true
+        };
+
+        MEAL_MOMENTS.forEach(m => {
+          if (newOptions[m]) {
+            const isInNewCats = finalCats.includes(m);
+            const wasInCat = newOptions[m].some(o => o.id === editingFoodId);
+
+            if (isInNewCats) {
+              if (wasInCat) {
+                newOptions[m] = newOptions[m].map(o => o.id === editingFoodId ? updatedItem : o);
+              } else {
+                newOptions[m] = [...newOptions[m], updatedItem];
+              }
+            } else {
+              if (wasInCat) {
+                newOptions[m] = newOptions[m].filter(o => o.id !== editingFoodId);
+              }
+            }
+          }
+        });
+        return { ...prev, customOptions: newOptions };
       });
-      return { ...prev, customOptions: newOptions };
+      setEditingFoodId(null);
+      setToast({ msg: t.save });
+    } else {
+      const item: MealOption = { 
+        id: 'cust_' + generateId(), 
+        name: newFood.name, 
+        kcal: Number(newFood.kcal), 
+        unitName: newFood.unit.toUpperCase() || 'STUK', 
+        isDrink: newFood.isDrink, 
+        isAlcohol: newFood.isAlcohol,
+        isCustom: true 
+      };
+
+      setState(prev => {
+        const newOptions = { ...prev.customOptions };
+        finalCats.forEach(cat => {
+          newOptions[cat] = [...(newOptions[cat] || []), item];
+        });
+        return { ...prev, customOptions: newOptions };
+      });
+      setToast({ msg: t.addProduct + ' ' + t.save });
+    }
+    setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false, isAlcohol: false });
+  };
+
+  const startEditFood = (opt: MealOption) => {
+    const itemCats: string[] = [];
+    MEAL_MOMENTS.forEach(m => {
+      if (state.customOptions[m]?.some(o => o.id === opt.id)) {
+        if (m === 'Ontbijt') itemCats.push('ONTBIJT');
+        else if (m === 'Lunch') itemCats.push('LUNCH');
+        else if (m === 'Diner') itemCats.push('DINER');
+        else if (m.includes('Snack')) if (!itemCats.includes('SNACK')) itemCats.push('SNACK');
+      }
     });
-    setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false });
-    setToast({ msg: t.addProduct + ' ' + t.save });
+
+    setNewFood({
+      name: opt.name,
+      kcal: String(opt.kcal),
+      unit: opt.unitName || '',
+      cats: itemCats,
+      isDrink: !!opt.isDrink,
+      isAlcohol: !!opt.isAlcohol
+    });
+    setEditingFoodId(opt.id);
+    foodFormRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const startEditActivity = (act: ActivityType) => {
+    setNewActivityInput({
+      name: act.name,
+      kcalPerHour: String((act as any).kcalPer60 || Math.round(act.met * 80) || '')
+    });
+    setEditingActivityId(act.id);
+    activityFormRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const birthYears = useMemo(() => {
@@ -527,6 +636,12 @@ export default function App() {
     });
     return list.sort((a, b) => getTranslatedName(a.id, a.name).localeCompare(getTranslatedName(b.id, b.name)));
   }, [state.customOptions, state.language]);
+
+  const allActivitiesForManagement = useMemo(() => {
+    return [...ACTIVITY_TYPES, ...(state.customActivities || [])].sort((a, b) => 
+      getTranslatedName(a.id, a.name).localeCompare(getTranslatedName(b.id, b.name))
+    );
+  }, [state.customActivities, state.language]);
 
   const allProductsForManagement = useMemo(() => {
     return allAvailableProducts;
@@ -791,12 +906,18 @@ export default function App() {
 
             {showMyList ? (
               <div className="flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
-                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                <div ref={foodFormRef} className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{editingFoodId ? 'Item Wijzigen' : 'Nieuw Item'}</h3>
+                    {editingFoodId && (
+                      <button onClick={() => { setEditingFoodId(null); setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false, isAlcohol: false }); }} className="text-[9px] font-black text-red-500 uppercase">Annuleren</button>
+                    )}
+                  </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setNewFood(p => ({...p, isDrink: false}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${!newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
-                      <Utensils size={18} className={!newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.mealLabel}
+                    <button onClick={() => setNewFood(p => ({...p, isDrink: false, isAlcohol: false}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${(!newFood.isDrink && !newFood.isAlcohol) ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
+                      <Utensils size={18} className={(!newFood.isDrink && !newFood.isAlcohol) ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.mealLabel}
                     </button>
-                    <button onClick={() => setNewFood(p => ({...p, isDrink: true}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
+                    <button onClick={() => setNewFood(p => ({...p, isDrink: true, isAlcohol: false}))} className={`flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 border transition-all font-black text-[11px] uppercase ${newFood.isDrink ? 'border-[#ff7300] text-[#ff7300] bg-white' : 'border-slate-100 text-slate-300 bg-slate-50/50'}`}>
                       <GlassWater size={18} className={newFood.isDrink ? 'text-[#ff7300]' : 'text-slate-200'} /> {t.drinkLabel}
                     </button>
                   </div>
@@ -829,7 +950,7 @@ export default function App() {
                   </div>
 
                   <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-[#cbd5e1] text-white' : 'bg-[#ff7300] text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
+                    {editingFoodId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingFoodId ? 'Wijziging Opslaan' : t.addToMyList}
                   </button>
                 </div>
 
@@ -848,11 +969,12 @@ export default function App() {
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
                     {allProductsForManagement.map(opt => (
-                      <div key={opt.id} className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border border-slate-50 group hover:border-orange-100 transition-all">
+                      <div key={opt.id} className={`flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border group transition-all ${editingFoodId === opt.id ? 'border-orange-500 bg-orange-50/30' : 'border-slate-50 hover:border-orange-100'}`}>
                         <div className="relative flex items-center justify-center shrink-0">
                           <input 
                             type="checkbox" 
                             checked={selectedCustomIds.includes(opt.id)}
+                            // Fixed: Using opt.id instead of non-existent variable 'id'
                             onChange={() => setSelectedCustomIds(prev => prev.includes(opt.id) ? prev.filter(id => id !== opt.id) : [...prev, opt.id])}
                             className="w-5 h-5 rounded-md border-slate-200 text-[#ff7300] focus:ring-[#ff7300] transition-all cursor-pointer"
                           />
@@ -865,12 +987,20 @@ export default function App() {
                              {opt.kcal} {t.kcalLabel} • {opt.unitName} {opt.isCustom ? '• EIGEN' : ''}
                            </span>
                         </div>
-                        <button 
-                          onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} 
-                          className="text-slate-200 active:text-red-500 transition-colors p-2 shrink-0"
-                        >
-                           <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button 
+                            onClick={() => startEditFood(opt)} 
+                            className="text-slate-300 active:text-orange-500 transition-colors p-2"
+                          >
+                             <Pencil size={14} />
+                          </button>
+                          <button 
+                            onClick={() => { setSelectedCustomIds([opt.id]); setTimeout(deleteCustomOptions, 0); }} 
+                            className="text-slate-200 active:text-red-500 transition-colors p-2"
+                          >
+                             <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                     {allProductsForManagement.length === 0 && (
@@ -881,7 +1011,7 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-4 flex flex-col flex-grow relative">
-                <div className="relative">
+                <div className="relative shrink-0">
                    {openPickerMoment ? (
                      <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
                         <div className="flex justify-between items-center mb-3">
@@ -928,7 +1058,7 @@ export default function App() {
                                <div className="h-px bg-slate-100 flex-grow"></div>
                             </div>
 
-                            <div className="max-h-[350px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
+                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
                               {(state.customOptions[openPickerMoment] || [])
                                 .filter(o => {
                                   const name = getTranslatedName(o.id, o.name).toLowerCase();
@@ -936,7 +1066,6 @@ export default function App() {
                                   
                                   if (pickerFilter === 'all') return matchesSearch;
 
-                                  // DETERMINISTISCHE FILTERS OP BASIS VAN PREFIX + CUSTOM CHECK
                                   let matchesFilter = true;
                                   const isCustom = o.id.startsWith('cust_');
                                   
@@ -1112,8 +1241,13 @@ export default function App() {
 
             {showMyActivityList ? (
               <div className="flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
-                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
-                  <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.newActivity}</h3>
+                <div ref={activityFormRef} className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{editingActivityId ? 'Activiteit Wijzigen' : t.newActivity}</h3>
+                    {editingActivityId && (
+                      <button onClick={() => { setEditingActivityId(null); setNewActivityInput({ name: '', kcalPerHour: '' }); }} className="text-[9px] font-black text-red-500 uppercase">Annuleren</button>
+                    )}
+                  </div>
                   <div className="space-y-3">
                     <div className="relative bg-[#f8fafc] border border-slate-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
                        <Activity size={18} className="text-slate-300" />
@@ -1125,13 +1259,13 @@ export default function App() {
                     </div>
                   </div>
                   <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-[#cbd5e1] text-white' : 'bg-orange-500 text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    <Plus size={18} strokeWidth={4} /> {t.addToMyList}
+                    {editingActivityId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingActivityId ? 'Wijziging Opslaan' : t.addToMyList}
                   </button>
                 </div>
 
                 <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{t.ownActivities}</h3>
+                    <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Activiteiten Beheren</h3>
                     {selectedCustomActivityIds.length > 0 && (
                       <button onClick={deleteCustomActivities} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 rounded-xl font-black text-[9px] uppercase active:scale-95 transition-all">
                         <Trash2 size={14} /> {t.delete} ({selectedCustomActivityIds.length})
@@ -1140,24 +1274,41 @@ export default function App() {
                   </div>
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-                    {(state.customActivities || []).map(act => (
-                      <div key={act.id} className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border border-slate-50 group hover:border-orange-100 transition-all">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedCustomActivityIds.includes(act.id)}
-                          onChange={() => setSelectedCustomActivityIds(prev => prev.includes(act.id) ? prev.filter(id => id !== act.id) : [...prev, act.id])}
-                          className="w-5 h-5 rounded-md border-slate-200 text-orange-500 focus:ring-orange-500 transition-all cursor-pointer"
-                        />
-                        <div className="flex flex-col flex-grow truncate">
-                           <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{act.name}</span>
-                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} {t.kcalLabel} • {t.timeGroups.afternoon}</span>
+                    {allActivitiesForManagement.map(act => {
+                       const isCustom = act.id.startsWith('custom_act_') || (act as any).isCustom;
+                       return (
+                        <div key={act.id} className={`flex items-center gap-3 bg-slate-50/50 p-3 rounded-[20px] border group transition-all ${editingActivityId === act.id ? 'border-orange-500 bg-orange-50/30' : 'border-slate-50 hover:border-orange-100'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedCustomActivityIds.includes(act.id)}
+                            onChange={() => setSelectedCustomActivityIds(prev => prev.includes(act.id) ? prev.filter(id => id !== act.id) : [...prev, act.id])}
+                            className={`w-5 h-5 rounded-md border-slate-200 text-orange-500 focus:ring-orange-500 transition-all cursor-pointer ${!isCustom ? 'opacity-20 pointer-events-none' : ''}`}
+                          />
+                          <div className="flex flex-col flex-grow truncate">
+                             <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{getTranslatedName(act.id, act.name)}</span>
+                             <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">
+                               {(act as any).kcalPer60 || Math.round(act.met * 80)} {t.kcalLabel} / uur {isCustom ? '• EIGEN' : ''}
+                             </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button 
+                              onClick={() => startEditActivity(act)} 
+                              className="text-slate-300 active:text-orange-500 transition-colors p-2"
+                            >
+                               <Pencil size={14} />
+                            </button>
+                            {isCustom ? (
+                              <button onClick={() => { setSelectedCustomActivityIds([act.id]); setTimeout(deleteCustomActivities, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
+                                <Trash2 size={16} />
+                              </button>
+                            ) : (
+                              <div className="w-10"></div>
+                            )}
+                          </div>
                         </div>
-                        <button onClick={() => { setSelectedCustomActivityIds([act.id]); setTimeout(deleteCustomActivities, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
-                           <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                    {(state.customActivities || []).length === 0 && (
+                       );
+                    })}
+                    {allActivitiesForManagement.length === 0 && (
                       <p className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-slate-300">{t.noDataYet}</p>
                     )}
                   </div>
