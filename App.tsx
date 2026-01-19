@@ -161,6 +161,8 @@ const LANGUAGE_FLAGS: Record<Language, string> = {
   zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷', hi: '🇮🇳', ar: '🇸🇦'
 };
 
+const TABS_ORDER = ['dashboard', 'meals', 'activity', 'profile'] as const;
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -192,6 +194,7 @@ export default function App() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const foodFormRef = useRef<HTMLDivElement>(null);
   const activityFormRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
@@ -350,6 +353,35 @@ export default function App() {
       weekday: (parts.find(p => p.type === 'weekday')?.value || '').toUpperCase() 
     };
   }, [selectedDate, state.language]);
+
+  const handleSwipe = (direction: 'left' | 'right') => {
+    const currentIndex = TABS_ORDER.indexOf(activeTab as any);
+    if (direction === 'left' && currentIndex < TABS_ORDER.length - 1) {
+      setActiveTab(TABS_ORDER[currentIndex + 1] as any);
+    } else if (direction === 'right' && currentIndex > 0) {
+      setActiveTab(TABS_ORDER[currentIndex - 1] as any);
+    }
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    // Minimum swipe distance 50px, and horizontal must be dominant
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > 0) handleSwipe('right');
+      else handleSwipe('left');
+    }
+  };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
     const floor = (updates.gender || state.profile.gender) === 'man' ? 1500 : 1200;
@@ -789,7 +821,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className="p-2 flex-grow overflow-y-auto pb-24 custom-scrollbar bg-slate-50/10">
+      <main 
+        className="p-2 flex-grow overflow-y-auto pb-24 custom-scrollbar bg-slate-50/10"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
