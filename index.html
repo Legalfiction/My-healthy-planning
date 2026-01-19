@@ -129,12 +129,12 @@
                 msg = e.message;
             } else if (e.target && (e.target.src || e.target.href)) {
                 msg = 'Bestand kon niet laden: ' + (e.target.src || e.target.href);
-            } else {
+            } else if (typeof e === 'object') {
                 try {
-                    const stringified = JSON.stringify(e);
-                    msg = stringified === '{}' ? String(e) : stringified;
+                    msg = JSON.stringify(e);
+                    if (msg === '{}') msg = e.toString();
                 } catch(err) {
-                    msg = String(e);
+                    msg = 'Fout tijdens initialisatie';
                 }
             }
             showError(msg);

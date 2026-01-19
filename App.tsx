@@ -1040,13 +1040,13 @@ export default function App() {
                                   const isCustom = !!o.isCustom || o.id.startsWith('cust_');
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = o.id.startsWith('b_') || (isCustom && o.categories?.includes('ONTBIJT'));
+                                    matchesFilter = o.id.startsWith('b_') || !!(isCustom && o.categories?.includes('ONTBIJT'));
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = o.id.startsWith('l_') || (isCustom && o.categories?.includes('LUNCH'));
+                                    matchesFilter = o.id.startsWith('l_') || !!(isCustom && o.categories?.includes('LUNCH'));
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = o.id.startsWith('m_') || (isCustom && o.categories?.includes('DINER'));
+                                    matchesFilter = o.id.startsWith('m_') || !!(isCustom && o.categories?.includes('DINER'));
                                   }
                                   else if (pickerFilter === 'drink') {
                                     matchesFilter = o.id.startsWith('d_') || !!o.isDrink;
@@ -1058,7 +1058,7 @@ export default function App() {
                                     matchesFilter = o.id.startsWith('f_');
                                   }
                                   else if (pickerFilter === 'snacks') {
-                                    matchesFilter = o.id.startsWith('s_') || (isCustom && o.categories?.includes('SNACK'));
+                                    matchesFilter = o.id.startsWith('s_') || !!(isCustom && o.categories?.includes('SNACK'));
                                   }
                                   
                                   return matchesSearch && matchesFilter;
