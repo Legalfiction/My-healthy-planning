@@ -1040,13 +1040,13 @@ export default function App() {
                                   const isCustom = !!o.isCustom || o.id.startsWith('cust_');
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = o.id.startsWith('b_') || !!(isCustom && o.categories?.includes('ONTBIJT'));
+                                    matchesFilter = o.id.startsWith('b_') || (isCustom && o.categories?.includes('ONTBIJT'));
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = o.id.startsWith('l_') || !!(isCustom && o.categories?.includes('LUNCH'));
+                                    matchesFilter = o.id.startsWith('l_') || (isCustom && o.categories?.includes('LUNCH'));
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = o.id.startsWith('m_') || !!(isCustom && o.categories?.includes('DINER'));
+                                    matchesFilter = o.id.startsWith('m_') || (isCustom && o.categories?.includes('DINER'));
                                   }
                                   else if (pickerFilter === 'drink') {
                                     matchesFilter = o.id.startsWith('d_') || !!o.isDrink;
@@ -1058,7 +1058,7 @@ export default function App() {
                                     matchesFilter = o.id.startsWith('f_');
                                   }
                                   else if (pickerFilter === 'snacks') {
-                                    matchesFilter = o.id.startsWith('s_') || !!(isCustom && o.categories?.includes('SNACK'));
+                                    matchesFilter = o.id.startsWith('s_') || (isCustom && o.categories?.includes('SNACK'));
                                   }
                                   
                                   return matchesSearch && matchesFilter;
@@ -1148,41 +1148,45 @@ export default function App() {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {items.map(item => (
-                            <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-2 px-3 rounded-[20px] border border-slate-50">
-                              <div className="flex items-center gap-3 truncate flex-1">
-                                <div className="bg-white p-1.5 rounded-[12px] text-[#ff7300] shrink-0 shadow-sm border border-orange-50">
-                                  {item.isAlcohol ? <Beer size={14} /> : item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
-                                </div>
-                                <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1.5 bg-white p-1 px-2 rounded-xl border border-slate-100 shadow-inner">
-                                  <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={12} strokeWidth={3} /></button>
-                                  <div className="flex items-center gap-0.5">
-                                    <input 
-                                      type="number" 
-                                      className="w-10 bg-transparent border-none p-0 text-[12px] font-black text-[#ff7300] focus:ring-0 text-center outline-none" 
-                                      value={Math.round(item.kcal)} 
-                                      onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
-                                    />
-                                    <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                          {items.map(item => {
+                            const baseItem = (state.customOptions[moment] || []).find(o => o.id === item.mealId);
+                            const baseKcal = baseItem ? baseItem.kcal : (item.mealId?.startsWith('cust_') ? item.kcal : 50);
+                            return (
+                              <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-2 px-3 rounded-[20px] border border-slate-50">
+                                <div className="flex items-center gap-3 truncate flex-1">
+                                  <div className="bg-white p-1.5 rounded-[12px] text-[#ff7300] shrink-0 shadow-sm border border-orange-50">
+                                    {item.isAlcohol ? <Beer size={14} /> : item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
                                   </div>
-                                  <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={12} strokeWidth={3} /></button>
+                                  <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
                                 </div>
-                                
-                                <button onClick={() => {
-                                    setState(prev => {
-                                      const logs = { ...prev.dailyLogs };
-                                      const log = logs[selectedDate];
-                                      if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
-                                      return { ...prev, dailyLogs: logs };
-                                    });
-                                }} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={14}/></button>
+
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5 bg-white p-1 px-2 rounded-xl border border-slate-100 shadow-inner">
+                                    <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - baseKcal)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={12} strokeWidth={3} /></button>
+                                    <div className="flex items-center gap-0.5">
+                                      <input 
+                                        type="number" 
+                                        className="w-10 bg-transparent border-none p-0 text-[12px] font-black text-[#ff7300] focus:ring-0 text-center outline-none" 
+                                        value={Math.round(item.kcal)} 
+                                        onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
+                                      />
+                                      <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                                    </div>
+                                    <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + baseKcal)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={12} strokeWidth={3} /></button>
+                                  </div>
+                                  
+                                  <button onClick={() => {
+                                      setState(prev => {
+                                        const logs = { ...prev.dailyLogs };
+                                        const log = logs[selectedDate];
+                                        if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
+                                        return { ...prev, dailyLogs: logs };
+                                      });
+                                  }} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={14}/></button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
