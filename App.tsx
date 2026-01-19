@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -974,7 +972,6 @@ export default function App() {
                           <input 
                             type="checkbox" 
                             checked={selectedCustomIds.includes(opt.id)}
-                            // Fixed: Using opt.id instead of non-existent variable 'id'
                             onChange={() => setSelectedCustomIds(prev => prev.includes(opt.id) ? prev.filter(id => id !== opt.id) : [...prev, opt.id])}
                             className="w-5 h-5 rounded-md border-slate-200 text-[#ff7300] focus:ring-[#ff7300] transition-all cursor-pointer"
                           />
