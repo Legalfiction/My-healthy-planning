@@ -881,7 +881,7 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-4 flex flex-col flex-grow relative">
-                <div className="relative shrink-0">
+                <div className="relative">
                    {openPickerMoment ? (
                      <div className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300">
                         <div className="flex justify-between items-center mb-3">
@@ -920,7 +920,7 @@ export default function App() {
                                <input type="text" className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-400 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                             
-                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
+                            <div className="max-h-[350px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
                               {(state.customOptions[openPickerMoment] || [])
                                 .filter(o => {
                                   const name = getTranslatedName(o.id, o.name).toLowerCase();
@@ -1142,7 +1142,7 @@ export default function App() {
                         />
                         <div className="flex flex-col flex-grow truncate">
                            <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none mb-1">{act.name}</span>
-                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} {t.kcalLabel} / {t.timeGroups.afternoon}</span>
+                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{(act as any).kcalPer60} {t.kcalLabel} • {t.timeGroups.afternoon}</span>
                         </div>
                         <button onClick={() => { setSelectedCustomActivityIds([act.id]); setTimeout(deleteCustomActivities, 0); }} className="text-slate-200 active:text-red-500 transition-colors p-2">
                            <Trash2 size={16} />
