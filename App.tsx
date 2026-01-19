@@ -515,14 +515,6 @@ export default function App() {
 
   const addCustomFood = () => {
     if (!newFood.name || !newFood.kcal || newFood.cats.length === 0) return;
-    
-    const finalCats: MealMoment[] = [];
-    newFood.cats.forEach(c => {
-      if (c === 'ONTBIJT') finalCats.push('Ontbijt');
-      else if (c === 'SNACK') finalCats.push('Ochtend Snack', 'Middag Snack', 'Avond Snack');
-      else if (c === 'LUNCH') finalCats.push('Lunch');
-      else if (c === 'DINER') finalCats.push('Diner');
-    });
 
     if (editingFoodId) {
       setState(prev => {
@@ -534,25 +526,14 @@ export default function App() {
           unitName: newFood.unit.toUpperCase() || 'STUK',
           isDrink: newFood.isDrink,
           isAlcohol: newFood.isAlcohol,
-          isCustom: true
+          isCustom: true,
+          categories: newFood.cats
         };
 
+        // Custom items behavior like built-in: available everywhere but filtered by categories property
         MEAL_MOMENTS.forEach(m => {
           if (newOptions[m]) {
-            const isInNewCats = finalCats.includes(m);
-            const wasInCat = newOptions[m].some(o => o.id === editingFoodId);
-
-            if (isInNewCats) {
-              if (wasInCat) {
-                newOptions[m] = newOptions[m].map(o => o.id === editingFoodId ? updatedItem : o);
-              } else {
-                newOptions[m] = [...newOptions[m], updatedItem];
-              }
-            } else {
-              if (wasInCat) {
-                newOptions[m] = newOptions[m].filter(o => o.id !== editingFoodId);
-              }
-            }
+             newOptions[m] = newOptions[m].map(o => o.id === editingFoodId ? updatedItem : o);
           }
         });
         return { ...prev, customOptions: newOptions };
@@ -567,13 +548,15 @@ export default function App() {
         unitName: newFood.unit.toUpperCase() || 'STUK', 
         isDrink: newFood.isDrink, 
         isAlcohol: newFood.isAlcohol,
-        isCustom: true 
+        isCustom: true,
+        categories: newFood.cats
       };
 
       setState(prev => {
         const newOptions = { ...prev.customOptions };
-        finalCats.forEach(cat => {
-          newOptions[cat] = [...(newOptions[cat] || []), item];
+        // Add to all moments to be consistent with built-in items (shown in "Alles")
+        MEAL_MOMENTS.forEach(moment => {
+          newOptions[moment] = [...(newOptions[moment] || []), item];
         });
         return { ...prev, customOptions: newOptions };
       });
@@ -583,21 +566,11 @@ export default function App() {
   };
 
   const startEditFood = (opt: MealOption) => {
-    const itemCats: string[] = [];
-    MEAL_MOMENTS.forEach(m => {
-      if (state.customOptions[m]?.some(o => o.id === opt.id)) {
-        if (m === 'Ontbijt') itemCats.push('ONTBIJT');
-        else if (m === 'Lunch') itemCats.push('LUNCH');
-        else if (m === 'Diner') itemCats.push('DINER');
-        else if (m.includes('Snack')) if (!itemCats.includes('SNACK')) itemCats.push('SNACK');
-      }
-    });
-
     setNewFood({
       name: opt.name,
       kcal: String(opt.kcal),
       unit: opt.unitName || '',
-      cats: itemCats,
+      cats: opt.categories || [],
       isDrink: !!opt.isDrink,
       isAlcohol: !!opt.isAlcohol
     });
@@ -1064,16 +1037,16 @@ export default function App() {
                                   if (pickerFilter === 'all') return matchesSearch;
 
                                   let matchesFilter = true;
-                                  const isCustom = o.id.startsWith('cust_');
+                                  const isCustom = !!o.isCustom || o.id.startsWith('cust_');
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = o.id.startsWith('b_') || (isCustom && openPickerMoment === 'Ontbijt');
+                                    matchesFilter = o.id.startsWith('b_') || (isCustom && o.categories?.includes('ONTBIJT'));
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = o.id.startsWith('l_') || (isCustom && openPickerMoment === 'Lunch');
+                                    matchesFilter = o.id.startsWith('l_') || (isCustom && o.categories?.includes('LUNCH'));
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = o.id.startsWith('m_') || (isCustom && openPickerMoment === 'Diner');
+                                    matchesFilter = o.id.startsWith('m_') || (isCustom && o.categories?.includes('DINER'));
                                   }
                                   else if (pickerFilter === 'drink') {
                                     matchesFilter = o.id.startsWith('d_') || !!o.isDrink;
@@ -1085,7 +1058,7 @@ export default function App() {
                                     matchesFilter = o.id.startsWith('f_');
                                   }
                                   else if (pickerFilter === 'snacks') {
-                                    matchesFilter = o.id.startsWith('s_') || (isCustom && openPickerMoment.includes('Snack'));
+                                    matchesFilter = o.id.startsWith('s_') || (isCustom && o.categories?.includes('SNACK'));
                                   }
                                   
                                   return matchesSearch && matchesFilter;

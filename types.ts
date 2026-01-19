@@ -30,6 +30,7 @@ export interface MealOption {
   isCustom?: boolean;
   isDrink?: boolean;
   isAlcohol?: boolean;
+  categories?: string[];
 }
 
 export interface LoggedMealItem {
