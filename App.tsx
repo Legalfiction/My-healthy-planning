@@ -942,10 +942,10 @@ export default function App() {
                                     matchesFilter = o.id.startsWith('m_') || (isCustom && openPickerMoment === 'Diner');
                                   }
                                   else if (pickerFilter === 'drink') {
-                                    matchesFilter = o.id.startsWith('d_') || o.isDrink;
+                                    matchesFilter = o.id.startsWith('d_') || !!o.isDrink;
                                   }
                                   else if (pickerFilter === 'alcohol') {
-                                    matchesFilter = o.id.startsWith('a_') || o.isAlcohol;
+                                    matchesFilter = o.id.startsWith('a_') || !!o.isAlcohol;
                                   }
                                   else if (pickerFilter === 'fruit') {
                                     matchesFilter = o.id.startsWith('f_');
@@ -1184,7 +1184,7 @@ export default function App() {
                              const log = logs[selectedDate];
                              if (log) log.activities = log.activities.filter(a => a.id !== act.id);
                              return { ...prev, dailyLogs: logs };
-                          })} className="text-slate-200 active:text-red-500 p-2 transition-colors"><Trash2 size={18}/></button>
+                          })} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={18}/></button>
                         </div>
                       );
                     })}
