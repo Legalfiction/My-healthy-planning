@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -920,36 +921,37 @@ export default function App() {
                             </div>
                             
                             <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
-                              {allAvailableProducts
+                              {(state.customOptions[openPickerMoment] || [])
                                 .filter(o => {
                                   const name = getTranslatedName(o.id, o.name).toLowerCase();
                                   const matchesSearch = name.includes(searchTerm.toLowerCase());
                                   
                                   if (pickerFilter === 'all') return matchesSearch;
 
-                                  // DETERMINISTISCHE FILTERS OP BASIS VAN PREFIX (FIX)
+                                  // DETERMINISTISCHE FILTERS OP BASIS VAN PREFIX + CUSTOM CHECK
                                   let matchesFilter = true;
+                                  const isCustom = o.id.startsWith('cust_');
                                   
                                   if (pickerFilter === 'breakfast') {
-                                    matchesFilter = o.id.startsWith('b_');
+                                    matchesFilter = o.id.startsWith('b_') || (isCustom && openPickerMoment === 'Ontbijt');
                                   }
                                   else if (pickerFilter === 'lunch') {
-                                    matchesFilter = o.id.startsWith('l_');
+                                    matchesFilter = o.id.startsWith('l_') || (isCustom && openPickerMoment === 'Lunch');
                                   }
                                   else if (pickerFilter === 'diner') {
-                                    matchesFilter = o.id.startsWith('m_');
+                                    matchesFilter = o.id.startsWith('m_') || (isCustom && openPickerMoment === 'Diner');
                                   }
                                   else if (pickerFilter === 'drink') {
-                                    matchesFilter = o.id.startsWith('d_');
+                                    matchesFilter = o.id.startsWith('d_') || o.isDrink;
                                   }
                                   else if (pickerFilter === 'alcohol') {
-                                    matchesFilter = o.id.startsWith('a_');
+                                    matchesFilter = o.id.startsWith('a_') || o.isAlcohol;
                                   }
                                   else if (pickerFilter === 'fruit') {
                                     matchesFilter = o.id.startsWith('f_');
                                   }
                                   else if (pickerFilter === 'snacks') {
-                                    matchesFilter = o.id.startsWith('s_');
+                                    matchesFilter = o.id.startsWith('s_') || (isCustom && openPickerMoment.includes('Snack'));
                                   }
                                   
                                   return matchesSearch && matchesFilter;
@@ -1023,43 +1025,55 @@ export default function App() {
                    )}
                 </div>
 
-                <div className="flex-grow space-y-2 overflow-y-auto custom-scrollbar pt-1">
-                  {Object.keys(currentLog.meals).map(moment => (currentLog.meals[moment] as LoggedMealItem[]).map(item => (
-                    <div key={item.id} className="flex justify-between items-center bg-white p-3 px-4 rounded-[24px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
-                      <div className="flex items-center gap-3 truncate flex-1">
-                        <div className="bg-[#fff7ed] p-2 rounded-[16px] text-[#ff7300] shrink-0">
-                          {item.isAlcohol ? <Beer size={18} /> : item.isDrink ? <GlassWater size={18} /> : <Utensils size={18} />}
-                        </div>
-                        <div className="flex flex-col truncate">
-                          <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none mb-1">{getTranslatedName(item.mealId || '', item.name)}</span>
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">{t.moments[moment as MealMoment]?.toUpperCase()}</span>
-                        </div>
-                      </div>
+                <div className="flex-grow space-y-4 overflow-y-auto custom-scrollbar pt-1">
+                  {MEAL_MOMENTS.map(moment => {
+                    const items = (currentLog.meals[moment] as LoggedMealItem[]) || [];
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={moment} className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-widest px-2 pb-1 border-b border-orange-50 mb-2">
+                          {t.moments[moment] || moment}
+                        </h4>
+                        <div className="space-y-2">
+                          {items.map(item => (
+                            <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-2 px-3 rounded-[20px] border border-slate-50">
+                              <div className="flex items-center gap-3 truncate flex-1">
+                                <div className="bg-white p-1.5 rounded-[12px] text-[#ff7300] shrink-0 shadow-sm border border-orange-50">
+                                  {item.isAlcohol ? <Beer size={14} /> : item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
+                                </div>
+                                <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
+                              </div>
 
-                      <div className="flex items-center gap-2 bg-slate-50 p-1 px-2 rounded-2xl border border-slate-100 shadow-inner">
-                        <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={14} strokeWidth={3} /></button>
-                        <div className="flex items-center gap-0.5">
-                           <input 
-                            type="number" 
-                            className="w-10 bg-transparent border-none p-0 text-[13px] font-black text-[#ff7300] focus:ring-0 text-center outline-none" 
-                            value={Math.round(item.kcal)} 
-                            onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
-                          />
-                           <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 bg-white p-1 px-2 rounded-xl border border-slate-100 shadow-inner">
+                                  <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Minus size={12} strokeWidth={3} /></button>
+                                  <div className="flex items-center gap-0.5">
+                                    <input 
+                                      type="number" 
+                                      className="w-10 bg-transparent border-none p-0 text-[12px] font-black text-[#ff7300] focus:ring-0 text-center outline-none" 
+                                      value={Math.round(item.kcal)} 
+                                      onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))}
+                                    />
+                                    <span className="text-[7px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                                  </div>
+                                  <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={12} strokeWidth={3} /></button>
+                                </div>
+                                
+                                <button onClick={() => {
+                                    setState(prev => {
+                                      const logs = { ...prev.dailyLogs };
+                                      const log = logs[selectedDate];
+                                      if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
+                                      return { ...prev, dailyLogs: logs };
+                                    });
+                                }} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={14}/></button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + 50)} className="text-[#ff7300] active:scale-90 transition-transform"><Plus size={14} strokeWidth={3} /></button>
                       </div>
-                      
-                      <button onClick={() => {
-                          setState(prev => {
-                            const logs = { ...prev.dailyLogs };
-                            const log = logs[selectedDate];
-                            if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id);
-                            return { ...prev, dailyLogs: logs };
-                          });
-                      }} className="text-slate-200 p-2 shrink-0 transition-colors active:text-red-500 ml-1"><Trash2 size={16}/></button>
-                    </div>
-                  )))}
+                    );
+                  })}
                   {Object.keys(currentLog.meals).length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full opacity-20 py-20">
                       <Utensils size={48} className="text-slate-300 mb-4" />
