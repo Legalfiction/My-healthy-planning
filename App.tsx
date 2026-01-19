@@ -915,9 +915,9 @@ export default function App() {
                                ))}
                             </div>
 
-                            <div className="relative bg-[#f8fafc] border border-slate-100 rounded-[22px] px-5 py-3 flex items-center gap-3 mb-2">
-                               <Search size={18} className="text-slate-300" />
-                               <input type="text" className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-300 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3 mb-2">
+                               <Search size={18} className="text-orange-400" />
+                               <input type="text" className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-400 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                             
                             <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
@@ -988,12 +988,12 @@ export default function App() {
                              <div className="flex flex-col gap-1.5">
                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{t.adjustQuantity}</label>
                                <div className="flex items-center justify-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - 50)} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Minus size={20} strokeWidth={4}/></button>
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - p.opt.kcal)} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Minus size={20} strokeWidth={4}/></button>
                                   <div className="flex items-center gap-1">
                                     <input type="number" className="w-20 bg-transparent border-none p-0 text-2xl font-black text-[#ff7300] focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} />
                                     <span className="text-[10px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
                                   </div>
-                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + 50} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Plus size={20} strokeWidth={4}/></button>
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + p.opt.kcal} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Plus size={20} strokeWidth={4}/></button>
                                </div>
                              </div>
 
@@ -1013,7 +1013,7 @@ export default function App() {
                    ) : (
                      <div className="relative">
                         <select 
-                          className="w-full bg-white px-6 py-5 rounded-[28px] font-black border border-slate-100 text-[14px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm text-[#1e293b]"
+                          className="w-full bg-orange-50 px-6 py-5 rounded-[28px] font-black border border-orange-200 text-[14px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm text-[#1e293b]"
                           onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }}
                           value=""
                         >
@@ -1029,11 +1029,17 @@ export default function App() {
                   {MEAL_MOMENTS.map(moment => {
                     const items = (currentLog.meals[moment] as LoggedMealItem[]) || [];
                     if (items.length === 0) return null;
+                    const momentTotal = items.reduce((sum, item) => sum + item.kcal, 0);
                     return (
                       <div key={moment} className="bg-white rounded-[28px] p-4 border border-slate-100 shadow-sm space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-widest px-2 pb-1 border-b border-orange-50 mb-2">
-                          {t.moments[moment] || moment}
-                        </h4>
+                        <div className="flex justify-between items-center px-2 pb-1 border-b border-orange-50 mb-2">
+                          <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-widest">
+                            {t.moments[moment] || moment}
+                          </h4>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest tabular-nums">
+                            {momentTotal} {t.kcalLabel}
+                          </span>
+                        </div>
                         <div className="space-y-2">
                           {items.map(item => (
                             <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-2 px-3 rounded-[20px] border border-slate-50">
@@ -1184,7 +1190,7 @@ export default function App() {
                              const log = logs[selectedDate];
                              if (log) log.activities = log.activities.filter(a => a.id !== act.id);
                              return { ...prev, dailyLogs: logs };
-                          })} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={18}/></button>
+                          })} className="text-slate-200 active:text-red-500 p-2 transition-colors"><Trash2 size={18}/></button>
                         </div>
                       );
                     })}
