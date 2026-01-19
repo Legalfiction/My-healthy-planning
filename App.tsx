@@ -920,6 +920,14 @@ export default function App() {
                                <input type="text" className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-400 outline-none" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                             
+                            <div className="flex items-center gap-2 my-4 px-1">
+                               <div className="h-px bg-slate-100 flex-grow"></div>
+                               <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">
+                                 {t.orSelectFromList}
+                               </span>
+                               <div className="h-px bg-slate-100 flex-grow"></div>
+                            </div>
+
                             <div className="max-h-[350px] overflow-y-auto custom-scrollbar flex flex-col gap-1 border-t border-slate-50 pt-3">
                               {(state.customOptions[openPickerMoment] || [])
                                 .filter(o => {
