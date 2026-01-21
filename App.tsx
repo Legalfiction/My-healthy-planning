@@ -679,13 +679,13 @@ export default function App() {
   }, [searchTerm, pickerFilter, allAvailableProducts, state.language, openPickerMoment]);
 
   const productsToDisplayInResults = useMemo(() => {
-    // If we have selected something from the listbox OR typed a search term,
-    // we reveal the full set of filtered products in rich card format.
-    if (selectedItemIdFromListbox || searchTerm.trim().length > 0) {
+    // If the user has typed a search, used the dropdown, OR selected a non-default filter (orange button),
+    // reveal the full set of products in graphical card format.
+    if (searchTerm.trim().length > 0 || selectedItemIdFromListbox !== null || pickerFilter !== 'all') {
       return productsToShowInPicker;
     }
     return [];
-  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker]);
+  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker, pickerFilter]);
 
   if (!isLoaded) return null;
 
@@ -1071,6 +1071,7 @@ export default function App() {
                 <div className="relative shrink-0">
                    {openPickerMoment && (
                      <div className="bg-white rounded-[28px] border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300 overflow-hidden">
+                        {/* Compact header: icons aligned against the top edge */}
                         <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-50">
                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-2 flex-grow">
                                {[
@@ -1105,6 +1106,7 @@ export default function App() {
                         {!stagedProduct ? (
                           <div className="p-4 flex flex-col gap-3">
                             <div className="flex flex-col gap-3">
+                              {/* Uniform height 48px for search and select */}
                               <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3 h-[48px]">
                                  <Search size={18} className="text-orange-400" />
                                  <input 
@@ -1141,6 +1143,7 @@ export default function App() {
                               </div>
                             </div>
 
+                            {/* Display list if any filter, search, or dropdown selection occurred */}
                             {productsToDisplayInResults.length > 0 && (
                               <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-1 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 {productsToDisplayInResults.map(opt => (
@@ -1149,6 +1152,7 @@ export default function App() {
                                     onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })}
                                     className="flex items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-100 hover:border-orange-300 active:scale-[0.98] transition-all text-left group shadow-sm w-full"
                                   >
+                                    {/* Design-match: circular background for icon */}
                                     <div className="bg-orange-50/50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0 flex items-center justify-center w-12 h-12">
                                       {opt.isAlcohol ? <Beer size={22} /> : opt.isDrink ? <GlassWater size={22} /> : <Utensils size={22} />}
                                     </div>
@@ -1166,7 +1170,7 @@ export default function App() {
                               </div>
                             )}
 
-                            {(searchTerm.trim().length > 0 || selectedItemIdFromListbox) && productsToDisplayInResults.length === 0 && (
+                            {(searchTerm.trim().length > 0 || selectedItemIdFromListbox !== null || pickerFilter !== 'all') && productsToDisplayInResults.length === 0 && (
                               <div className="py-10 text-center flex flex-col items-center opacity-30">
                                 <Search size={32} className="mb-2" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</span>
@@ -1512,7 +1516,7 @@ export default function App() {
                   <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileUp size={18} /></button>
                   <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="p-2 rounded-xl bg-red-50 text-red-200 transition-all active:scale-95"><Trash2 size={18} /></button>
                 </div>
-                <input type="file" element="input" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
              </section>
           </div>
         )}
