@@ -178,7 +178,6 @@ export default function App() {
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedItemIdFromListbox, setSelectedItemIdFromListbox] = useState<string | null>(null);
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [stagedProduct, setStagedProduct] = useState<{ opt: MealOption, currentKcal: number } | null>(null);
   const [pickerFilter, setPickerFilter] = useState<'all' | 'breakfast' | 'lunch' | 'diner' | 'snacks' | 'drink' | 'fruit' | 'alcohol'>('all');
@@ -674,7 +673,6 @@ export default function App() {
     if (pickerFilter === 'all') return baseList;
 
     const filtered = baseList.filter(o => {
-      const isCustom = !!o.isCustom || o.id.startsWith('cust_');
       const catsNormalized = (o.categories || []).map(c => c.toUpperCase());
       
       if (pickerFilter === 'breakfast') return o.id.startsWith('b_') || catsNormalized.includes('ONTBIJT');
@@ -956,7 +954,6 @@ export default function App() {
                        setOpenPickerMoment(e.target.value as MealMoment); 
                        setStagedProduct(null); 
                        setSearchTerm(''); 
-                       setSelectedItemIdFromListbox(null);
                        setPickerFilter('all'); 
                        setIsListExpanded(false);
                      }}
@@ -1079,18 +1076,25 @@ export default function App() {
                 {openPickerMoment && (
                   <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] animate-in slide-in-from-top-4 duration-500 overflow-hidden">
                     <div className="p-4 flex flex-col gap-5">
-                      <div className="grid grid-cols-5 gap-2 px-1">
+                      <div 
+                        className="flex overflow-x-auto gap-2 px-1 no-scrollbar pb-1"
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                      >
                         {[
                           { id: 'all', icon: LayoutDashboard, label: 'ALLES' },
                           { id: 'breakfast', icon: Sun, label: 'ONTBIJT' },
                           { id: 'lunch', icon: Utensils, label: 'LUNCH' },
                           { id: 'diner', icon: Moon, label: 'DINER' },
-                          { id: 'snacks', icon: Cookie, label: 'SNACKS' }
+                          { id: 'snacks', icon: Cookie, label: 'SNACKS' },
+                          { id: 'drink', icon: GlassWater, label: 'DRINKEN' },
+                          { id: 'fruit', icon: Apple, label: 'FRUIT' },
+                          { id: 'alcohol', icon: Beer, label: 'ALCOHOL' }
                         ].map(f => (
                           <button 
                             key={f.id} 
                             onClick={() => { setPickerFilter(f.id as any); setStagedProduct(null); }}
-                            className={`flex flex-col items-center gap-2 p-3 rounded-[20px] transition-all ${
+                            className={`flex flex-col items-center gap-2 p-3 rounded-[20px] transition-all flex-shrink-0 min-w-[70px] ${
                               pickerFilter === f.id ? 'bg-orange-500 text-white shadow-lg' : 'bg-slate-50 text-slate-300'
                             }`}
                           >
@@ -1286,7 +1290,7 @@ export default function App() {
                     </div>
                   </div>
                   <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-[#cbd5e1] text-white' : 'bg-orange-500 text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    {editingFoodId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingActivityId ? 'Wijziging Opslaan' : t.addToMyList}
+                    {editingActivityId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingActivityId ? 'Wijziging Opslaan' : t.addToMyList}
                   </button>
                 </div>
 
