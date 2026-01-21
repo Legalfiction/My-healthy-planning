@@ -177,6 +177,7 @@ export default function App() {
   const [showMyActivityList, setShowMyActivityList] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedItemIdFromListbox, setSelectedItemIdFromListbox] = useState<string | null>(null);
   const [openPickerMoment, setOpenPickerMoment] = useState<MealMoment | null>(null);
   const [stagedProduct, setStagedProduct] = useState<{ opt: MealOption, currentKcal: number } | null>(null);
   const [pickerFilter, setPickerFilter] = useState<'all' | 'breakfast' | 'lunch' | 'diner' | 'snacks' | 'drink' | 'fruit' | 'alcohol'>('all');
@@ -655,14 +656,6 @@ export default function App() {
     const currentMoment = openPickerMoment;
     if (!currentMoment) return [];
 
-    // Prioritize filtering based on the chosen moment if no specific filter/search is active
-    if (!searchTerm.trim() && pickerFilter === 'all') {
-      if (currentMoment === 'Ontbijt') return allAvailableProducts.filter(o => o.id.startsWith('b_'));
-      if (currentMoment === 'Lunch') return allAvailableProducts.filter(o => o.id.startsWith('l_'));
-      if (currentMoment === 'Diner') return allAvailableProducts.filter(o => o.id.startsWith('m_'));
-      if (currentMoment.includes('Snack')) return allAvailableProducts.filter(o => o.id.startsWith('s_') || o.id.startsWith('f_'));
-    }
-
     if (searchTerm.trim()) {
       return allAvailableProducts.filter(o => {
         const name = getTranslatedName(o.id, o.name).toLowerCase();
@@ -684,6 +677,16 @@ export default function App() {
       return true;
     });
   }, [searchTerm, pickerFilter, allAvailableProducts, state.language, openPickerMoment]);
+
+  const productsToDisplayInResults = useMemo(() => {
+    if (selectedItemIdFromListbox) {
+      return allAvailableProducts.filter(o => o.id === selectedItemIdFromListbox);
+    }
+    if (searchTerm.trim().length > 0) {
+      return productsToShowInPicker;
+    }
+    return [];
+  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker, allAvailableProducts]);
 
   if (!isLoaded) return null;
 
@@ -943,7 +946,13 @@ export default function App() {
               <div className="relative flex-grow">
                  <select 
                    className="w-full bg-orange-50 px-4 py-3 rounded-2xl font-black border border-orange-200 text-[12px] outline-none appearance-none cursor-pointer uppercase tracking-widest shadow-sm text-[#1e293b]"
-                   onChange={(e) => { setOpenPickerMoment(e.target.value as MealMoment); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }}
+                   onChange={(e) => { 
+                     setOpenPickerMoment(e.target.value as MealMoment); 
+                     setStagedProduct(null); 
+                     setSearchTerm(''); 
+                     setSelectedItemIdFromListbox(null);
+                     setPickerFilter('all'); 
+                   }}
                    value={openPickerMoment || ""}
                  >
                    <option value="" disabled>{t.addFoodDrink}</option>
@@ -1063,7 +1072,6 @@ export default function App() {
                 <div className="relative shrink-0">
                    {openPickerMoment && (
                      <div className="bg-white rounded-[28px] border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300 overflow-hidden">
-                        {/* Compact header: Icons and X on one line, no extra top padding */}
                         <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-50">
                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-2 flex-grow">
                                {[
@@ -1078,7 +1086,11 @@ export default function App() {
                                ].map(f => (
                                  <button 
                                    key={f.id} 
-                                   onClick={() => { setPickerFilter(f.id as any); setSearchTerm(''); }} 
+                                   onClick={() => { 
+                                     setPickerFilter(f.id as any); 
+                                     setSearchTerm(''); 
+                                     setSelectedItemIdFromListbox(null);
+                                   }} 
                                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all shrink-0 min-w-[58px] ${
                                      pickerFilter === f.id ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 text-slate-300 border-transparent hover:bg-slate-100'
                                    }`}
@@ -1088,13 +1100,12 @@ export default function App() {
                                  </button>
                                ))}
                            </div>
-                           <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); setPickerFilter('all'); }} className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl active:scale-90 transition-transform shrink-0 ml-2"><X size={18}/></button>
+                           <button onClick={() => { setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); setSelectedItemIdFromListbox(null); setPickerFilter('all'); }} className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl active:scale-90 transition-transform shrink-0 ml-2"><X size={18}/></button>
                         </div>
                         
                         {!stagedProduct ? (
                           <div className="p-4 flex flex-col gap-3">
                             <div className="flex flex-col gap-3">
-                              {/* Search field - Element A */}
                               <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3">
                                  <Search size={18} className="text-orange-400" />
                                  <input 
@@ -1102,21 +1113,23 @@ export default function App() {
                                    className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase placeholder:text-slate-400 outline-none" 
                                    placeholder={t.searchProduct} 
                                    value={searchTerm} 
-                                   onChange={(e) => setSearchTerm(e.target.value)} 
+                                   onChange={(e) => {
+                                     setSearchTerm(e.target.value);
+                                     setSelectedItemIdFromListbox(null);
+                                   }} 
                                  />
                               </div>
 
-                              {/* Listbox - Element B */}
                               <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3">
                                  <ListFilter size={18} className="text-orange-400" />
                                  <select 
                                    className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase outline-none appearance-none cursor-pointer"
                                    onChange={(e) => {
                                      const selectedId = e.target.value;
-                                     const item = productsToShowInPicker.find(o => o.id === selectedId);
-                                     if (item) setStagedProduct({ opt: item, currentKcal: item.kcal });
+                                     setSelectedItemIdFromListbox(selectedId);
+                                     setSearchTerm('');
                                    }}
-                                   value=""
+                                   value={selectedItemIdFromListbox || ""}
                                  >
                                    <option value="" disabled>{t.orSelectFromList}</option>
                                    {productsToShowInPicker.map(opt => (
@@ -1129,35 +1142,35 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* Show results list only if search input exists or stagedProduct isn't set */}
-                            {searchTerm.trim().length > 0 && (
+                            {productsToDisplayInResults.length > 0 && (
                               <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-1 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                {productsToShowInPicker.map(opt => (
+                                {productsToDisplayInResults.map(opt => (
                                   <button 
                                     key={opt.id}
                                     onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })}
-                                    className="flex items-center gap-3 bg-white p-3 rounded-[20px] border border-slate-100 hover:border-orange-300 active:scale-[0.98] transition-all text-left group shadow-sm"
+                                    className="flex items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-100 hover:border-orange-300 active:scale-[0.98] transition-all text-left group shadow-sm w-full"
                                   >
-                                    <div className="bg-orange-50 p-2 rounded-xl text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                                      {opt.isAlcohol ? <Beer size={16} /> : opt.isDrink ? <GlassWater size={16} /> : <Utensils size={16} />}
+                                    <div className="bg-orange-50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0">
+                                      {opt.isAlcohol ? <Beer size={20} /> : opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
                                     </div>
                                     <div className="flex flex-col flex-grow truncate">
-                                       <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-tight">
+                                       <span className="text-[13px] font-black text-slate-800 uppercase truncate leading-none mb-1.5">
                                          {getTranslatedName(opt.id, opt.name)}
                                        </span>
-                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-none">
                                          {opt.kcal} {t.kcalLabel} • {opt.unitName}
                                        </span>
                                     </div>
-                                    <Plus size={16} className="text-orange-200 group-hover:text-orange-500" />
+                                    <Plus size={18} className="text-orange-300 group-hover:text-orange-500 transition-colors shrink-0" />
                                   </button>
                                 ))}
-                                {productsToShowInPicker.length === 0 && (
-                                  <div className="py-10 text-center flex flex-col items-center opacity-30">
-                                    <Search size={32} className="mb-2" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</span>
-                                  </div>
-                                )}
+                              </div>
+                            )}
+
+                            {(searchTerm.trim().length > 0 || selectedItemIdFromListbox) && productsToDisplayInResults.length === 0 && (
+                              <div className="py-10 text-center flex flex-col items-center opacity-30">
+                                <Search size={32} className="mb-2" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</span>
                               </div>
                             )}
                           </div>
@@ -1190,6 +1203,7 @@ export default function App() {
                                 setOpenPickerMoment(null);
                                 setStagedProduct(null);
                                 setSearchTerm('');
+                                setSelectedItemIdFromListbox(null);
                                 setPickerFilter('all');
                                 setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} ${t.save}`});
                              }} className="w-full py-4 bg-[#ff7300] text-white rounded-2xl font-black text-[14px] uppercase shadow-lg shadow-orange-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
@@ -1389,7 +1403,7 @@ export default function App() {
                              const log = logs[selectedDate];
                              if (log) log.activities = log.activities.filter(a => a.id !== act.id);
                              return { ...prev, dailyLogs: logs };
-                          })} className="text-slate-200 p-2 transition-colors active:text-red-500"><Trash2 size={18}/></button>
+                          })} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={14}/></button>
                         </div>
                       );
                     })}
