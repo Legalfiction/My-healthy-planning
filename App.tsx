@@ -40,7 +40,8 @@ import {
   Beer,
   CalendarDays,
   BarChart3,
-  Pencil
+  Pencil,
+  CalendarRange
 } from 'lucide-react';
 import { 
   AppState, 
@@ -212,14 +213,23 @@ export default function App() {
 
   useEffect(() => {
     idb.get().then(saved => {
+      // Android Migration Force: ensure MEAL_OPTIONS are merged correctly to prevent empty lists
+      const mergedOptions = { ...MEAL_OPTIONS };
       if (saved) {
+        MEAL_MOMENTS.forEach(m => {
+          const userCustoms = (saved.customOptions?.[m] || []).filter((o: any) => o.id.startsWith('cust_'));
+          mergedOptions[m] = [...MEAL_OPTIONS[m], ...userCustoms];
+        });
+
         setState({
           ...saved,
           profile: { ...INITIAL_STATE.profile, ...saved.profile },
-          customOptions: saved.customOptions || MEAL_OPTIONS,
+          customOptions: mergedOptions,
           customActivities: saved.customActivities || [],
           language: saved.language || 'nl'
         });
+      } else {
+        setState({ ...INITIAL_STATE, customOptions: mergedOptions });
       }
       setIsLoaded(true);
     });
@@ -378,7 +388,6 @@ export default function App() {
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
     touchStartRef.current = null;
 
-    // Minimum swipe distance 50px, and horizontal must be dominant
     if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
       if (deltaX > 0) handleSwipe('right');
       else handleSwipe('left');
@@ -490,7 +499,6 @@ export default function App() {
           )
         }));
       } else {
-        // Was editing a built-in one, save as new custom
         const newAct: any = {
           id: 'custom_act_' + generateId(),
           name: newActivityInput.name,
@@ -564,7 +572,6 @@ export default function App() {
           categories: newFood.cats
         };
 
-        // Custom items behavior like built-in: available everywhere but filtered by categories property
         MEAL_MOMENTS.forEach(m => {
           if (newOptions[m]) {
              newOptions[m] = newOptions[m].map(o => o.id === editingFoodId ? updatedItem : o);
@@ -581,14 +588,13 @@ export default function App() {
         kcal: Number(newFood.kcal), 
         unitName: newFood.unit.toUpperCase() || 'STUK', 
         isDrink: newFood.isDrink, 
-        isAlcohol: newFood.isAlcohol,
+        isAlcohol: newFood.isAlcohol, 
         isCustom: true,
         categories: newFood.cats
       };
 
       setState(prev => {
         const newOptions = { ...prev.customOptions };
-        // Add to all moments to be consistent with built-in items (shown in "Alles")
         MEAL_MOMENTS.forEach(moment => {
           newOptions[moment] = [...(newOptions[moment] || []), item];
         });
@@ -656,36 +662,47 @@ export default function App() {
     const currentMoment = openPickerMoment;
     if (!currentMoment) return [];
 
-    if (searchTerm.trim()) {
-      return allAvailableProducts.filter(o => {
+    const searchNormalized = searchTerm.trim().toLowerCase();
+    
+    // Case-insensitive filtering for robust matching
+    let baseList = allAvailableProducts;
+    if (searchNormalized) {
+      baseList = allAvailableProducts.filter(o => {
         const name = getTranslatedName(o.id, o.name).toLowerCase();
-        return name.includes(searchTerm.toLowerCase());
+        return name.includes(searchNormalized);
       });
     }
 
-    if (pickerFilter === 'all') return allAvailableProducts;
+    if (pickerFilter === 'all') return baseList;
 
-    return allAvailableProducts.filter(o => {
+    const filtered = baseList.filter(o => {
       const isCustom = !!o.isCustom || o.id.startsWith('cust_');
-      if (pickerFilter === 'breakfast') return o.id.startsWith('b_') || !!(isCustom && o.categories?.includes('ONTBIJT'));
-      if (pickerFilter === 'lunch') return o.id.startsWith('l_') || !!(isCustom && o.categories?.includes('LUNCH'));
-      if (pickerFilter === 'diner') return o.id.startsWith('m_') || !!(isCustom && o.categories?.includes('DINER'));
+      const catsNormalized = (o.categories || []).map(c => c.toUpperCase());
+      
+      if (pickerFilter === 'breakfast') return o.id.startsWith('b_') || catsNormalized.includes('ONTBIJT');
+      if (pickerFilter === 'lunch') return o.id.startsWith('l_') || catsNormalized.includes('LUNCH');
+      if (pickerFilter === 'diner') return o.id.startsWith('m_') || catsNormalized.includes('DINER');
       if (pickerFilter === 'drink') return o.id.startsWith('d_') || !!o.isDrink;
       if (pickerFilter === 'alcohol') return o.id.startsWith('a_') || !!o.isAlcohol;
       if (pickerFilter === 'fruit') return o.id.startsWith('f_');
-      if (pickerFilter === 'snacks') return o.id.startsWith('s_') || !!(isCustom && o.categories?.includes('SNACK'));
+      if (pickerFilter === 'snacks') return o.id.startsWith('s_') || catsNormalized.includes('SNACK');
       return true;
     });
+
+    // Android Debug Logging
+    if (/android/i.test(navigator.userAgent)) {
+      console.log(`[Picker] Filter: ${pickerFilter}, Items: ${filtered.length}`);
+    }
+
+    return filtered;
   }, [searchTerm, pickerFilter, allAvailableProducts, state.language, openPickerMoment]);
 
   const productsToDisplayInResults = useMemo(() => {
-    // If the user has typed a search, used the dropdown, OR selected a non-default filter (orange button),
-    // reveal the full set of products in graphical card format.
-    if (searchTerm.trim().length > 0 || selectedItemIdFromListbox !== null || pickerFilter !== 'all') {
+    if (openPickerMoment) {
       return productsToShowInPicker;
     }
     return [];
-  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker, pickerFilter]);
+  }, [openPickerMoment, productsToShowInPicker]);
 
   if (!isLoaded) return null;
 
@@ -771,7 +788,6 @@ export default function App() {
                 <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
              </div>
              
-             {/* Interactive Weight Button & Popover */}
              <div className="relative" ref={popoverRef}>
                <button 
                   onClick={() => setShowWeeklyPopover(!showWeeklyPopover)}
@@ -782,7 +798,6 @@ export default function App() {
                   <ChevronDown size={10} className={`text-slate-400 transition-transform ${showWeeklyPopover ? 'rotate-180' : ''}`} />
                </button>
 
-               {/* Weekly Summary Popover */}
                {showWeeklyPopover && (
                  <div className="absolute top-full right-0 mt-2 w-72 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-5 z-[100] animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                     <div className="flex items-center gap-2 mb-4">
@@ -1071,7 +1086,6 @@ export default function App() {
                 <div className="relative shrink-0">
                    {openPickerMoment && (
                      <div className="bg-white rounded-[28px] border border-slate-100 shadow-sm animate-in slide-in-from-top duration-300 overflow-hidden">
-                        {/* Compact header: icons aligned against the top edge */}
                         <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-50">
                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-2 flex-grow">
                                {[
@@ -1091,6 +1105,12 @@ export default function App() {
                                      setSearchTerm(''); 
                                      setSelectedItemIdFromListbox(null);
                                    }} 
+                                   onPointerDown={(e) => { 
+                                     // Robust touch handling for Android
+                                     setPickerFilter(f.id as any); 
+                                     setSearchTerm(''); 
+                                     setSelectedItemIdFromListbox(null);
+                                   }}
                                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all shrink-0 min-w-[58px] ${
                                      pickerFilter === f.id ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 text-slate-300 border-transparent hover:bg-slate-100'
                                    }`}
@@ -1106,7 +1126,6 @@ export default function App() {
                         {!stagedProduct ? (
                           <div className="p-4 flex flex-col gap-3">
                             <div className="flex flex-col gap-3">
-                              {/* Uniform height 48px for search and select */}
                               <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3 h-[48px]">
                                  <Search size={18} className="text-orange-400" />
                                  <input 
@@ -1143,17 +1162,15 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* Display list if any filter, search, or dropdown selection occurred */}
                             {productsToDisplayInResults.length > 0 && (
-                              <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-1 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 {productsToDisplayInResults.map(opt => (
                                   <button 
                                     key={opt.id}
                                     onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })}
                                     className="flex items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-100 hover:border-orange-300 active:scale-[0.98] transition-all text-left group shadow-sm w-full"
                                   >
-                                    {/* Design-match: circular background for icon */}
-                                    <div className="bg-orange-50/50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0 flex items-center justify-center w-12 h-12">
+                                    <div className="bg-orange-50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0 flex items-center justify-center w-12 h-12">
                                       {opt.isAlcohol ? <Beer size={22} /> : opt.isDrink ? <GlassWater size={22} /> : <Utensils size={22} />}
                                     </div>
                                     <div className="flex flex-col flex-grow truncate">
@@ -1164,13 +1181,15 @@ export default function App() {
                                          {opt.kcal} {t.kcalLabel} • {opt.unitName}
                                        </span>
                                     </div>
-                                    <Plus size={20} className="text-orange-300 group-hover:text-orange-500 transition-colors shrink-0" />
+                                    <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0">
+                                      <Plus size={20} strokeWidth={3} />
+                                    </div>
                                   </button>
                                 ))}
                               </div>
                             )}
 
-                            {(searchTerm.trim().length > 0 || selectedItemIdFromListbox !== null || pickerFilter !== 'all') && productsToDisplayInResults.length === 0 && (
+                            {productsToDisplayInResults.length === 0 && (
                               <div className="py-10 text-center flex flex-col items-center opacity-30">
                                 <Search size={32} className="mb-2" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">{t.noDataYet}</span>
@@ -1184,7 +1203,7 @@ export default function App() {
                                   {stagedProduct.opt.isAlcohol ? <Beer size={28} /> : stagedProduct.opt.isDrink ? <GlassWater size={28} /> : <Utensils size={28} />}
                                 </div>
                                 <div className="flex flex-col truncate">
-                                  <span className="text-[14px] font-black text-[#1e293b] uppercase truncate leading-tight mb-1">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
+                                  <span className="text-[14px] font-black text-slate-800 uppercase truncate leading-tight mb-1">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
                                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stagedProduct.opt.unitName}</span>
                                 </div>
                              </div>
@@ -1244,7 +1263,7 @@ export default function App() {
                                   <div className="bg-white p-1.5 rounded-[12px] text-[#ff7300] shrink-0 shadow-sm border border-orange-50">
                                     {item.isAlcohol ? <Beer size={14} /> : item.isDrink ? <GlassWater size={14} /> : <Utensils size={14} />}
                                   </div>
-                                  <span className="text-[11px] font-black text-[#1e293b] uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
+                                  <span className="text-[11px] font-black text-slate-800 uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2">
@@ -1524,7 +1543,7 @@ export default function App() {
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-4 py-3 flex justify-between items-center max-w-md mx-auto z-40 rounded-t-[28px] shadow-[0_-12px_40px_-15px_rgba(0,0,0,0.12)] pb-[env(safe-area-inset-bottom,16px)]">
         {[
-          { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard.toUpperCase() }, 
+          { id: 'dashboard', icon: CalendarRange, label: t.tabs.dashboard.toUpperCase() }, 
           { id: 'meals', icon: Utensils, label: t.tabs.meals.toUpperCase() }, 
           { id: 'activity', icon: Activity, label: t.tabs.activity.toUpperCase() }, 
           { id: 'profile', icon: UserIcon, label: t.tabs.profile.toUpperCase() }

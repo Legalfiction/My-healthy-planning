@@ -94,12 +94,12 @@
 <body class="bg-white text-slate-900">
     <div id="loading-screen">
         <div class="spinner mb-6"></div>
-        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">App start op...</p>
+        <p id="loading-text" class="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Systeem initialiseren...</p>
         <div id="error-box" class="hidden flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <p class="text-slate-800 font-black uppercase text-[14px] mb-2">Kan de app niet laden</p>
-            <p class="text-slate-400 text-[11px] font-medium px-8 leading-relaxed mb-4">Dit kan komen door een update of verbindingsprobleem.</p>
+            <p class="text-slate-800 font-black uppercase text-[14px] mb-2">Opstartfout</p>
+            <p class="text-slate-400 text-[11px] font-medium px-8 leading-relaxed mb-4">Er is een probleem opgetreden tijdens het laden van de componenten.</p>
             <div id="error-msg" class="error-details mb-8"></div>
-            <button class="px-10 py-4 bg-orange-500 text-white rounded-[24px] font-black text-[13px] uppercase shadow-2xl shadow-orange-200 active:scale-95 transition-all" onclick="deepResetApp(event)">Systeem herstellen</button>
+            <button class="px-10 py-4 bg-orange-500 text-white rounded-[24px] font-black text-[13px] uppercase shadow-2xl shadow-orange-200 active:scale-95 transition-all" onclick="deepResetApp(event)">Opnieuw proberen</button>
         </div>
     </div>
 
@@ -120,58 +120,27 @@
         }
 
         window.addEventListener('error', (e) => {
-            console.error('Boot error event:', e);
-            let msg = 'Onbekende fout';
-            
+            let msg = 'Runtime Error';
             if (e.error) {
                 msg = e.error.stack || e.error.message || String(e.error);
             } else if (e.message) {
                 msg = e.message;
-            } else if (e.target && (e.target.src || e.target.href)) {
-                msg = 'Bestand kon niet laden: ' + (e.target.src || e.target.href);
-            } else if (typeof e === 'object') {
-                try {
-                    msg = JSON.stringify(e);
-                    if (msg === '{}') msg = e.toString();
-                } catch(err) {
-                    msg = 'Fout tijdens initialisatie';
-                }
             }
             showError(msg);
         }, true);
 
         window.addEventListener('unhandledrejection', (e) => {
-            console.error('Unhandled Rejection:', e.reason);
             let msg = e.reason?.stack || e.reason?.message || String(e.reason);
-            showError('Async Error: ' + msg);
+            showError('Promise Error: ' + msg);
         });
 
         async function deepResetApp(event) {
-            const btn = event.currentTarget;
-            btn.innerText = 'BEZIG MET HERSTEL...';
-            btn.disabled = true;
-            btn.classList.add('opacity-50');
-            
             try {
-                if ('indexedDB' in window && window.indexedDB.databases) {
-                    const dbs = await window.indexedDB.databases();
-                    for (let db of dbs) {
-                        if (db.name) window.indexedDB.deleteDatabase(db.name);
-                    }
-                }
                 if ('serviceWorker' in navigator) {
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    for (let registration of registrations) {
-                        await registration.unregister();
-                    }
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (let r of regs) await r.unregister();
                 }
-                if ('caches' in window) {
-                    const keys = await caches.keys();
-                    for (let key of keys) {
-                        await caches.delete(key);
-                    }
-                }
-                window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
+                window.location.reload(true);
             } catch (err) {
                 window.location.reload();
             }
@@ -180,9 +149,9 @@
         const bootTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (root && root.children.length === 0) {
-                showError('Time-out: De app-bestanden laden niet. Controleer je verbinding.');
+                showError('Time-out: De app-bestanden laden niet.');
             }
-        }, 20000);
+        }, 15000);
 
         const observer = new MutationObserver(() => {
             const root = document.getElementById('root');
