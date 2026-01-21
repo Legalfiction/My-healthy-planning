@@ -1106,7 +1106,7 @@ export default function App() {
                         {!stagedProduct ? (
                           <div className="p-4 flex flex-col gap-3">
                             <div className="flex flex-col gap-3">
-                              <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3">
+                              <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3 h-[48px]">
                                  <Search size={18} className="text-orange-400" />
                                  <input 
                                    type="text" 
@@ -1120,7 +1120,7 @@ export default function App() {
                                  />
                               </div>
 
-                              <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3">
+                              <div className="relative bg-orange-50 border border-orange-200 rounded-[22px] px-5 py-3 flex items-center gap-3 h-[48px]">
                                  <ListFilter size={18} className="text-orange-400" />
                                  <select 
                                    className="bg-transparent border-none text-[13px] w-full focus:ring-0 font-black uppercase outline-none appearance-none cursor-pointer"
@@ -1150,8 +1150,8 @@ export default function App() {
                                     onClick={() => setStagedProduct({ opt, currentKcal: opt.kcal })}
                                     className="flex items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-100 hover:border-orange-300 active:scale-[0.98] transition-all text-left group shadow-sm w-full"
                                   >
-                                    <div className="bg-orange-50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0">
-                                      {opt.isAlcohol ? <Beer size={20} /> : opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
+                                    <div className="bg-orange-50/50 p-3 rounded-full text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0 flex items-center justify-center w-12 h-12">
+                                      {opt.isAlcohol ? <Beer size={22} /> : opt.isDrink ? <GlassWater size={22} /> : <Utensils size={22} />}
                                     </div>
                                     <div className="flex flex-col flex-grow truncate">
                                        <span className="text-[13px] font-black text-slate-800 uppercase truncate leading-none mb-1.5">
@@ -1161,7 +1161,7 @@ export default function App() {
                                          {opt.kcal} {t.kcalLabel} • {opt.unitName}
                                        </span>
                                     </div>
-                                    <Plus size={18} className="text-orange-300 group-hover:text-orange-500 transition-colors shrink-0" />
+                                    <Plus size={20} className="text-orange-300 group-hover:text-orange-500 transition-colors shrink-0" />
                                   </button>
                                 ))}
                               </div>
@@ -1175,26 +1175,26 @@ export default function App() {
                             )}
                           </div>
                         ) : (
-                          <div className="p-4 bg-slate-50 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                             <div className="flex items-center gap-3">
-                                <div className="bg-white p-2.5 rounded-[16px] text-[#ff7300] shadow-sm">
-                                  {stagedProduct.opt.isAlcohol ? <Beer size={20} /> : stagedProduct.opt.isDrink ? <GlassWater size={20} /> : <Utensils size={20} />}
+                          <div className="p-6 bg-slate-50/30 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                             <div className="flex items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-100 shadow-sm">
+                                <div className="bg-orange-50 p-3.5 rounded-full text-[#ff7300] shadow-sm flex items-center justify-center w-14 h-14">
+                                  {stagedProduct.opt.isAlcohol ? <Beer size={28} /> : stagedProduct.opt.isDrink ? <GlassWater size={28} /> : <Utensils size={28} />}
                                 </div>
                                 <div className="flex flex-col truncate">
-                                  <span className="text-[13px] font-black text-[#1e293b] uppercase truncate">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{stagedProduct.opt.unitName}</span>
+                                  <span className="text-[14px] font-black text-[#1e293b] uppercase truncate leading-tight mb-1">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</span>
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stagedProduct.opt.unitName}</span>
                                 </div>
                              </div>
 
-                             <div className="flex flex-col gap-1.5">
-                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{t.adjustQuantity}</label>
-                               <div className="flex items-center justify-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - p.opt.kcal)} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Minus size={20} strokeWidth={4}/></button>
-                                  <div className="flex items-center gap-1">
-                                    <input type="number" className="w-20 bg-transparent border-none p-0 text-2xl font-black text-[#ff7300] focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} />
-                                    <span className="text-[10px] font-black text-slate-300 uppercase">{t.kcalLabel.toLowerCase()}</span>
+                             <div className="flex flex-col gap-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">{t.adjustQuantity}</label>
+                               <div className="flex items-center justify-center gap-6 bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm">
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - p.opt.kcal)} : p)} className="w-12 h-12 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-2xl active:scale-90 transition-transform"><Minus size={24} strokeWidth={4}/></button>
+                                  <div className="flex flex-col items-center min-w-[100px]">
+                                    <input type="number" className="w-full bg-transparent border-none p-0 text-3xl font-black text-[#ff7300] focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} />
+                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t.kcalLabel}</span>
                                   </div>
-                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + p.opt.kcal} : p)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-full active:scale-90 transition-transform"><Plus size={20} strokeWidth={4}/></button>
+                                  <button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + p.opt.kcal} : p)} className="w-12 h-12 flex items-center justify-center bg-slate-50 text-[#ff7300] rounded-2xl active:scale-90 transition-transform"><Plus size={24} strokeWidth={4}/></button>
                                </div>
                              </div>
 
@@ -1206,9 +1206,10 @@ export default function App() {
                                 setSelectedItemIdFromListbox(null);
                                 setPickerFilter('all');
                                 setToast({msg: `${getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)} ${t.save}`});
-                             }} className="w-full py-4 bg-[#ff7300] text-white rounded-2xl font-black text-[14px] uppercase shadow-lg shadow-orange-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                               OK <Check size={18} strokeWidth={4} />
+                             }} className="w-full py-5 bg-[#ff7300] text-white rounded-[24px] font-black text-[16px] uppercase shadow-2xl shadow-orange-200 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                               OK <Check size={20} strokeWidth={4} />
                              </button>
+                             <button onClick={() => setStagedProduct(null)} className="w-full text-center text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2">Terug naar lijst</button>
                           </div>
                         )}
                      </div>
@@ -1403,7 +1404,7 @@ export default function App() {
                              const log = logs[selectedDate];
                              if (log) log.activities = log.activities.filter(a => a.id !== act.id);
                              return { ...prev, dailyLogs: logs };
-                          })} className="text-slate-200 p-1 shrink-0 transition-colors active:text-red-500"><Trash2 size={14}/></button>
+                          })} className="text-slate-200 p-2 transition-colors active:text-red-500"><Trash2 size={18}/></button>
                         </div>
                       );
                     })}
