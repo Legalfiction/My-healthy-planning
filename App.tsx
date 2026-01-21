@@ -679,14 +679,13 @@ export default function App() {
   }, [searchTerm, pickerFilter, allAvailableProducts, state.language, openPickerMoment]);
 
   const productsToDisplayInResults = useMemo(() => {
-    if (selectedItemIdFromListbox) {
-      return allAvailableProducts.filter(o => o.id === selectedItemIdFromListbox);
-    }
-    if (searchTerm.trim().length > 0) {
+    // If we have selected something from the listbox OR typed a search term,
+    // we reveal the full set of filtered products in rich card format.
+    if (selectedItemIdFromListbox || searchTerm.trim().length > 0) {
       return productsToShowInPicker;
     }
     return [];
-  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker, allAvailableProducts]);
+  }, [selectedItemIdFromListbox, searchTerm, productsToShowInPicker]);
 
   if (!isLoaded) return null;
 
@@ -1317,7 +1316,7 @@ export default function App() {
                     </div>
                   </div>
                   <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-2xl font-black text-[12px] uppercase flex items-center justify-center gap-2 transition-all ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-[#cbd5e1] text-white' : 'bg-orange-500 text-white active:scale-95 shadow-xl shadow-orange-100'}`}>
-                    {editingActivityId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingActivityId ? 'Wijziging Opslaan' : t.addToMyList}
+                    {editingFoodId ? <Check size={18} strokeWidth={4} /> : <Plus size={18} strokeWidth={4} />} {editingActivityId ? 'Wijziging Opslaan' : t.addToMyList}
                   </button>
                 </div>
 
@@ -1513,7 +1512,7 @@ export default function App() {
                   <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 active:scale-95"><FileUp size={18} /></button>
                   <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="p-2 rounded-xl bg-red-50 text-red-200 transition-all active:scale-95"><Trash2 size={18} /></button>
                 </div>
-                <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
+                <input type="file" element="input" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
              </section>
           </div>
         )}
