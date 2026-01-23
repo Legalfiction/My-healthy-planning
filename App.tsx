@@ -831,8 +831,8 @@ export default function App() {
 
         {activeTab === 'activity' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-             {/* RICH SELECT FOR ACTIVITY TYPE */}
-             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            {/* RICH SELECT FOR ACTIVITY TYPE */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
               <div className="relative flex-grow">
                 <button 
                   onClick={() => setIsActivityTypeOpen(!isActivityTypeOpen)}
@@ -1088,8 +1088,8 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-        <div className="flex justify-between items-center w-full">
+      <nav className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.03)] w-full max-w-full m-0 p-0 box-border overflow-hidden">
+        <div className="flex w-full items-stretch">
           {[ 
             { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
             { id: 'meals', icon: Utensils, label: t.tabs.meals }, 
@@ -1105,10 +1105,10 @@ export default function App() {
                 setIsMealMomentOpen(false);
                 setIsActivityTypeOpen(false);
               }} 
-              className={`flex flex-col items-center justify-center flex-1 py-4 transition-all duration-300 ${activeTab === tab.id ? 'text-orange-500 border-t-2 border-orange-500 bg-orange-50/20' : 'text-slate-400 hover:bg-slate-50 border-t-2 border-transparent'}`}
+              className={`flex flex-col items-center justify-center flex-1 min-w-0 py-4 transition-all duration-300 ${activeTab === tab.id ? 'text-orange-500 border-t-2 border-orange-500 bg-orange-50/20' : 'text-slate-400 hover:bg-slate-50 border-t-2 border-transparent'}`}
             >
-              <tab.icon size={26} />
-              <span className={`text-[12px] font-black uppercase tracking-widest mt-1.5 ${tab.id === activeTab ? 'opacity-100' : 'opacity-70'}`}>{tab.label}</span>
+              <tab.icon size={26} className="shrink-0" />
+              <span className={`text-[11px] font-black uppercase tracking-tight mt-1.5 truncate w-full px-1 text-center ${tab.id === activeTab ? 'opacity-100' : 'opacity-70'}`}>{tab.label}</span>
             </button>
           ))}
         </div>
