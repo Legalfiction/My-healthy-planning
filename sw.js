@@ -1,4 +1,5 @@
-const CACHE_NAME = 'mijn-gezond-v11';
+
+const CACHE_NAME = 'mijn-gezond-v2-stable';
 const ASSETS = [
   'index.html',
   'manifest.json',
@@ -21,7 +22,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching v11 assets');
+      console.log('[SW] Pre-caching V2-Stable assets');
       return Promise.allSettled(ASSETS.map(url => 
         fetch(url, { cache: 'no-store' }).then(response => {
           if (response.ok) return cache.put(url, response);
