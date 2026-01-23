@@ -810,33 +810,39 @@ export default function App() {
              </div>
 
              {/* RICH LISTBOX: ACTIVITY LEVEL */}
-             <div className="space-y-3 relative">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Dagelijkse Activiteit (Basis)</h3>
-                <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+             <div className="space-y-4">
+                <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden transition-all duration-300">
                    <button 
                      onClick={() => { setIsActivitySelectOpen(!isActivitySelectOpen); setIsPaceSelectOpen(false); }}
-                     className="w-full px-6 py-4 flex items-center justify-between text-left"
+                     className={`w-full px-6 py-5 flex items-center justify-between text-left transition-colors ${isActivitySelectOpen ? 'bg-slate-50' : 'bg-white'}`}
                    >
-                     {(() => {
-                        const current = [
-                          { id: 'light', icon: Armchair, title: 'Zittend', desc: 'Kantoorbaan, weinig beweging' },
-                          { id: 'moderate', icon: Stethoscope, title: 'Gemiddeld', desc: 'Staand werk, lichte inspanning' },
-                          { id: 'heavy', icon: Construction, title: 'Zwaar werk', desc: 'Fysiek zwaar werk / bouw' }
-                        ].find(l => l.id === state.profile.activityLevel) || { icon: Armchair, title: 'Kies Niveau', desc: '' };
-                        return (
-                          <div className="flex items-center gap-5">
-                             <div className="p-3 bg-orange-100/50 rounded-2xl text-orange-500"><current.icon size={22} /></div>
-                             <div>
-                                <h4 className="text-base font-black text-slate-800 leading-none mb-1.5 uppercase tracking-tight">{current.title}</h4>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{current.desc}</p>
-                             </div>
-                          </div>
-                        );
-                     })()}
-                     <ChevronDown size={20} className={`text-slate-300 transition-transform ${isActivitySelectOpen ? 'rotate-180' : ''}`} />
+                     <div className="flex flex-col">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">Dagelijkse Activiteit</span>
+                        <span className="text-[17px] font-black text-slate-800 uppercase tracking-tight">
+                           {(() => {
+                              const current = [
+                                { id: 'light', title: 'Zittend' },
+                                { id: 'moderate', title: 'Gemiddeld' },
+                                { id: 'heavy', title: 'Zwaar werk' }
+                              ].find(l => l.id === state.profile.activityLevel);
+                              return current?.title || 'Kies Niveau';
+                           })()}
+                        </span>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-orange-50 rounded-xl text-orange-500 shadow-sm border border-orange-100">
+                           {(() => {
+                              const iconMap: any = { light: Armchair, moderate: Stethoscope, heavy: Construction };
+                              const Icon = iconMap[state.profile.activityLevel || 'light'] || Armchair;
+                              return <Icon size={22} />;
+                           })()}
+                        </div>
+                        <ChevronDown size={20} className={`text-slate-300 transition-transform duration-300 ${isActivitySelectOpen ? 'rotate-180' : ''}`} />
+                     </div>
                    </button>
+                   
                    {isActivitySelectOpen && (
-                     <div className="border-t border-slate-100 divide-y divide-slate-50 bg-slate-50/30 animate-in slide-in-from-top-2 duration-200">
+                     <div className="border-t border-slate-100 divide-y divide-slate-50 bg-white animate-in slide-in-from-top-2 duration-300">
                         {[
                           { id: 'light', icon: Armchair, title: 'Zittend', desc: 'Kantoorbaan, weinig beweging' },
                           { id: 'moderate', icon: Stethoscope, title: 'Gemiddeld', desc: 'Staand werk, lichte inspanning' },
@@ -845,14 +851,16 @@ export default function App() {
                           <button 
                              key={lvl.id}
                              onClick={() => { updateProfile({ activityLevel: lvl.id as any }); setIsActivitySelectOpen(false); }}
-                             className="w-full px-8 py-5 flex items-center gap-5 text-left hover:bg-white transition-colors"
+                             className="w-full px-7 py-5 flex items-center gap-5 text-left hover:bg-orange-50/50 transition-colors group"
                           >
-                             <div className={`p-3 rounded-2xl ${state.profile.activityLevel === lvl.id ? 'bg-orange-500 text-white' : 'bg-white text-slate-400 shadow-sm'}`}><lvl.icon size={22} /></div>
-                             <div className="flex-grow">
-                                <h4 className={`text-base font-black leading-none mb-1.5 uppercase ${state.profile.activityLevel === lvl.id ? 'text-orange-600' : 'text-slate-800'}`}>{lvl.title}</h4>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{lvl.desc}</p>
+                             <div className={`p-3.5 rounded-2xl transition-all ${state.profile.activityLevel === lvl.id ? 'bg-orange-500 text-white shadow-lg' : 'bg-slate-50 text-slate-400 group-hover:bg-white'}`}>
+                                <lvl.icon size={26} />
                              </div>
-                             {state.profile.activityLevel === lvl.id && <Check size={20} className="text-orange-500" />}
+                             <div className="flex-grow">
+                                <h4 className={`text-[15px] font-black leading-none mb-1.5 uppercase tracking-tight ${state.profile.activityLevel === lvl.id ? 'text-orange-600' : 'text-slate-800'}`}>{lvl.title}</h4>
+                                <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider">{lvl.desc}</p>
+                             </div>
+                             {state.profile.activityLevel === lvl.id && <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm animate-in zoom-in duration-300"><Check size={14} /></div>}
                           </button>
                         ))}
                      </div>
@@ -861,34 +869,40 @@ export default function App() {
              </div>
 
              {/* RICH LISTBOX: PACE */}
-             <div className="space-y-3 relative">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] px-1">Afslank Tempo</h3>
-                <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+             <div className="space-y-4">
+                <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden transition-all duration-300">
                    <button 
                      onClick={() => { setIsPaceSelectOpen(!isPaceSelectOpen); setIsActivitySelectOpen(false); }}
-                     className="w-full px-6 py-4 flex items-center justify-between text-left"
+                     className={`w-full px-6 py-5 flex items-center justify-between text-left transition-colors ${isPaceSelectOpen ? 'bg-slate-50' : 'bg-white'}`}
                    >
-                     {(() => {
-                        const current = [
-                          { id: 'slow', icon: Turtle, title: 'Rustig', desc: 'Duurzaam afvallen (-0.25kg p/w)' },
-                          { id: 'average', icon: Footprints, title: 'Gemiddeld', desc: 'Aanbevolen balans (-0.5kg p/w)' },
-                          { id: 'fast', icon: Flame, title: 'Snel', desc: 'Ambitieus doel (-1.0kg p/w)' },
-                          { id: 'custom', icon: Pencil, title: 'Eigen tempo', desc: 'Kies zelf je streefdatum' }
-                        ].find(p => p.id === state.profile.weightLossSpeed) || { icon: Footprints, title: 'Kies Tempo', desc: '' };
-                        return (
-                          <div className="flex items-center gap-5">
-                             <div className="p-3 bg-orange-100/50 rounded-2xl text-orange-500"><current.icon size={22} /></div>
-                             <div>
-                                <h4 className="text-base font-black text-slate-800 leading-none mb-1.5 uppercase tracking-tight">{current.title}</h4>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{current.desc}</p>
-                             </div>
-                          </div>
-                        );
-                     })()}
-                     <ChevronDown size={20} className={`text-slate-300 transition-transform ${isPaceSelectOpen ? 'rotate-180' : ''}`} />
+                     <div className="flex flex-col">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">Afslank Tempo</span>
+                        <span className="text-[17px] font-black text-slate-800 uppercase tracking-tight">
+                           {(() => {
+                              const current = [
+                                { id: 'slow', title: 'Rustig' },
+                                { id: 'average', title: 'Gemiddeld' },
+                                { id: 'fast', title: 'Snel' },
+                                { id: 'custom', title: 'Eigen tempo' }
+                              ].find(p => p.id === state.profile.weightLossSpeed);
+                              return current?.title || 'Kies Tempo';
+                           })()}
+                        </span>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-orange-50 rounded-xl text-orange-500 shadow-sm border border-orange-100">
+                           {(() => {
+                              const iconMap: any = { slow: Turtle, average: Footprints, fast: Flame, custom: Pencil };
+                              const Icon = iconMap[state.profile.weightLossSpeed || 'average'] || Footprints;
+                              return <Icon size={22} />;
+                           })()}
+                        </div>
+                        <ChevronDown size={20} className={`text-slate-300 transition-transform duration-300 ${isPaceSelectOpen ? 'rotate-180' : ''}`} />
+                     </div>
                    </button>
+
                    {isPaceSelectOpen && (
-                     <div className="border-t border-slate-100 divide-y divide-slate-50 bg-slate-50/30 animate-in slide-in-from-top-2 duration-200">
+                     <div className="border-t border-slate-100 divide-y divide-slate-50 bg-white animate-in slide-in-from-top-2 duration-300">
                         {[
                           { id: 'slow', icon: Turtle, title: 'Rustig', desc: 'Duurzaam afvallen (-0.25kg p/w)' },
                           { id: 'average', icon: Footprints, title: 'Gemiddeld', desc: 'Aanbevolen balans (-0.5kg p/w)' },
@@ -898,14 +912,16 @@ export default function App() {
                           <button 
                              key={sp.id}
                              onClick={() => { updateProfile({ weightLossSpeed: sp.id as any }); setIsPaceSelectOpen(false); }}
-                             className="w-full px-8 py-5 flex items-center gap-5 text-left hover:bg-white transition-colors"
+                             className="w-full px-7 py-5 flex items-center gap-5 text-left hover:bg-orange-50/50 transition-colors group"
                           >
-                             <div className={`p-3 rounded-2xl ${state.profile.weightLossSpeed === sp.id ? 'bg-orange-500 text-white' : 'bg-white text-slate-400 shadow-sm'}`}><sp.icon size={22} /></div>
-                             <div className="flex-grow">
-                                <h4 className={`text-base font-black leading-none mb-1.5 uppercase ${state.profile.weightLossSpeed === sp.id ? 'text-orange-600' : 'text-slate-800'}`}>{sp.title}</h4>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{sp.desc}</p>
+                             <div className={`p-3.5 rounded-2xl transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-orange-500 text-white shadow-lg' : 'bg-slate-50 text-slate-400 group-hover:bg-white'}`}>
+                                <sp.icon size={26} />
                              </div>
-                             {state.profile.weightLossSpeed === sp.id && <Check size={20} className="text-orange-500" />}
+                             <div className="flex-grow">
+                                <h4 className={`text-[15px] font-black leading-none mb-1.5 uppercase tracking-tight ${state.profile.weightLossSpeed === sp.id ? 'text-orange-600' : 'text-slate-800'}`}>{sp.title}</h4>
+                                <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider">{sp.desc}</p>
+                             </div>
+                             {state.profile.weightLossSpeed === sp.id && <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm animate-in zoom-in duration-300"><Check size={14} /></div>}
                           </button>
                         ))}
                      </div>
@@ -913,20 +929,29 @@ export default function App() {
                 </div>
 
                 {state.profile.weightLossSpeed === 'custom' && (
-                  <div className="mt-4 p-4 bg-orange-100/30 rounded-2xl border border-orange-200 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
-                     <label className="text-[11px] font-black text-orange-700 uppercase tracking-[0.15em]">EIGEN DATUM</label>
-                     <input type="date" min={minSafeDate} value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border-none py-2 px-4 rounded-xl font-black text-sm text-orange-600 outline-none shadow-sm" />
+                  <div className="mt-4 p-5 bg-orange-100/30 rounded-2xl border border-orange-200 flex items-center justify-between animate-in slide-in-from-top-2 duration-400">
+                     <label className="text-[12px] font-black text-orange-700 uppercase tracking-[0.2em]">EIGEN DATUM</label>
+                     <input 
+                        type="date" 
+                        min={minSafeDate} 
+                        value={state.profile.customTargetDate || ''} 
+                        onChange={(e) => updateProfile({ customTargetDate: e.target.value })} 
+                        className="bg-white border-none py-2.5 px-5 rounded-xl font-black text-[15px] text-orange-600 outline-none shadow-sm focus:ring-2 focus:ring-orange-200" 
+                     />
                   </div>
                 )}
              </div>
 
              {/* DATA STORAGE */}
-             <div className="bg-white rounded-[1.5rem] p-5 border border-slate-200 shadow-sm flex items-center justify-between">
-                <div><span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">SYSTEM</span><span className="text-sm font-black text-slate-800">{t.dataStorage}</span></div>
-                <div className="flex gap-3">
-                   <button onClick={handleExportData} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all"><FileDown size={22}/></button>
-                   <button onClick={() => fileInputRef.current?.click()} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all"><FileUp size={22}/></button>
-                   <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 border border-red-100 hover:bg-red-100 active:scale-90 transition-all"><Trash2 size={22}/></button>
+             <div className="bg-white rounded-[1.5rem] p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Systeem</span>
+                   <span className="text-base font-black text-slate-800">{t.dataStorage}</span>
+                </div>
+                <div className="flex gap-4">
+                   <button onClick={handleExportData} className="w-13 h-13 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all p-3 shadow-sm"><FileDown size={24}/></button>
+                   <button onClick={() => fileInputRef.current?.click()} className="w-13 h-13 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all p-3 shadow-sm"><FileUp size={24}/></button>
+                   <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="w-13 h-13 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 border border-red-100 hover:bg-red-100 active:scale-90 transition-all p-3 shadow-sm"><Trash2 size={24}/></button>
                 </div>
                 <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
              </div>
@@ -934,8 +959,8 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-md mx-auto p-2 flex justify-between items-center">
+      <nav className="fixed bottom-0 left-0 right-0 z-[60] bg-white/95 backdrop-blur-md border-t border-slate-200 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+        <div className="max-w-md mx-auto p-2.5 flex justify-between items-center gap-2">
           {[ 
             { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
             { id: 'meals', icon: Utensils, label: t.tabs.meals }, 
@@ -949,10 +974,10 @@ export default function App() {
                 setIsActivitySelectOpen(false);
                 setIsPaceSelectOpen(false);
               }} 
-              className={`flex flex-col items-center justify-center flex-1 py-3 rounded-2xl transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex flex-col items-center justify-center flex-1 py-3.5 rounded-2xl transition-all duration-300 ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
             >
-              <tab.icon size={tab.id === activeTab ? 26 : 24} />
-              <span className="text-[11px] font-black uppercase tracking-widest mt-1.5">{tab.label}</span>
+              <tab.icon size={tab.id === activeTab ? 28 : 24} />
+              <span className={`text-[11px] font-black uppercase tracking-widest mt-1.5 ${tab.id === activeTab ? 'opacity-100' : 'opacity-70'}`}>{tab.label}</span>
             </button>
           ))}
         </div>
@@ -967,6 +992,11 @@ export default function App() {
         input[type="number"] { -moz-appearance: textfield; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="date"]::-webkit-calendar-picker-indicator { background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto; }
+        
+        /* Fixed scroll area adjustment */
+        main {
+          height: calc(100vh - 150px);
+        }
       `}</style>
     </div>
   );
