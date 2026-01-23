@@ -41,7 +41,11 @@ import {
   CalendarDays,
   BarChart3,
   Pencil,
-  CalendarRange
+  CalendarRange,
+  ArrowRight,
+  TrendingUp,
+  Sparkles,
+  LineChart
 } from 'lucide-react';
 import { 
   AppState, 
@@ -65,7 +69,8 @@ import {
   calculateTDEE,
   calculateActivityBurn, 
   calculateTargetDate,
-  calculateBudgetFromTargetDate
+  calculateBudgetFromTargetDate,
+  calculateBMI
 } from './services/calculator';
 import { translations } from './translations';
 
@@ -166,7 +171,7 @@ const LANGUAGE_FLAGS: Record<Language, string> = {
 const TABS_ORDER = ['dashboard', 'meals', 'activity', 'profile'] as const;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'meals' | 'activity' | 'profile' | 'stats'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -295,6 +300,41 @@ export default function App() {
       targetDate: state.profile.weightLossSpeed === 'custom' && state.profile.customTargetDate ? state.profile.customTargetDate : calculateTargetDate({ ...state.profile, currentWeight: globalLatestWeight }, intakeGoal)
     };
   }, [state.profile, state.dailyLogs, selectedDate, globalLatestWeight]);
+
+  const statsData = useMemo(() => {
+    const sortedDates = Object.keys(state.dailyLogs).sort();
+    const weightHistory = sortedDates
+      .map(date => ({ date, weight: state.dailyLogs[date].weight }))
+      .filter(entry => entry.weight !== undefined);
+
+    const consistency = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const log = state.dailyLogs[dateStr];
+      const intake = Object.values(log?.meals || {}).reduce((acc, items) => 
+        acc + (items as LoggedMealItem[]).reduce((sum, m) => sum + m.kcal, 0), 0);
+      const burn = (log?.activities || []).reduce((sum, a) => sum + (Number(a.burnedKcal) || 0), 0);
+      const budget = state.profile.dailyBudget + burn;
+      consistency.push({ date: dateStr, intake, budget, label: d.toLocaleDateString(state.language, { weekday: 'short' }) });
+    }
+
+    const mealTotals: Record<string, number> = { Ontbijt: 0, Lunch: 0, Diner: 0, Snacks: 0 };
+    Object.values(state.dailyLogs).forEach(log => {
+      Object.entries(log.meals).forEach(([moment, items]) => {
+        const kcal = (items as LoggedMealItem[]).reduce((sum, i) => sum + i.kcal, 0);
+        if (moment.includes('Snack')) mealTotals.Snacks += kcal;
+        else if (mealTotals[moment] !== undefined) mealTotals[moment] += kcal;
+      });
+    });
+    const totalKcalAll = Object.values(mealTotals).reduce((a, b) => a + b, 0) || 1;
+    const mealDist = Object.entries(mealTotals).map(([key, val]) => ({ key, val, percent: (val / totalKcalAll) * 100 }));
+    const currentBMI = calculateBMI(globalLatestWeight, state.profile.height);
+
+    return { weightHistory, consistency, mealDist, currentBMI };
+  }, [state.dailyLogs, state.profile, globalLatestWeight, state.language]);
 
   const weeklyStats = useMemo(() => {
     const stats = { totalIntake: 0, avgDailyIntake: 0, totalBurned: 0, weightChange: 0 };
@@ -433,14 +473,12 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Moved allAvailableProducts before its usage in productsToDisplayInResults
   const allAvailableProducts = useMemo(() => {
     const seen = new Set<string>(); const list: MealOption[] = [];
     MEAL_MOMENTS.forEach(m => (state.customOptions[m] || []).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); list.push(o); } }));
     return list.sort((a, b) => getTranslatedName(a.id, a.name).localeCompare(getTranslatedName(b.id, b.name)));
   }, [state.customOptions, state.language]);
 
-  // Renamed productsToShowInPicker to productsToDisplayInResults to match JSX usage
   const productsToDisplayInResults = useMemo(() => {
     if (!openPickerMoment) return [];
     const searchNormalized = searchTerm.trim().toLowerCase();
@@ -491,9 +529,18 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-40">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={20}/></button>
-            <div className="flex flex-col items-center min-w-[70px]"><span className="text-[10px] font-bold text-orange-500 uppercase tracking-tighter leading-none mb-0.5">{dateParts.weekday}</span><span className="text-sm font-bold text-slate-800 leading-none">{dateParts.day} {dateParts.month}</span></div>
-            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={20}/></button>
+            {activeTab === 'stats' ? (
+              <button onClick={() => setActiveTab('dashboard')} className="p-2 bg-slate-50 rounded-lg text-slate-600"><ChevronLeft size={20}/></button>
+            ) : (
+              <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={20}/></button>
+            )}
+            <div className="flex flex-col items-center min-w-[70px]">
+              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-tighter leading-none mb-0.5">{activeTab === 'stats' ? 'Rapportage' : dateParts.weekday}</span>
+              <span className="text-sm font-bold text-slate-800 leading-none">{activeTab === 'stats' ? 'Inzichten' : `${dateParts.day} ${dateParts.month}`}</span>
+            </div>
+            {activeTab !== 'stats' && (
+              <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={20}/></button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -524,14 +571,181 @@ export default function App() {
                 <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.dailyBudget}</p><h2 className="text-3xl font-bold text-slate-900 tracking-tighter">{totals.actualIntake}<span className="text-sm font-medium text-slate-400 ml-2">/ {totals.currentAdjustedGoal}</span></h2></div>
                 <div className="text-right"><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">{t.remainingToday}</p><p className="text-2xl font-bold text-orange-500 tabular-nums">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</p></div>
               </div>
-              <div className="space-y-1.5 mb-6"><div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex"><div className={`h-full transition-all duration-700 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} /></div><div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-slate-400"><span>{Math.round(totals.intakePercent)}% Verbruikt</span><span>{totals.currentAdjustedGoal} Kcal Max</span></div></div>
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-500 shadow-sm"><Flame size={16}/></div><div><p className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-1">{t.activityCalories}</p><p className="text-sm font-bold text-emerald-600 leading-none">+{totals.activityBurn}</p></div></div><div className="flex items-center gap-2 border-l border-slate-100 pl-3"><div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 shadow-sm"><Target size={16}/></div><div><p className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-1">{t.targetReached}</p><p className="text-sm font-bold text-blue-600 leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}</p></div></div></div>
+              <div className="space-y-1.5 mb-4"><div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex"><div className={`h-full transition-all duration-700 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} /></div><div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-slate-400"><span>{Math.round(totals.intakePercent)}% Verbruikt</span><span>{totals.currentAdjustedGoal} Kcal Max</span></div></div>
+              
+              {/* MAINTENANCE & SAVINGS INTEGRATION */}
+              <div className="bg-slate-50 rounded-lg p-2 flex justify-between items-center text-[9px] font-bold uppercase border border-slate-100">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <Zap size={10} className="text-orange-400" fill="currentColor" />
+                  <span>{t.oldBudgetLabel}: <span className="text-slate-600">{maintenanceKcal}</span></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-500">
+                  <TrendingDown size={10} />
+                  <span>Besparing: -{maintenanceKcal - state.profile.dailyBudget}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100 mt-4"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-500 shadow-sm"><Flame size={16}/></div><div><p className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-1">{t.activityCalories}</p><p className="text-sm font-bold text-emerald-600 leading-none">+{totals.activityBurn}</p></div></div><div className="flex items-center gap-2 border-l border-slate-100 pl-3"><div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 shadow-sm"><Target size={16}/></div><div><p className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-1">{t.targetReached}</p><p className="text-sm font-bold text-blue-600 leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}</p></div></div></div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Scale size={12}/> {t.weighMoment}</h3><div className="flex items-end gap-1"><input type="number" step="0.1" placeholder="00.0" value={(state.dailyLogs[selectedDate] as DailyLog)?.weight || ''} onChange={(e) => { const val = e.target.value ? Number(e.target.value) : undefined; setState(prev => { const logs = { ...prev.dailyLogs }; logs[selectedDate] = { ...((logs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }), weight: val }; return { ...prev, dailyLogs: logs }; }); }} className="w-full bg-slate-50 border-none p-1.5 text-xl font-bold text-slate-800 focus:ring-1 focus:ring-orange-200 rounded-lg outline-none tabular-nums" /><span className="text-[10px] font-bold text-slate-300 mb-1.5 uppercase">kg</span></div></div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between"><h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><TrendingDown size={12}/> Progressie</h3><div className="flex items-baseline gap-1"><span className="text-xl font-bold text-emerald-500">-{totals.weightLostSoFar.toFixed(1)}</span><span className="text-[10px] font-bold text-slate-300 uppercase">kg</span></div><div className="h-1.5 w-full bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${totals.weightProgressPercent}%`}} /></div></div>
+              <div 
+                onClick={() => setActiveTab('stats')}
+                className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between cursor-pointer active:bg-slate-50 transition-colors"
+              >
+                <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-between">
+                  <span>Inzichten</span>
+                  <ArrowRight size={10} className="text-slate-300" />
+                </h3>
+                <div className="flex items-baseline gap-1">
+                   <span className="text-xl font-bold text-emerald-500">-{totals.weightLostSoFar.toFixed(1)}</span>
+                   <span className="text-[10px] font-bold text-slate-300 uppercase">kg</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-100 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full bg-emerald-500" style={{width: `${totals.weightProgressPercent}%`}} />
+                </div>
+              </div>
             </div>
+
             <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-center justify-between group cursor-pointer active:bg-orange-100 transition-all" onClick={() => setShowInfo(true)}><div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-orange-500 shadow-sm border border-orange-100"><Info size={20}/></div><div><h4 className="text-xs font-bold text-slate-800 uppercase leading-none mb-1">Hoe werkt het?</h4><p className="text-[10px] text-slate-500 leading-none">Wetenschappelijke BMR Berekening</p></div></div><ChevronRight size={18} className="text-orange-300 group-hover:translate-x-1 transition-transform" /></div>
+
+            <div 
+              onClick={() => setActiveTab('stats')}
+              className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between group cursor-pointer active:bg-slate-50 transition-all shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-100">
+                  <BarChart3 size={20}/>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase leading-none mb-1">Gedetailleerde Voortgang</h4>
+                  <p className="text-[10px] text-slate-500 leading-none">Bekijk rapportages en trends</p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'stats' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <TrendingDown size={14} className="text-blue-500" /> Gewichtsverloop
+                </h3>
+                <span className="text-[9px] font-bold text-slate-300 uppercase">Lijn Grafiek</span>
+              </div>
+              <div className="h-40 w-full relative group">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 400 150">
+                  {[0, 25, 50, 75, 100].map(y => (
+                    <line key={y} x1="0" y1={1.5 * y} x2="400" y2={1.5 * y} stroke="#f1f5f9" strokeWidth="1" />
+                  ))}
+                  {(() => {
+                    const h = 150;
+                    const w = 400;
+                    const history = [
+                      { weight: state.profile.startWeight },
+                      ...statsData.weightHistory,
+                      { weight: globalLatestWeight }
+                    ];
+                    if (history.length < 2) return <text x="200" y="75" textAnchor="middle" className="text-[10px] fill-slate-300 uppercase font-bold">Niet genoeg data</text>;
+                    const weights = history.map(h => h.weight || 0);
+                    const minW = Math.min(...weights, state.profile.targetWeight) - 2;
+                    const maxW = Math.max(...weights, state.profile.startWeight) + 2;
+                    const range = maxW - minW;
+                    const points = weights.map((wt, i) => {
+                      const x = (i / (weights.length - 1)) * w;
+                      const y = h - ((wt - minW) / range) * h;
+                      return `${x},${y}`;
+                    }).join(' ');
+                    return (
+                      <>
+                        <polyline fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={points} />
+                        {(() => {
+                          const targetY = h - ((state.profile.targetWeight - minW) / range) * h;
+                          return <line x1="0" y1={targetY} x2="400" y2={targetY} stroke="#f97316" strokeWidth="1" strokeDasharray="4,2" opacity="0.5" />;
+                        })()}
+                      </>
+                    );
+                  })()}
+                </svg>
+                <div className="absolute top-0 right-0 p-1 flex flex-col gap-1 items-end pointer-events-none">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">Actueel</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 opacity-50" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">Doel</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Zap size={14} className="text-emerald-500" /> Consistentie
+                </h3>
+                <span className="text-[9px] font-bold text-slate-300 uppercase">Laatste 7 dagen</span>
+              </div>
+              <div className="flex items-end justify-between h-32 gap-3 px-2">
+                {statsData.consistency.map((day, idx) => {
+                  const maxVal = Math.max(...statsData.consistency.map(d => d.budget), 3000);
+                  const intakeHeight = (day.intake / maxVal) * 100;
+                  const isOver = day.intake > day.budget && day.intake > 0;
+                  const isEmpty = day.intake === 0;
+                  return (
+                    <div key={idx} className="flex flex-col items-center flex-1 group">
+                      <div className="w-full relative h-24 flex items-end justify-center">
+                        <div className="absolute w-full border-t border-slate-200 z-10" style={{ bottom: `${(day.budget / maxVal) * 100}%` }} />
+                        <div className={`w-full rounded-t-sm transition-all duration-500 ${isEmpty ? 'bg-slate-50' : (isOver ? 'bg-orange-400' : 'bg-emerald-400')}`} style={{ height: `${intakeHeight}%` }} />
+                        <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[8px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
+                          {day.intake} kcal
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase mt-3">{day.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-end mb-4">
+                <div>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">BMI Index</h3>
+                  <p className="text-2xl font-bold text-slate-900 leading-none">{statsData.currentBMI}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                    statsData.currentBMI < 18.5 ? 'bg-blue-50 text-blue-600' :
+                    statsData.currentBMI < 25 ? 'bg-emerald-50 text-emerald-600' :
+                    statsData.currentBMI < 30 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                  }`}>
+                    {statsData.currentBMI < 18.5 ? 'Ondergewicht' :
+                     statsData.currentBMI < 25 ? 'Gezond' :
+                     statsData.currentBMI < 30 ? 'Overgewicht' : 'Obesitas'}
+                  </span>
+                </div>
+              </div>
+              <div className="relative pt-4 pb-2">
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div className="h-full w-[25%] bg-blue-400 border-r border-white" />
+                  <div className="h-full w-[35%] bg-emerald-400 border-r border-white" />
+                  <div className="h-full w-[20%] bg-amber-400 border-r border-white" />
+                  <div className="h-full w-[20%] bg-red-400" />
+                </div>
+                <div className="absolute top-2 transition-all duration-700" style={{ left: `${Math.min(Math.max((statsData.currentBMI / 40) * 100, 0), 100)}%` }}>
+                  <div className="w-0.5 h-6 bg-slate-800 -translate-x-1/2" />
+                </div>
+                <div className="flex justify-between text-[7px] font-bold text-slate-300 mt-2 uppercase">
+                  <span>10</span><span>18.5</span><span>25</span><span>30</span><span>40</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -541,7 +755,7 @@ export default function App() {
             {showMyList ? (
               <div className="space-y-4 animate-in slide-in-from-right-2 duration-300"><div ref={foodFormRef} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-4"><div className="flex justify-between items-center"><h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{editingFoodId ? 'Item Wijzigen' : 'Nieuw Item'}</h3>{editingFoodId && (<button onClick={() => { setEditingFoodId(null); setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false, isAlcohol: false }); }} className="text-[9px] font-bold text-red-500 uppercase px-2 py-1 bg-red-50 rounded">Annuleren</button>)}</div><div className="flex gap-2"><button onClick={() => setNewFood(p => ({...p, isDrink: false, isAlcohol: false}))} className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 border transition-all text-[10px] font-bold uppercase ${(!newFood.isDrink && !newFood.isAlcohol) ? 'border-orange-500 text-orange-500 bg-orange-50' : 'border-slate-200 text-slate-300 bg-slate-50/50'}`}><Utensils size={14} /> {t.mealLabel}</button><button onClick={() => setNewFood(p => ({...p, isDrink: true, isAlcohol: false}))} className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 border transition-all text-[10px] font-bold uppercase ${newFood.isDrink ? 'border-orange-500 text-orange-500 bg-orange-50' : 'border-slate-200 text-slate-300 bg-slate-50/50'}`}><GlassWater size={14} /> {t.drinkLabel}</button></div><input type="text" placeholder={t.productName} value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-xs font-semibold placeholder:text-slate-300 outline-none focus:ring-1 focus:ring-orange-200 uppercase" /><div className="grid grid-cols-2 gap-3"><input type="number" placeholder={t.kcalLabel} value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-xs font-semibold placeholder:text-slate-300 outline-none focus:ring-1 focus:ring-orange-200" /><input type="text" placeholder={t.portionPlaceholder} value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-xs font-semibold placeholder:text-slate-300 outline-none focus:ring-1 focus:ring-orange-200 uppercase" /></div><div className="flex flex-wrap gap-1.5">{['ONTBIJT', 'LUNCH', 'DINER', 'SNACK'].map(m => (<button key={m} onClick={() => setNewFood(p => ({...p, cats: p.cats.includes(m) ? p.cats.filter(x => x!==m) : [...p.cats, m]}))} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase border transition-all ${newFood.cats.includes(m) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-400 border-slate-200'}`}>{m}</button>))}</div><button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal || newFood.cats.length === 0} className={`w-full py-3 rounded-lg font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${(!newFood.name || !newFood.kcal || newFood.cats.length === 0) ? 'bg-slate-200 text-white' : 'bg-orange-500 text-white active:scale-[0.98] shadow-lg shadow-orange-100'}`}>{editingFoodId ? <Check size={16} /> : <Plus size={16} />} {editingFoodId ? 'Wijziging Opslaan' : t.addToMyList}</button></div></div>
             ) : (
-              <div className="space-y-4">{openPickerMoment && (<div className="bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-200"><div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>{[ { id: 'breakfast', icon: Sun, label: 'Ontbijt' }, { id: 'lunch', icon: Utensils, label: 'Lunch' }, { id: 'diner', icon: Moon, label: 'Diner' }, { id: 'snacks', icon: Cookie, label: 'Snack' }, { id: 'drink', icon: GlassWater, label: 'Drink' }, { id: 'fruit', icon: Apple, label: 'Fruit' }, { id: 'alcohol', icon: Beer, label: 'Alcohol' } ].map(f => (<button key={f.id} onClick={() => { setPickerFilter(f.id as any); setStagedProduct(null); }} className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap transition-all border flex items-center gap-1.5 ${pickerFilter === f.id ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}><f.icon size={12} />{f.label}</button>))}<button onClick={() => { setPickerFilter('all'); setStagedProduct(null); }} className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap transition-all border ${pickerFilter === 'all' ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>Alles</button></div><div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" className="w-full bg-slate-50 border border-slate-200 pl-10 pr-10 py-2.5 rounded-lg text-xs font-semibold placeholder:text-slate-300 outline-none focus:ring-1 focus:ring-orange-200 uppercase" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setStagedProduct(null); }} />{searchTerm && (<button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300"><X size={14}/></button>)}</div>{(pickerFilter !== 'all' || searchTerm.trim() !== '' || isListExpanded) && !stagedProduct && (<div className="max-h-60 overflow-y-auto custom-scrollbar divide-y divide-slate-50 bg-slate-50/50 rounded-lg border border-slate-100">{productsToDisplayInResults.map(opt => (<button key={opt.id} onClick={() => { setStagedProduct({ opt, currentKcal: opt.kcal }); setIsListExpanded(false); }} className="flex items-center gap-3 p-3 hover:bg-orange-50 transition-all text-left w-full"><div className="text-orange-500 shrink-0">{opt.isAlcohol ? <Beer size={16}/> : opt.isDrink ? <GlassWater size={16}/> : <Utensils size={16}/>}</div><div className="flex flex-col flex-grow truncate"><span className="text-[11px] font-bold text-slate-800 uppercase truncate">{getTranslatedName(opt.id, opt.name)}</span><span className="text-[9px] font-medium text-slate-400 uppercase">{opt.kcal} Kcal • {opt.unitName}</span></div><div className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded text-orange-600"><Plus size={14} /></div></button>))}{productsToDisplayInResults.length === 0 && (<div className="p-8 text-center text-[10px] font-bold text-slate-300 uppercase">Geen resultaten</div>)}</div>)}{stagedProduct && (<div className="bg-orange-50/50 p-3 rounded-lg border border-orange-100 space-y-3 animate-in zoom-in-95 duration-200"><div className="flex items-center gap-3"><div className="p-2 bg-white rounded-lg text-orange-500 shadow-sm border border-orange-100"><Utensils size={18}/></div><div className="truncate"><h4 className="text-xs font-bold text-slate-800 uppercase truncate leading-tight">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</h4><p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">{stagedProduct.opt.unitName}</p></div></div><div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-1.5"><button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - p.opt.kcal)} : p)} className="p-2 hover:bg-slate-50 rounded-md text-orange-500"><Minus size={16}/></button><div className="flex flex-col items-center"><input type="number" className="w-16 bg-transparent border-none p-0 text-lg font-bold text-slate-800 focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} /><span className="text-[8px] font-bold text-slate-300 uppercase leading-none">kcal</span></div><button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + p.opt.kcal} : p)} className="p-2 hover:bg-slate-50 rounded-md text-orange-500"><Plus size={16}/></button></div><div className="flex gap-2"><button onClick={() => setStagedProduct(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-400 rounded-lg font-bold text-[10px] uppercase">Annuleren</button><button onClick={() => { addMealItem(openPickerMoment!, { name: stagedProduct.opt.name, kcal: stagedProduct.currentKcal, quantity: 1, mealId: stagedProduct.opt.id, isDrink: stagedProduct.opt.isDrink, isAlcohol: stagedProduct.opt.isAlcohol }); setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); }} className="flex-[2] py-2.5 bg-orange-500 text-white rounded-lg font-bold text-[10px] uppercase shadow-md active:scale-[0.98] transition-all">Bevestigen</button></div></div>)}</div>)}<div className="space-y-3">{MEAL_MOMENTS.map(moment => { const items = (currentLog.meals[moment] as LoggedMealItem[]) || []; if (items.length === 0) return null; const momentTotal = items.reduce((sum, item) => sum + item.kcal, 0); return (<div key={moment} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div className="bg-slate-50 px-3 py-1.5 flex justify-between items-center border-b border-slate-100"><h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t.moments[moment]}</h4><span className="text-[10px] font-bold text-slate-800">{momentTotal} <span className="text-[8px] text-slate-400">KCAL</span></span></div><div className="divide-y divide-slate-50">{items.map(item => { const baseItem = allAvailableProducts.find(o => o.id === item.mealId); const baseKcal = baseItem ? baseItem.kcal : 50; return (<div key={item.id} className="flex items-center justify-between p-3"><div className="flex items-center gap-3 truncate flex-grow"><div className="text-orange-500 shrink-0">{item.isAlcohol ? <Beer size={14}/> : item.isDrink ? <GlassWater size={14}/> : <Utensils size={14}/>}</div><span className="text-xs font-bold text-slate-800 uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span></div><div className="flex items-center gap-3 shrink-0"><div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1 border border-slate-100"><button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - baseKcal)} className="text-slate-400 hover:text-orange-500"><Minus size={12}/></button><input type="number" className="w-8 bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 focus:ring-0 text-center outline-none" value={Math.round(item.kcal)} onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))} /><button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + baseKcal)} className="text-slate-400 hover:text-orange-500"><Plus size={12}/></button></div><button onClick={() => { setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id); return { ...prev, dailyLogs: logs }; }); }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14}/></button></div></div>); })}</div></div>); })} {Object.keys(currentLog.meals).every(k => (currentLog.meals[k] as LoggedMealItem[]).length === 0) && !openPickerMoment && (<div className="py-20 text-center opacity-30"><Utensils size={32} className="mx-auto mb-2" /><p className="text-[10px] font-bold uppercase tracking-widest">Nog niets gepland voor vandaag</p></div>)}</div></div>
+              <div className="space-y-4">{openPickerMoment && (<div className="bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-200"><div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>{[ { id: 'breakfast', icon: Sun, label: 'Ontbijt' }, { id: 'lunch', icon: Utensils, label: 'Lunch' }, { id: 'diner', icon: Moon, label: 'Diner' }, { id: 'snacks', icon: Cookie, label: 'Snack' }, { id: 'drink', icon: GlassWater, label: 'Drink' }, { id: 'fruit', icon: Apple, label: 'Fruit' }, { id: 'alcohol', icon: Beer, label: 'Alcohol' } ].map(f => (<button key={f.id} onClick={() => { setPickerFilter(f.id as any); setStagedProduct(null); }} className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap transition-all border flex items-center gap-1.5 ${pickerFilter === f.id ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}><f.icon size={12} />{f.label}</button>))}<button onClick={() => { setPickerFilter('all'); setStagedProduct(null); }} className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap transition-all border ${pickerFilter === 'all' ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>Alles</button></div><div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" className="w-full bg-slate-50 border border-slate-200 pl-10 pr-10 py-2.5 rounded-lg text-xs font-semibold placeholder:text-slate-300 outline-none focus:ring-1 focus:ring-orange-200 uppercase" placeholder={t.searchProduct} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setStagedProduct(null); }} />{searchTerm && (<button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300"><X size={14}/></button>)}</div>{productsToDisplayInResults.length > 0 && !stagedProduct && (<div className="max-h-60 overflow-y-auto custom-scrollbar divide-y divide-slate-50 bg-slate-50/50 rounded-lg border border-slate-100">{productsToDisplayInResults.map(opt => (<button key={opt.id} onClick={() => { setStagedProduct({ opt, currentKcal: opt.kcal }); setIsListExpanded(false); }} className="flex items-center gap-3 p-3 hover:bg-orange-50 transition-all text-left w-full"><div className="text-orange-500 shrink-0">{opt.isAlcohol ? <Beer size={16}/> : opt.isDrink ? <GlassWater size={16}/> : <Utensils size={16}/>}</div><div className="flex flex-col flex-grow truncate"><span className="text-[11px] font-bold text-slate-800 uppercase truncate">{getTranslatedName(opt.id, opt.name)}</span><span className="text-[9px] font-medium text-slate-400 uppercase">{opt.kcal} Kcal • {opt.unitName}</span></div><div className="w-6 h-6 flex items-center justify-center bg-orange-100 rounded text-orange-600"><Plus size={14} /></div></button>))}{productsToDisplayInResults.length === 0 && (<div className="p-8 text-center text-[10px] font-bold text-slate-300 uppercase">Geen resultaten</div>)}</div>)}{stagedProduct && (<div className="bg-orange-50/50 p-3 rounded-lg border border-orange-100 space-y-3 animate-in zoom-in-95 duration-200"><div className="flex items-center gap-3"><div className="p-2 bg-white rounded-lg text-orange-500 shadow-sm border border-orange-100"><Utensils size={18}/></div><div className="truncate"><h4 className="text-xs font-bold text-slate-800 uppercase truncate leading-tight">{getTranslatedName(stagedProduct.opt.id, stagedProduct.opt.name)}</h4><p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">{stagedProduct.opt.unitName}</p></div></div><div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-1.5"><button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: Math.max(0, p.currentKcal - p.opt.kcal)} : p)} className="p-2 hover:bg-slate-50 rounded-md text-orange-500"><Minus size={16}/></button><div className="flex flex-col items-center"><input type="number" className="w-16 bg-transparent border-none p-0 text-lg font-bold text-slate-800 focus:ring-0 text-center" value={stagedProduct.currentKcal} onChange={(e) => setStagedProduct(p => p ? {...p, currentKcal: Number(e.target.value)} : p)} /><span className="text-[8px] font-bold text-slate-300 uppercase leading-none">kcal</span></div><button onClick={() => setStagedProduct(p => p ? {...p, currentKcal: p.currentKcal + p.opt.kcal} : p)} className="p-2 hover:bg-slate-50 rounded-md text-orange-500"><Plus size={16}/></button></div><div className="flex gap-2"><button onClick={() => setStagedProduct(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-400 rounded-lg font-bold text-[10px] uppercase">Annuleren</button><button onClick={() => { addMealItem(openPickerMoment!, { name: stagedProduct.opt.name, kcal: stagedProduct.currentKcal, quantity: 1, mealId: stagedProduct.opt.id, isDrink: stagedProduct.opt.isDrink, isAlcohol: stagedProduct.opt.isAlcohol }); setOpenPickerMoment(null); setStagedProduct(null); setSearchTerm(''); }} className="flex-[2] py-2.5 bg-orange-500 text-white rounded-lg font-bold text-[10px] uppercase shadow-md active:scale-[0.98] transition-all">Bevestigen</button></div></div>)}</div>)}<div className="space-y-3">{MEAL_MOMENTS.map(moment => { const items = (currentLog.meals[moment] as LoggedMealItem[]) || []; if (items.length === 0) return null; const momentTotal = items.reduce((sum, item) => sum + item.kcal, 0); return (<div key={moment} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div className="bg-slate-50 px-3 py-1.5 flex justify-between items-center border-b border-slate-100"><h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t.moments[moment]}</h4><span className="text-[10px] font-bold text-slate-800">{momentTotal} <span className="text-[8px] text-slate-400">KCAL</span></span></div><div className="divide-y divide-slate-50">{items.map(item => { const baseItem = allAvailableProducts.find(o => o.id === item.mealId); const baseKcal = baseItem ? baseItem.kcal : 50; return (<div key={item.id} className="flex items-center justify-between p-3"><div className="flex items-center gap-3 truncate flex-grow"><div className="text-orange-500 shrink-0">{item.isAlcohol ? <Beer size={14}/> : item.isDrink ? <GlassWater size={14}/> : <Utensils size={14}/>}</div><span className="text-xs font-bold text-slate-800 uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span></div><div className="flex items-center gap-3 shrink-0"><div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1 border border-slate-100"><button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - baseKcal)} className="text-slate-400 hover:text-orange-500"><Minus size={12}/></button><input type="number" className="w-8 bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 focus:ring-0 text-center outline-none" value={Math.round(item.kcal)} onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))} /><button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + baseKcal)} className="text-slate-400 hover:text-orange-500"><Plus size={12}/></button></div><button onClick={() => { setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id); return { ...prev, dailyLogs: logs }; }); }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14}/></button></div></div>); })}</div></div>); })} {Object.keys(currentLog.meals).every(k => (currentLog.meals[k] as LoggedMealItem[]).length === 0) && !openPickerMoment && (<div className="py-20 text-center opacity-30"><Utensils size={32} className="mx-auto mb-2" /><p className="text-[10px] font-bold uppercase tracking-widest">Nog niets gepland voor vandaag</p></div>)}</div></div>
             )}
           </div>
         )}
@@ -559,60 +773,142 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="space-y-4 animate-in fade-in duration-300">
-             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3"><h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none flex items-center gap-1.5"><UserIcon size={12}/> {t.gender}</h3><div className="grid grid-cols-2 gap-3"><button onClick={() => updateProfile({ gender: 'man' })} className={`py-2.5 rounded-lg font-bold text-xs uppercase border transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-slate-200'}`}>{t.man}</button><button onClick={() => updateProfile({ gender: 'woman' })} className={`py-2.5 rounded-lg font-bold text-xs uppercase border transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-slate-200'}`}>{t.woman}</button></div></div>
-             <div className="grid grid-cols-2 gap-4"><div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase leading-none">{t.age}</label><div className="relative"><select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-sm font-bold outline-none appearance-none tabular-nums">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select><ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /></div></div><div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase leading-none">{t.height.split(' ')[0]}</label><div className="flex items-center gap-1"><input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-sm font-bold outline-none tabular-nums" /><span className="text-[9px] font-bold text-slate-300">CM</span></div></div></div>
-             <div className="grid grid-cols-2 gap-4"><div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase leading-none">{t.startWeight.split(' ')[0]}</label><div className="flex items-center gap-1"><input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-sm font-bold outline-none tabular-nums" /><span className="text-[9px] font-bold text-slate-300 uppercase">kg</span></div></div><div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2"><label className="text-[10px] font-bold text-orange-500 uppercase leading-none">{t.targetWeight.split(' ')[0]}</label><div className="flex items-center gap-1"><input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border border-orange-200 px-2 py-1.5 rounded-lg text-sm font-bold outline-none tabular-nums text-orange-600" /><span className="text-[9px] font-bold text-orange-300 uppercase">kg</span></div></div></div>
-             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3"><h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t.activityLevelLabel}</h3><div className="grid grid-cols-3 gap-2">{[ { id: 'light', icon: Laptop, label: t.levelLight }, { id: 'moderate', icon: Briefcase, label: t.levelModerate }, { id: 'heavy', icon: Hammer, label: t.levelHeavy } ].map(lvl => (<button key={lvl.id} onClick={() => updateProfile({ activityLevel: lvl.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${state.profile.activityLevel === lvl.id ? 'bg-orange-50 border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-50'}`}><lvl.icon size={16} className={state.profile.activityLevel === lvl.id ? 'text-orange-500' : 'text-slate-400'} /><span className={`text-[8px] font-bold uppercase mt-1.5 tracking-tight text-center leading-none ${state.profile.activityLevel === lvl.id ? 'text-orange-700' : 'text-slate-400'}`}>{lvl.label}</span></button>))}</div></div>
-
-             {/* PACING SECTION (Restored) */}
-             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3">
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t.paceTitle}</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'slow', icon: Turtle, label: t.speedSlow },
-                    { id: 'average', icon: Footprints, label: t.speedAverage },
-                    { id: 'fast', icon: Flame, label: t.speedFast }
-                  ].map(sp => (
-                    <button key={sp.id} onClick={() => updateProfile({ weightLossSpeed: sp.id as any })} className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${state.profile.weightLossSpeed === sp.id ? 'bg-orange-50 border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent opacity-50'}`}>
-                      <sp.icon size={16} className={state.profile.weightLossSpeed === sp.id ? 'text-orange-500' : 'text-slate-400'} />
-                      <span className={`text-[8px] font-bold uppercase mt-1.5 tracking-tight text-center leading-none ${state.profile.weightLossSpeed === sp.id ? 'text-orange-700' : 'text-slate-400'}`}>{sp.label}</span>
-                    </button>
-                  ))}
+             {/* RESULT STICKY HEADER REF */}
+             <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-2">
+                   <Target size={16} className="text-orange-500" />
+                   <span className="text-xs font-bold uppercase text-slate-400">Doel:</span>
+                   <span className="text-sm font-black text-slate-800">{state.profile.dailyBudget} <span className="text-[10px]">KCAL</span></span>
                 </div>
-                <button 
-                  onClick={() => updateProfile({ weightLossSpeed: 'custom' })} 
-                  className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border transition-all ${state.profile.weightLossSpeed === 'custom' ? 'bg-orange-50 border-orange-500 shadow-sm' : 'bg-slate-50 border-transparent text-slate-400'}`}
-                >
-                  <Settings size={12} />
-                  <span className="text-[9px] font-bold uppercase">{t.customPace}</span>
-                </button>
-                {state.profile.weightLossSpeed === 'custom' && (
-                  <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
-                    <label className="text-[9px] font-bold text-orange-700 uppercase">{t.targetDateLabel}</label>
-                    <input 
-                      type="date" 
-                      min={minSafeDate} 
-                      value={state.profile.customTargetDate || ''} 
-                      onChange={(e) => updateProfile({ customTargetDate: e.target.value })} 
-                      className="bg-white border border-orange-200 py-1 px-2 rounded-md font-bold text-[11px] text-orange-600 outline-none" 
-                    />
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                   <CalendarRange size={16} className="text-blue-500" />
+                   <span className="text-xs font-bold uppercase text-slate-400">Datum:</span>
+                   <span className="text-sm font-black text-slate-800 uppercase">
+                      {totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}
+                   </span>
+                </div>
              </div>
 
-             <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4 flex flex-col gap-3 shadow-inner">
-                <div className="flex justify-between items-baseline"><span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">{t.oldBudgetLabel}</span><span className="text-sm font-bold text-orange-600/50 tabular-nums">{maintenanceKcal} {t.kcalLabel}</span></div>
-                <div className="flex justify-between items-baseline"><span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest">{t.newBudgetLabel}</span><span className="text-2xl font-bold text-orange-600 tabular-nums leading-none">{state.profile.dailyBudget} {t.kcalLabel}</span></div>
-                <div className="pt-2 border-t border-orange-100 flex justify-between items-center"><span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">{t.targetDateLabel}</span><span className="text-sm font-bold text-orange-600 uppercase tabular-nums">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(totals.targetDate)) : '--'}</span></div>
-             </div>
+             {/* COMPACT INPUT GRID */}
+             <div className="space-y-3">
+                {/* GENDER TOGLE */}
+                <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.gender}</span>
+                   <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button onClick={() => updateProfile({ gender: 'man' })} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${state.profile.gender === 'man' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400'}`}>Man</button>
+                      <button onClick={() => updateProfile({ gender: 'woman' })} className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${state.profile.gender === 'woman' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400'}`}>Vrouw</button>
+                   </div>
+                </div>
 
-             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3"><h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t.dataStorage}</h3><div className="grid grid-cols-3 gap-2"><button onClick={handleExportData} className="flex flex-col items-center justify-center py-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-all text-slate-600 active:scale-95"><FileDown size={18}/><span className="text-[8px] font-bold uppercase mt-1">Export</span></button><button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center py-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-300 transition-all text-slate-600 active:scale-95"><FileUp size={18}/><span className="text-[8px] font-bold uppercase mt-1">Import</span></button><button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="flex flex-col items-center justify-center py-2 rounded-lg bg-red-50 border border-red-100 hover:border-red-300 transition-all text-red-600 active:scale-95"><Trash2 size={18}/><span className="text-[8px] font-bold uppercase mt-1">Clear</span></button></div><input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" /></div>
+                {/* 2X2 GRID FOR NUMBERS */}
+                <div className="grid grid-cols-2 gap-3">
+                   <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{t.age}</label>
+                      <select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-slate-50 border-none px-2 py-1 rounded-lg text-sm font-bold outline-none appearance-none tabular-nums text-slate-800">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                   </div>
+                   <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{t.height.split(' ')[0]}</label>
+                      <div className="flex items-center gap-1">
+                         <input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-slate-50 border-none px-2 py-1 rounded-lg text-sm font-bold outline-none tabular-nums text-slate-800" />
+                         <span className="text-[9px] font-bold text-slate-300">CM</span>
+                      </div>
+                   </div>
+                   <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">{t.startWeight.split(' ')[0]}</label>
+                      <div className="flex items-center gap-1">
+                         <input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-slate-50 border-none px-2 py-1 rounded-lg text-sm font-bold outline-none tabular-nums text-slate-800" />
+                         <span className="text-[9px] font-bold text-slate-300">KG</span>
+                      </div>
+                   </div>
+                   <div className="bg-white p-3 rounded-2xl border border-orange-200 shadow-sm">
+                      <label className="text-[9px] font-bold text-orange-500 uppercase mb-1 block">{t.targetWeight.split(' ')[0]}</label>
+                      <div className="flex items-center gap-1">
+                         <input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-orange-50 border-none px-2 py-1 rounded-lg text-sm font-bold outline-none tabular-nums text-orange-600" />
+                         <span className="text-[9px] font-bold text-orange-300">KG</span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* ACTIVITEIT DROPDOWN */}
+                <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                   <div className="flex items-center gap-2 mb-1">
+                      <Briefcase size={14} className="text-slate-400" />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.activityLevelLabel}</span>
+                   </div>
+                   <div className="relative">
+                      <select 
+                        value={state.profile.activityLevel} 
+                        onChange={(e) => updateProfile({ activityLevel: e.target.value as any })} 
+                        className="w-full bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-xs font-bold outline-none appearance-none text-slate-700 uppercase"
+                      >
+                         <option value="light">{t.levelLight}</option>
+                         <option value="moderate">{t.levelModerate}</option>
+                         <option value="heavy">{t.levelHeavy}</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                   </div>
+                </div>
+
+                {/* TEMPO DROPDOWN */}
+                <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                   <div className="flex items-center gap-2 mb-1">
+                      <Zap size={14} className="text-slate-400" />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.paceTitle}</span>
+                   </div>
+                   <div className="relative">
+                      <select 
+                        value={state.profile.weightLossSpeed} 
+                        onChange={(e) => updateProfile({ weightLossSpeed: e.target.value as any })} 
+                        className="w-full bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-xs font-bold outline-none appearance-none text-slate-700 uppercase"
+                      >
+                         <option value="slow">{t.speedSlow}</option>
+                         <option value="average">{t.speedAverage}</option>
+                         <option value="fast">{t.speedFast}</option>
+                         <option value="custom">{t.customPace}</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                   </div>
+                   {state.profile.weightLossSpeed === 'custom' && (
+                     <div className="mt-2 flex items-center justify-between bg-orange-50 p-2 rounded-xl border border-orange-100 animate-in slide-in-from-top-1 duration-200">
+                        <label className="text-[9px] font-bold text-orange-700 uppercase">Kies Datum</label>
+                        <input type="date" min={minSafeDate} value={state.profile.customTargetDate || ''} onChange={(e) => updateProfile({ customTargetDate: e.target.value })} className="bg-white border-none py-1 px-2 rounded-md font-bold text-[11px] text-orange-600 outline-none" />
+                     </div>
+                   )}
+                </div>
+
+                {/* SETTINGS / DATA ROW */}
+                <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex items-center justify-between">
+                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.dataStorage}</span>
+                   <div className="flex gap-2">
+                      <button onClick={handleExportData} className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-95 transition-all"><FileDown size={16}/></button>
+                      <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-95 transition-all"><FileUp size={16}/></button>
+                      <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center text-red-600 border border-red-100 hover:bg-red-100 active:scale-95 transition-all"><Trash2 size={16}/></button>
+                   </div>
+                   <input type="file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
+                </div>
+             </div>
           </div>
         )}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
-        <div className="max-w-md mx-auto bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-2xl p-1.5 flex justify-between items-center">{[ { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, { id: 'meals', icon: Utensils, label: t.tabs.meals }, { id: 'activity', icon: Activity, label: t.tabs.activity }, { id: 'profile', icon: UserIcon, label: t.tabs.profile } ].map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}><tab.icon size={tab.id === activeTab ? 20 : 18} /><span className="text-[8px] font-bold uppercase tracking-wider mt-0.5">{tab.label}</span></button>))}</div>
+        <div className="max-w-md mx-auto bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-2xl p-1.5 flex justify-between items-center">
+          {[ 
+            { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
+            { id: 'meals', icon: Utensils, label: t.tabs.meals }, 
+            { id: 'activity', icon: Activity, label: t.tabs.activity }, 
+            { id: 'profile', icon: UserIcon, label: t.tabs.profile } 
+          ].map(tab => (
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id as any)} 
+              className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              <tab.icon size={tab.id === activeTab ? 20 : 18} />
+              <span className="text-[8px] font-bold uppercase tracking-wider mt-0.5">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
       <style>{`
