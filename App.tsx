@@ -768,7 +768,7 @@ export default function App() {
               </div>
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-start gap-4">
                 <p className="text-[16px] text-slate-600 leading-relaxed font-medium flex-grow">
-                  Je gemiddelde is <span className={`font-black uppercase ${statsData.avgBurn >= statsData.activityNorm ? 'text-emerald-500' : 'text-orange-500'}`}>{Math.round(statsData.avgBurn)} kcal</span>. Bij jouw levensstijl adviseren we <span className="font-black text-slate-800">{statsData.activityNorm} kcal</span>.
+                  Je gemiddelde deze week is <span className={`font-black uppercase ${statsData.avgBurn >= statsData.activityNorm ? 'text-emerald-500' : 'text-orange-500'}`}>{Math.round(statsData.avgBurn)} kcal</span>. Bij jouw levensstijl adviseren we <span className="font-black text-slate-800">{statsData.activityNorm} kcal per dag</span>.
                 </p>
                 <button onClick={() => setShowActivityAdvice(true)} className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center hover:bg-indigo-100 transition-colors shrink-0 shadow-sm border border-indigo-100 active:scale-90"><Info size={20} /></button>
               </div>
