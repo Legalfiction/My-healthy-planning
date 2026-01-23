@@ -4,74 +4,64 @@ import { Language } from './types';
 const genericSteps = (l: string) => {
   const steps: Record<string, any[]> = {
     nl: [
-      { title: 'Persoonlijk Profiel', desc: 'Vul bij de tab "Ik" je geboortejaar, lengte en gewicht in.' },
-      { title: 'Activiteitsniveau', desc: 'Kies hoe actief je dagelijks leven is (zittend tot zwaar werk).' },
-      { title: 'Bepaal je Tempo', desc: 'Kies voor een rustig, gemiddeld of snel afvaltempo.' },
-      { title: 'Ontvang je Plan', desc: 'De app berekent direct je caloriebudget en een realistische streefdatum.' },
-      { title: 'Registreren', desc: 'Houd dagelijks je voeding en beweging bij op het dashboard.' }
+      { 
+        title: '1. De Wetenschappelijke Basis', 
+        desc: 'De app fungeert als jouw persoonlijke kompas. We gebruiken de Mifflin-St Jeor formule om je BMR (Basal Metabolic Rate) te bepalen: de energie die je lichaam in totale rust verbruikt. Door dit te combineren met je gekozen Activiteitsniveau (PAL-waarde), ontstaat een nauwkeurig beeld van je totale energiebehoefte.' 
+      },
+      { 
+        title: '2. Het Dashboard (Plan)', 
+        desc: 'Hier zie je de kern van je voortgang. Het "Dagbudget" is je doel. "Huidig Onderhoud" toont wat je zou verbranden zonder afvalplan. Het verschil is je "Besparing". De streefdatum is een dynamische voorspelling die zich aanpast aan jouw invoer en gedrag.' 
+      },
+      { 
+        title: '3. Voeding Registreren', 
+        desc: 'Consistentie is de sleutel tot succes. Registreer elke maaltijd en snack eerlijk. Door alles in te voeren in de zes momenten (Ontbijt t/m Avond Snack), krijgt de app een volledig beeld van je calorie-intake.' 
+      },
+      { 
+        title: '4. Beweging & Extra Budget', 
+        desc: 'Elke stap telt. Wanneer je een activiteit toevoegt in de "Beweeg" tab, wordt de verbrande energie direct bij je budget van vandaag opgeteld. Je ziet dit terug bij de teller "Activiteiten +". Sporten geeft je dus letterlijk meer ruimte om te eten.' 
+      },
+      { 
+        title: '5. Jouw Profiel (Ik)', 
+        desc: 'Zorg dat je biometrische gegevens up-to-date zijn. De keuze voor "Dagelijkse Activiteit" (PAL) bepaalt je basisverbranding. Je "Streef Tempo" beïnvloedt hoe groot het calorietekort is: een sneller tempo vraagt om meer discipline en een lager budget.' 
+      },
+      { 
+        title: '6. Statistieken & Trends', 
+        desc: 'Kijk verder dan de dagelijkse schommelingen. Gebruik de grafieken om de neerwaartse trend van je gewicht over weken te volgen. Stagneert de lijn? Dit noemen we een plateau. Blijf consistent; je lichaam past zich vaak na enkele dagen weer aan.' 
+      },
+      { 
+        title: '7. Support & Contact', 
+        desc: 'Heb je vragen over de werking van de app, technische problemen of suggesties voor verbetering? Ons team staat voor je klaar. Stuur een bericht naar info@ynnovator.com.' 
+      }
     ],
     en: [
-      { title: 'Personal Profile', desc: 'Enter your birth year, height, and weight in the "Me" tab.' },
-      { title: 'Activity Level', desc: 'Choose your daily activity level (sedentary to heavy work).' },
-      { title: 'Set Your Pace', desc: 'Select a slow, average, or fast weight loss pace.' },
-      { title: 'Get Your Plan', desc: 'The app calculates your calorie budget and a realistic target date.' },
-      { title: 'Log Progress', desc: 'Track your daily food intake and activities on the dashboard.' }
-    ],
-    es: [
-      { title: 'Perfil Personal', desc: 'Ingresa tu año de nacimiento, altura y peso en la pestaña "Yo".' },
-      { title: 'Nivel de Actividad', desc: 'Elige tu nivel de actividad diaria.' },
-      { title: 'Elige tu Ritmo', desc: 'Selecciona un ritmo de pérdida de peso.' },
-      { title: 'Obtén tu Plan', desc: 'La app calcula tu presupuesto de calorías y fecha meta.' },
-      { title: 'Registro', desc: 'Registra tu comida y actividades diariamente.' }
-    ],
-    de: [
-      { title: 'Persönliches Profil', desc: 'Gib Geburtsjahr, Größe und Gewicht im Tab "Ich" ein.' },
-      { title: 'Aktivitätsniveau', desc: 'Wähle dein tägliches Aktivitätsniveau.' },
-      { title: 'Tempo wählen', desc: 'Wähle ein langsames, mittleres oder schnelles Tempo.' },
-      { title: 'Plan erhalten', desc: 'Die App berechnet dein Budget und Zieldatum.' },
-      { title: 'Protokollieren', desc: 'Trage täglich Essen und Bewegung ein.' }
-    ],
-    pt: [
-      { title: 'Perfil Pessoal', desc: 'Insira o ano de nascimento, altura e peso no separador "Eu".' },
-      { title: 'Nível de Actividade', desc: 'Escolha o seu nível de atividade diária.' },
-      { title: 'Escolha o Ritmo', desc: 'Selecione um ritmo de perda de peso.' },
-      { title: 'Receba o Plano', desc: 'La app calcula o seu orçamento e data meta.' },
-      { title: 'Registo', desc: 'Registe a sua alimentação e atividades diariamente.' }
-    ],
-    zh: [
-      { title: '个人资料', desc: '在“我的”标签中输入出生年份、身高和体重。' },
-      { title: '活动水平', desc: '选择您的日常活动水平。' },
-      { title: '选择速度', desc: '选择减重速度。' },
-      { title: '获取计划', desc: '应用将计算您的卡路里预算和目标日期。' },
-      { title: '记录进度', desc: '在仪表板上记录每日饮食和运动。' }
-    ],
-    ja: [
-      { title: 'プロフィール', desc: '「プロフィール」タブで生年、身長、体重を入力します。' },
-      { title: '活動レベル', desc: '毎日の活動レベルを選択します。' },
-      { title: 'ペース設定', desc: 'ペースを選択します。' },
-      { title: 'プラン取得', desc: 'アプリが予算と目標日を計算します。' },
-      { title: '記録する', desc: '毎日の食事と運動を記録します。' }
-    ],
-    ko: [
-      { title: '개인 프로필', desc: '「내 정보」 탭에서 출생 연도, 키, 체중을 입력하세요.' },
-      { title: '활동 수준', desc: '일일 활동 수준을 선택하세요.' },
-      { title: '속도 선택', desc: '속도를 선택하세요.' },
-      { title: '계획 수립', desc: '앱이 예산과 목표 날짜를 계산합니다.' },
-      { title: '기록하기', desc: '매일 음식과 활동을 기록하세요.' }
-    ],
-    hi: [
-      { title: 'व्यक्तिगत प्रोफ़ाइल', desc: ' "मैं" टैभ में अपना जन्म वर्ष, लंबाई och वजन दर्ज करें।' },
-      { title: 'गतिविधि स्तर', desc: 'अपना दैनिक गतिविधि स्तर चुनें।' },
-      { title: 'गति चुनें', desc: 'वजन घटाने की गति चुनें।' },
-      { title: 'योजना प्राप्त करें', desc: 'ऐप आपके कैलोरी बजट और लक्ष्य तिथि की गणना करेगा।' },
-      { title: 'लॉग इन करें', desc: 'प्रतिदिन अपने भोजन और गतिविधियों को रिकॉर्ड करें।' }
-    ],
-    ar: [
-      { title: 'الملف الشخصi', desc: 'أدخل سنة ميلادك وطولك ووزنك في تبويب "أنا".' },
-      { title: 'مستوى النشاط', desc: 'اختر مستوى نشاطك اليومي.' },
-      { title: 'اختر السرعة', desc: 'حدد سرعة فقدان الوزن.' },
-      { title: 'احصل على الخطة', desc: 'سيحسب التطبيق ميزانية السعرات وتاريخ الهدف.' },
-      { title: 'سجل تقدمك', desc: 'سجل طعامك وأنشطتك يومياً.' }
+      { 
+        title: '1. Scientific Foundation', 
+        desc: 'This app acts as your personal compass. We use the Mifflin-St Jeor formula to determine your BMR (Basal Metabolic Rate). Combined with your Activity Level (PAL), this creates a precise picture of your total energy needs.' 
+      },
+      { 
+        title: '2. The Dashboard (Plan)', 
+        desc: 'The "Daily Budget" is your goal. "Maintenance" shows what you would burn without a plan. The "Savings" is your deficit. The target date is a dynamic prediction that adjusts based on your logging behavior.' 
+      },
+      { 
+        title: '3. Logging Nutrition', 
+        desc: 'Consistency is key. Log every meal and snack honestly across the six meal moments to ensure the app has a complete picture of your caloric intake.' 
+      },
+      { 
+        title: '4. Movement & Extra Budget', 
+        desc: 'Every step counts. Activities added in the "Move" tab increase your daily budget. You will see this in the "Activities +" counter. Exercise literally gives you more room to eat.' 
+      },
+      { 
+        title: '5. Your Profile (Me)', 
+        desc: 'Keep your biometrics updated. Your "Activity Level" determines base burn, while your "Pace" sets the deficit size. Faster paces require more discipline and a lower budget.' 
+      },
+      { 
+        title: '6. Stats & Insights', 
+        desc: 'Look beyond daily weight fluctuations. Use the trends to track your progress over weeks. If the line stalls (a plateau), stay consistent; your body will eventually adjust.' 
+      },
+      { 
+        title: '7. Support & Contact', 
+        desc: 'Questions or feedback? Contact our team at info@ynnovator.com.' 
+      }
     ]
   };
   return steps[l] || steps['en'];
@@ -79,18 +69,13 @@ const genericSteps = (l: string) => {
 
 export const translations: Record<string, any> = {
   nl: {
-    title: 'DOELGEWICHT', subtitle: 'IN ZICHT', targetReached: 'DOEL BEREIKT OP', nowWeight: 'NU', goalWeight: 'DOEL', myJourney: 'MIJN GEWICHT PROGRESSIE', weighMoment: 'Gewicht vandaag', dailyBudget: 'DAGBUDGET CALORIEËN', consumed: 'VERBRUIKT', mealSchedule: 'Voeding', todayPlanning: 'Registratie van vandaag', myList: 'Mijn Lijst', nothingPlanned: 'Nog niets geregistreerd', movement: 'Beweging', planActivities: 'Registreer je activiteiten', activity: 'Activiteit', amount: 'Minuten', qtyLabel: 'Hoeveelheid', inLabel: 'in', settings: 'Instellingen', age: 'GEBOORTEJAAR', gender: 'GESLACHT', man: 'MAN', woman: 'VROUW', height: 'LENGTE (CM)', startWeight: 'STARTGEWICHT', targetWeight: 'DOELGEWICHT', dailyBudgetLabel: 'CALORIE BUDGET PER DAG', oldBudgetLabel: 'HUIDIG ONDERHOUD', newBudgetLabel: 'DAGELIJKS DOEL', targetDateLabel: 'DOEL BEREIKT OP', projectedDate: 'Datum', speedSlow: 'RUSTIG', speedAverage: 'GEMIDDELD', speedFast: 'SNEL', speedCustom: 'EIGEN TEMPO', chooseSpeed: 'KIES HOE SNEL JE HET DOEL GEWICHT WIL BEREIKEN', activityLevelLabel: 'DAGELIJKSE ACTIVITEIT (BASIS)', activityLevelDesc: 'HOE ACTIEF IS JE WERK OF DAGELIJKS LEVEN?', levelLight: 'ZITTEND', levelModerate: 'GEMIDDELD', levelHeavy: 'ZWAAR WERK', language: 'Taal / Language', searchPlaceholder: 'Typ om te zoeken...', remainingToday: 'CALORIEËN OVER', activityCalories: 'Activiteiten', consumedTodayLabel: 'Verbruikt', caloriesPerDay: 'PER DAG', timeGroups: { morning: 'Ochtend', afternoon: 'Middag', evening: 'Avond' }, noDataYet: 'Nog geen metingen', addActivity: 'Activiteit toevoegen', addProduct: 'Eten of drinken invoeren', kcalPer60: 'Kcal per 60 min', unitPlaceholder: 'bijv. 100g of 250ml', categories: 'In welke lijst?', isDrink: 'Dit is drinken (glas-icoon)', save: 'Opslaan in lijst', delete: 'Verwijderen', snack: 'SNACK', addFoodDrink: 'ETEN OF DRINKEN INVOEREN', searchProduct: 'ZOEK ETEN OF DRINKEN...', adjustQuantity: 'HOEVEELHEID AANPASSEN', addToMyList: 'VOEG TOE AAN LIJST', newActivity: 'Nieuwe Activiteit', activityName: 'NAAM ACTIVITEIT', kcalPerHour: 'KCAL PER UUR', minutes: 'MINUTEN', paceTitle: 'STREEF TEMPO', customPace: 'EIGEN TEMPO', targetDate: 'STREEFDATUM', dataStorage: 'DATA & OPSLAG', mealLabel: 'ETEN', drinkLabel: 'DRINKEN', portionPlaceholder: 'PORTIE (BIJV 100G)', productName: 'PRODUCTNAAM', kcalLabel: 'KCAL', manageDb: 'Database Beheren', removeItems: 'Verwijder items uit de picker', ownActivities: 'Eigen Activiteiten', invalidDate: 'Deze streefdatum is fysiek niet verantwoord. Kies een latere datum voor een gezond resultaat.', dataManagement: { title: 'Data & Opslag', export: 'Exporteer (Backup)', restore: 'Herstel bestand', clearAll: 'Gegevens wissen', clearConfirm: 'Weet je zeker dat je alle gegevens wilt wissen?' }, infoModal: { title: 'Over Doelgewicht in Zicht', aboutText: 'Deze applicatie is ontworpen om je op een verantwoorde manier te begeleiden naar je ideale gewicht. Door een persoonlijk caloriebudget te berekenen op basis van jouw unieke fysieke kenmerken, bieden we een kompas voor een gezondere levensstijl.', scienceTitle: 'De Wetenschap', scienceText: 'Onze berekeningen maken gebruik van the Mifflin-St Jeor formule om je BMR (Basal Metabolic Rate) te bepalen. Dit is de energie die je lichaam in rust verbruikt. Door dit te combineren met je activiteitsniveau (PAL-waarde), creëert de app een gecontroleerd calorietekort dat past bij jouw gekozen tempo.', manualTitle: 'Handleiding', steps: genericSteps('nl'), disclaimerTitle: 'Medische Disclaimer', disclaimerText: 'Let op: De berekeningen en adviezen in deze applicatie zijn louter indicatief. De app houdt geen rekening met specifieke medische aandoeningen, medicatiegebruik, zwangerschap of individuele dieetwensen. Raadpleeg bij twijfel of voor medisch advies altijd een arts of erkend diëtist voordat u aan een nieuw dieet- of bewegingsplan begint.', copyright: '© 2026 My Healthy Planning. Versie V2-Stable. Alle rechten voorbehouden.', }, moments: { 'Ontbijt': 'Ontbijt', 'Ochtend Snack': 'Ochtend Snack', 'Lunch': 'Lunch', 'Middag Snack': 'Middag Snack', 'Diner': 'Diner', 'Avond Snack': 'Avond Snack' }, tabs: { dashboard: 'Plan', meals: 'Voeding', activity: 'Beweeg', profile: 'Ik' }, 
+    title: 'DOELGEWICHT', subtitle: 'IN ZICHT', targetReached: 'DOEL BEREIKT OP', nowWeight: 'NU', goalWeight: 'DOEL', myJourney: 'MIJN GEWICHT PROGRESSIE', weighMoment: 'Gewicht vandaag', dailyBudget: 'DAGBUDGET CALORIEËN', consumed: 'VERBRUIKT', mealSchedule: 'Voeding', todayPlanning: 'Registratie van vandaag', myList: 'Mijn Lijst', nothingPlanned: 'Nog niets geregistreerd', movement: 'Beweging', planActivities: 'Registreer je activiteiten', activity: 'Activiteit', amount: 'Minuten', qtyLabel: 'Hoeveelheid', inLabel: 'in', settings: 'Instellingen', age: 'GEBOORTEJAAR', gender: 'GESLACHT', man: 'MAN', woman: 'VROUW', height: 'LENGTE (CM)', startWeight: 'STARTGEWICHT', targetWeight: 'DOELGEWICHT', dailyBudgetLabel: 'CALORIE BUDGET PER DAG', oldBudgetLabel: 'HUIDIG ONDERHOUD', newBudgetLabel: 'DAGELIJKS DOEL', targetDateLabel: 'DOEL BEREIKT OP', projectedDate: 'Datum', speedSlow: 'RUSTIG', speedAverage: 'GEMIDDELD', speedFast: 'SNEL', speedCustom: 'EIGEN TEMPO', chooseSpeed: 'KIES HOE SNEL JE HET DOEL GEWICHT WIL BEREIKEN', activityLevelLabel: 'DAGELIJKSE ACTIVITEIT (BASIS)', activityLevelDesc: 'HOE ACTIEF IS JE WERK OF DAGELIJKS LEVEN?', levelLight: 'ZITTEND', levelModerate: 'GEMIDDELD', levelHeavy: 'ZWAAR WERK', language: 'Taal / Language', searchPlaceholder: 'Typ om te zoeken...', remainingToday: 'CALORIEËN OVER', activityCalories: 'Activiteiten', consumedTodayLabel: 'Verbruikt', caloriesPerDay: 'PER DAG', timeGroups: { morning: 'Ochtend', afternoon: 'Middag', evening: 'Avond' }, noDataYet: 'Nog geen metingen', addActivity: 'Activiteit toevoegen', addProduct: 'Eten of drinken invoeren', kcalPer60: 'Kcal per 60 min', unitPlaceholder: 'bijv. 100g of 250ml', categories: 'In welke lijst?', isDrink: 'Dit is drinken (glas-icoon)', save: 'Opslaan in lijst', delete: 'Verwijderen', snack: 'SNACK', addFoodDrink: 'ETEN OF DRINKEN INVOEREN', searchProduct: 'ZOEK ETEN OF DRINKEN...', adjustQuantity: 'HOEVEELHEID AANPASSEN', addToMyList: 'VOEG TOE AAN LIJST', newActivity: 'Nieuwe Activiteit', activityName: 'NAAM ACTIVITEIT', kcalPerHour: 'KCAL PER UUR', minutes: 'MINUTEN', paceTitle: 'STREEF TEMPO', customPace: 'EIGEN TEMPO', targetDate: 'STREEFDATUM', dataStorage: 'DATA & OPSLAG', mealLabel: 'ETEN', drinkLabel: 'DRINKEN', portionPlaceholder: 'PORTIE (BIJV 100G)', productName: 'PRODUCTNAME', kcalLabel: 'KCAL', manageDb: 'Database Beheren', removeItems: 'Verwijder items uit de picker', ownActivities: 'Eigen Activiteiten', invalidDate: 'Deze streefdatum is fysiek niet verantwoord. Kies een latere datum voor een gezond resultaat.', dataManagement: { title: 'Data & Opslag', export: 'Exporteer (Backup)', restore: 'Herstel bestand', clearAll: 'Gegevens wissen', clearConfirm: 'Weet je zeker dat je alle gegevens wilt wissen?' }, infoModal: { title: 'Gids: Doelgewicht in Zicht', aboutText: 'Deze applicatie is ontworpen als jouw persoonlijke kompas naar een gezond gewicht. We combineren wetenschappelijke formules met jouw dagelijkse registraties om een haalbaar en verantwoord plan te bieden.', scienceTitle: 'De Wetenschappelijke Basis', scienceText: 'Centraal staat de Mifflin-St Jeor formule. Deze berekening bepaalt je Basal Metabolic Rate (BMR) — de energie die je lichaam nodig heeft voor vitale functies zoals ademhaling en bloedsomloop. Door hier je Physical Activity Level (PAL) aan toe te voegen, ontstaat een eerlijk beeld van je energiebalans: wat gaat erin, en wat gaat eruit?', manualTitle: 'De Volledige Handleiding', steps: genericSteps('nl'), disclaimerTitle: 'Medische Disclaimer', disclaimerText: 'De adviezen in deze app zijn indicatief. Raadpleeg altijd een arts bij medische aandoeningen of extreme dieetwensen.', copyright: '© 2026 My Healthy Planning. Versie V2-Stable.', }, moments: { 'Ontbijt': 'Ontbijt', 'Ochtend Snack': 'Ochtend Snack', 'Lunch': 'Lunch', 'Middag Snack': 'Middag Snack', 'Diner': 'Diner', 'Avond Snack': 'Avond Snack' }, tabs: { dashboard: 'Plan', meals: 'Voeding', activity: 'Beweeg', profile: 'Ik' }, 
     weeklySummary: 'WEKELIJKSE SAMENVATTING', totalIntake: 'TOTALE INNAME', avgDaily: 'GEMIDDELDE PER DAG', totalBurn: 'TOTAAL VERBRAND', weeklyWeightChange: 'GEWICHTSVERANDERING',
     orSelectFromList: 'OF KIES UIT DE ONDERSTAANDE LIJST'
   },
   en: {
-    title: 'TARGET WEIGHT', subtitle: 'IN SIGHT', targetReached: 'TARGET REACHED ON', nowWeight: 'NOW', goalWeight: 'GOAL', myJourney: 'MY WEIGHT PROGRESSION', weighMoment: 'Weight today', dailyBudget: 'DAILY CALORIE BUDGET', consumed: 'CONSUMED', mealSchedule: 'Nutrition', todayPlanning: 'Today\'s entry', myList: 'My List', nothingPlanned: 'Nothing logged yet', movement: 'Activity', planActivities: 'Log your activity', activity: 'Activity', amount: 'Minutes', qtyLabel: 'Amount', inLabel: 'in', settings: 'Settings', age: 'BIRTH YEAR', gender: 'GENDER', man: 'MAN', woman: 'WOMAN', height: 'HEIGHT (CM)', startWeight: 'START WEIGHT', targetWeight: 'TARGET WEIGHT', dailyBudgetLabel: 'DAILY BUDGET', oldBudgetLabel: 'MAINTENANCE', newBudgetLabel: 'DAILY GOAL', targetDateLabel: 'TARGET REACHED ON', projectedDate: 'Date', speedSlow: 'SLOW', speedAverage: 'AVERAGE', speedFast: 'FAST', speedCustom: 'CUSTOM', chooseSpeed: 'CHOOSE PACE', activityLevelLabel: 'ACTIVITY LEVEL', activityLevelDesc: 'DAILY ACTIVITY BASE', levelLight: 'SEDENTARY', levelModerate: 'MODERATE', levelHeavy: 'HEAVY', language: 'Language', searchPlaceholder: 'Search...', remainingToday: 'CALORIES LEFT', activityCalories: 'Activities', consumedTodayLabel: 'Consumed', caloriesPerDay: 'PER DAY', timeGroups: { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }, noDataYet: 'No entries', addActivity: 'Add activity', addProduct: 'Log food or drink', kcalPer60: 'Kcal/hour', unitPlaceholder: 'e.g., 100g', categories: 'Categories', isDrink: 'Drink', save: 'Save', delete: 'Delete', snack: 'SNACK', addFoodDrink: 'LOG FOOD OR DRINK', searchProduct: 'SEARCH FOOD OR DRINK...', adjustQuantity: 'ADJUST QUANTITY', addToMyList: 'ADD TO LIST', newActivity: 'New Activity', activityName: 'ACTIVITY NAME', kcalPerHour: 'KCAL PER HOUR', minutes: 'MINUTES', paceTitle: 'PACE', customPace: 'CUSTOM PACE', targetDate: 'TARGET DATE', dataStorage: 'DATA & STORAGE', mealLabel: 'FOOD', drinkLabel: 'DRINK', portionPlaceholder: 'PORTION (E.G. 100G)', productName: 'PRODUCT NAME', kcalLabel: 'KCAL', manageDb: 'Manage Database', removeItems: 'Remove items from picker', ownActivities: 'Own Activities', invalidDate: 'This target date is physically irresponsible. Choose a later date for a healthy result.', dataManagement: { title: 'Data', export: 'Export', restore: 'Restore', clearAll: 'Clear', clearConfirm: 'Delete all data?' }, infoModal: { title: 'About', aboutText: 'This app is designed to guide you responsibly toward your ideal weight through a personalized calorie budget.', scienceTitle: 'The Science', scienceText: 'We use the Mifflin-St Jeor formula to determine your BMR and adjust it based on your activity level to create a healthy deficit.', manualTitle: 'Manual', steps: genericSteps('en'), disclaimerTitle: 'Medical Disclaimer', disclaimerText: 'The app provides indications only and does not account for medical conditions or specific dietary needs. Consult a doctor for medical advice.', copyright: '© 2026 My Healthy Planning. Version V2-Stable.' }, moments: { 'Ontbijt': 'Breakfast', 'Ochtend Snack': 'Morning Snack', 'Lunch': 'Lunch', 'Middag Snack': 'Afternoon Snack', 'Diner': 'Dinner', 'Avond Snack': 'Evening Snack' }, tabs: { dashboard: 'Plan', meals: 'Nutrition', activity: 'Move', profile: 'Me' },
+    title: 'TARGET WEIGHT', subtitle: 'IN SIGHT', targetReached: 'TARGET REACHED ON', nowWeight: 'NOW', goalWeight: 'GOAL', myJourney: 'MY WEIGHT PROGRESSION', weighMoment: 'Weight today', dailyBudget: 'DAILY CALORIE BUDGET', consumed: 'CONSUMED', mealSchedule: 'Nutrition', todayPlanning: 'Today\'s entry', myList: 'My List', nothingPlanned: 'Nothing logged yet', movement: 'Activity', planActivities: 'Log your activity', activity: 'Activity', amount: 'Minutes', qtyLabel: 'Amount', inLabel: 'in', settings: 'Settings', age: 'BIRTH YEAR', gender: 'GENDER', man: 'MAN', woman: 'WOMAN', height: 'HEIGHT (CM)', startWeight: 'START WEIGHT', targetWeight: 'TARGET WEIGHT', dailyBudgetLabel: 'DAILY BUDGET', oldBudgetLabel: 'MAINTENANCE', newBudgetLabel: 'DAILY GOAL', targetDateLabel: 'TARGET REACHED ON', projectedDate: 'Date', speedSlow: 'SLOW', speedAverage: 'AVERAGE', speedFast: 'FAST', speedCustom: 'CUSTOM', chooseSpeed: 'CHOOSE PACE', activityLevelLabel: 'ACTIVITY LEVEL', activityLevelDesc: 'DAILY ACTIVITY BASE', levelLight: 'SEDENTARY', levelModerate: 'MODERATE', levelHeavy: 'HEAVY', language: 'Language', searchPlaceholder: 'Search...', remainingToday: 'CALORIES LEFT', activityCalories: 'Activities', consumedTodayLabel: 'Consumed', caloriesPerDay: 'PER DAY', timeGroups: { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' }, noDataYet: 'No entries', addActivity: 'Add activity', addProduct: 'Log food or drink', kcalPer60: 'Kcal/hour', unitPlaceholder: 'e.g., 100g', categories: 'Categories', isDrink: 'Drink', save: 'Save', delete: 'Delete', snack: 'SNACK', addFoodDrink: 'LOG FOOD OR DRINK', searchProduct: 'SEARCH FOOD OR DRINK...', adjustQuantity: 'ADJUST QUANTITY', addToMyList: 'ADD TO LIST', newActivity: 'New Activity', activityName: 'ACTIVITY NAME', kcalPerHour: 'KCAL PER HOUR', minutes: 'MINUTES', paceTitle: 'PACE', customPace: 'CUSTOM PACE', targetDate: 'TARGET DATE', dataStorage: 'DATA & STORAGE', mealLabel: 'FOOD', drinkLabel: 'DRINK', portionPlaceholder: 'PORTION (E.G. 100G)', productName: 'PRODUCT NAME', kcalLabel: 'KCAL', manageDb: 'Manage Database', removeItems: 'Remove items from picker', ownActivities: 'Own Activities', invalidDate: 'This target date is physically irresponsible. Choose a later date for a healthy result.', dataManagement: { title: 'Data', export: 'Export', restore: 'Restore', clearAll: 'Clear', clearConfirm: 'Delete all data?' }, infoModal: { title: 'Guide: Target Weight In Sight', aboutText: 'This application is designed as your personal compass to a healthy weight, combining scientific formulas with your daily logs.', scienceTitle: 'The Science', scienceText: 'We use the Mifflin-St Jeor equation to calculate your Basal Metabolic Rate (BMR) and combine it with your Activity Level (PAL) for an honest view of your energy balance.', manualTitle: 'Deep Dive Manual', steps: genericSteps('en'), disclaimerTitle: 'Medical Disclaimer', disclaimerText: 'Indications only. Consult a doctor for medical conditions.', copyright: '© 2026 My Healthy Planning. Version V2-Stable.' }, moments: { 'Ontbijt': 'Breakfast', 'Ochtend Snack': 'Morning Snack', 'Lunch': 'Lunch', 'Middag Snack': 'Afternoon Snack', 'Diner': 'Dinner', 'Avond Snack': 'Evening Snack' }, tabs: { dashboard: 'Plan', meals: 'Nutrition', activity: 'Move', profile: 'Me' },
     weeklySummary: 'WEEKLY SUMMARY', totalIntake: 'TOTAL INTAKE', avgDaily: 'DAILY AVERAGE', totalBurn: 'TOTAL BURNED', weeklyWeightChange: 'WEIGHT CHANGE',
     orSelectFromList: 'OR CHOOSE FROM THE LIST BELOW'
-  },
-  es: {
-    title: 'OBJETIVO PESO', subtitle: 'A LA VISTA', targetReached: 'META ALCANZADA EL', nowWeight: 'AHORA', goalWeight: 'META', myJourney: 'MI PROGRESO DE PESO', weighMoment: 'Peso hoy', dailyBudget: 'PRESUPUESTO DIARIO', consumed: 'CONSUMIDO', mealSchedule: 'Nutrición', todayPlanning: 'Registro de hoy', myList: 'Mi Lista', nothingPlanned: 'Nada registrado aún', movement: 'Actividad', planActivities: 'Registrar actividad', activity: 'Actividad', amount: 'Minutos', qtyLabel: 'Cantidad', inLabel: 'en', settings: 'Ajustes', age: 'AÑO NAC.', gender: 'GÉNERO', man: 'HOMBRE', woman: 'MUJER', height: 'ALTURA (CM)', startWeight: 'PESO INICIO', targetWeight: 'PESO META', dailyBudgetLabel: 'PRESUPUESTO DIARIO', oldBudgetLabel: 'MANTENIMIENTO', newBudgetLabel: 'OBJETIVO DIARIO', targetDateLabel: 'META ALCANZADA EL', projectedDate: 'Fecha', speedSlow: 'LENTO', speedAverage: 'MEDIO', speedFast: 'RÁPIDO', speedCustom: 'PERSONALIZADO', chooseSpeed: 'ELEGIR RITMO', activityLevelLabel: 'NIVEL ACTIVIDAD', activityLevelDesc: 'BASE ACTIVIDAD DIARIA', levelLight: 'SEDENTARIO', levelModerate: 'MODERADO', levelHeavy: 'PESADO', language: 'Idioma', searchPlaceholder: 'Buscar...', remainingToday: 'CALORÍAS REST.', activityCalories: 'Actividades', consumedTodayLabel: 'Consumido', caloriesPerDay: 'POR DÍA', timeGroups: { morning: 'Mañana', afternoon: 'Tarde', evening: 'Noche' }, noDataYet: 'Sin datos', addActivity: 'Añadir actividad', addProduct: 'Añadir comida/bebida', kcalPer60: 'Kcal/hora', unitPlaceholder: 'ej. 100g', categories: 'Categorías', isDrink: 'Bebida', save: 'Guardar', delete: 'Eliminar', snack: 'MERIENDA', addFoodDrink: 'AÑADIR COMIDA O BEBIDA', searchProduct: 'BUSCAR COMIDA O BEBIDA...', adjustQuantity: 'AJUSTAR CANTIDAD', addToMyList: 'AÑADIR A MI LISTA', newActivity: 'Nueva Actividad', activityName: 'NOMBRE ACTIVIDAD', kcalPerHour: 'KCAL POR HORA', minutes: 'MINUTOS', paceTitle: 'RITMO META', customPace: 'RITMO PROPIO', targetDate: 'FECHA META', dataStorage: 'DATOS Y STORAGE', mealLabel: 'COMIDA', drinkLabel: 'BEBIDA', portionPlaceholder: 'PORCIÓN (EJ. 100G)', productName: 'NOMBRE PRODUCTO', kcalLabel: 'KCAL', manageDb: 'Gestionar Base Datos', removeItems: 'Eliminar del selector', ownActivities: 'Mis Actividades', invalidDate: 'Esta fecha no es físicamente responsable. Elige una fecha posterior.', dataManagement: { title: 'Datos', export: 'Exportar', restore: 'Restaurar', clearAll: 'Limpiar', clearConfirm: '¿Borrar todo?' }, infoModal: { title: 'Sobre la App', aboutText: 'Esta app está diseñada para guiarte de forma responsable hacia tu peso ideal.', scienceTitle: 'La Ciencia', scienceText: 'Usamos la fórmula de Mifflin-St Jeor para determinar tu BMR.', manualTitle: 'Manual', steps: genericSteps('es'), disclaimerTitle: 'Descargo Médico', disclaimerText: 'Los cálculos son indicativos. Consulta a un médico.', copyright: '© 2026 My Healthy Planning. Versión V2-Stable.' }, moments: { 'Ontbijt': 'Desayuno', 'Ochtend Snack': 'Snack Mañana', 'Lunch': 'Almuerzo', 'Middag Snack': 'Merienda', 'Diner': 'Cena', 'Avond Snack': 'Snack Noche' }, tabs: { dashboard: 'Plan', meals: 'Nutrición', activity: 'Mover', profile: 'Yo' },
-    weeklySummary: 'RESUMEN SEMANAL', totalIntake: 'INGESTA TOTAL', avgDaily: 'PROMEDIO DIARIO', totalBurn: 'QUEMADO TOTAL', weeklyWeightChange: 'CAMBIO DE PESO',
-    orSelectFromList: 'O SELECCIONA DE LA LISTA SIGUIENTE'
   }
 };
