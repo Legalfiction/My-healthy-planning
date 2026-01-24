@@ -73,7 +73,7 @@ import {
   calculateBudgetFromTargetDate,
   calculateBMI
 } from './services/calculator';
-import { translations } from './translations';
+import { translations, genericSteps } from './translations';
 
 const DB_NAME = 'GezondPlanningDB';
 const STORE_NAME = 'appState';
@@ -165,7 +165,7 @@ const Toast = ({ message, type = 'success', onHide }: { message: string, type?: 
 };
 
 const LANGUAGE_FLAGS: Record<Language, string> = {
-  nl: '🇳🇱', en: '🇺🇸', es: '🇪🇸', de: '🇩🇪', pt: '🇵🇹', 
+  nl: '🇳🇱', en: '🇺🇸', fr: '🇫🇷', es: '🇪🇸', de: '🇩🇪', pt: '🇵🇹', 
   zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷', hi: '🇮🇳', ar: '🇸🇦'
 };
 
@@ -181,6 +181,13 @@ export default function App() {
   const [showWeeklyPopover, setShowWeeklyPopover] = useState(false);
   const [showActivityAdvice, setShowActivityAdvice] = useState(false);
   
+  // Accordion State for Meals
+  const [collapsedMoments, setCollapsedMoments] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    MEAL_MOMENTS.forEach(m => { initial[m] = true; }); // Default all collapsed
+    return initial;
+  });
+
   // Custom Selection States
   const [isActivitySelectOpen, setIsActivitySelectOpen] = useState(false);
   const [isPaceSelectOpen, setIsPaceSelectOpen] = useState(false);
@@ -209,9 +216,15 @@ export default function App() {
 
   const t = useMemo(() => {
     const lang = state.language || 'nl';
-    const base = (translations as any)['nl'];
+    const base = (translations as any)['nl'] || {};
     const selected = (translations as any)[lang] || {};
-    return { ...base, ...selected };
+    // Ensure nested objects are merged or exist
+    return { 
+      ...base, 
+      ...selected,
+      moments: { ...(base.moments || {}), ...(selected.moments || {}) },
+      tabs: { ...(base.tabs || {}), ...(selected.tabs || {}) }
+    };
   }, [state.language]);
 
   const getTranslatedName = (id: string, originalName: string) => {
@@ -268,7 +281,7 @@ export default function App() {
 
   const minSafeDate = useMemo(() => {
     const maintenance = maintenanceKcal;
-    const floor = state.profile.gender === 'man' ? 1500 : 1200;
+    const floor = (state.profile.gender === 'man') ? 1500 : 1200;
     const maxDeficit = Math.min(1000, maintenance - floor);
     
     const weightToLose = globalLatestWeight - Number(state.profile.targetWeight);
@@ -282,9 +295,11 @@ export default function App() {
     return date.toISOString().split('T')[0];
   }, [maintenanceKcal, globalLatestWeight, state.profile.targetWeight, state.profile.gender]);
 
+  const currentLog = useMemo(() => (state.dailyLogs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] as LoggedActivity[] }, [state.dailyLogs, selectedDate]);
+
   const totals = useMemo(() => {
-    const log = (state.dailyLogs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] };
-    const activityBurn = Number((log.activities as LoggedActivity[]).reduce((sum: number, a: LoggedActivity) => sum + (Number(a.burnedKcal) || 0), 0));
+    const log = currentLog;
+    const activityBurn = Number((log.activities || []).reduce((sum: number, a: LoggedActivity) => sum + (Number(a.burnedKcal) || 0), 0));
     const intakeGoal = Number(state.profile.dailyBudget) || 1800;
     const actualIntake = Number(Object.values(log.meals || {}).reduce((acc: number, items: any) => acc + (items as LoggedMealItem[]).reduce((sum: number, m: LoggedMealItem) => sum + m.kcal, 0), 0));
     const currentAdjustedGoal = intakeGoal + activityBurn;
@@ -302,7 +317,7 @@ export default function App() {
       calorieStatusColor: actualIntake > currentAdjustedGoal ? 'bg-red-500' : intakePercent > 85 ? 'bg-amber-500' : 'bg-emerald-500',
       targetDate: state.profile.weightLossSpeed === 'custom' && state.profile.customTargetDate ? state.profile.customTargetDate : calculateTargetDate({ ...state.profile, currentWeight: globalLatestWeight }, intakeGoal)
     };
-  }, [state.profile, state.dailyLogs, selectedDate, globalLatestWeight]);
+  }, [state.profile, state.dailyLogs, selectedDate, globalLatestWeight, currentLog]);
 
   const statsData = useMemo(() => {
     const sortedDates = Object.keys(state.dailyLogs).sort();
@@ -336,10 +351,10 @@ export default function App() {
     };
 
     const adviceOptions = [
-      { name: 'Wandelen (stevig)', met: 4.5, icon: Footprints, mins: calculateMinForNorm(4.5) },
-      { name: 'Hardlopen (10 km/u)', met: 9.8, icon: Flame, mins: calculateMinForNorm(9.8) },
-      { name: 'Fietsen (stevig)', met: 8.0, icon: Bike, mins: calculateMinForNorm(8.0) },
-      { name: 'Fitness (kracht)', met: 5.5, icon: Dumbbell, mins: calculateMinForNorm(5.5) }
+      { name: getTranslatedName('act_wandelen_norm', 'Wandelen (stevig)'), met: 4.5, icon: Footprints, mins: calculateMinForNorm(4.5) },
+      { name: getTranslatedName('act_hardlopen_10', 'Hardlopen (10 km/u)'), met: 9.8, icon: Flame, mins: calculateMinForNorm(9.8) },
+      { name: getTranslatedName('act_fietsen_stevig', 'Fietsen (stevig)'), met: 8.0, icon: Bike, mins: calculateMinForNorm(8.0) },
+      { name: getTranslatedName('act_fitness_kracht', 'Fitness (kracht)'), met: 5.5, icon: Dumbbell, mins: calculateMinForNorm(5.5) }
     ];
 
     return { weightHistory, consistency, currentBMI, last7DaysBurn, activityNorm, avgBurn, adviceOptions };
@@ -369,12 +384,14 @@ export default function App() {
     return stats;
   }, [state.dailyLogs, selectedDate]);
 
-  const currentLog = useMemo(() => (state.dailyLogs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }, [state.dailyLogs, selectedDate]);
-
   const dateParts = useMemo(() => {
     const d = new Date(selectedDate);
-    const parts = new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d);
-    return { day: parts.find(p => p.type === 'day')?.value || '', month: (parts.find(p => p.type === 'month')?.value || '').toUpperCase(), weekday: (parts.find(p => p.type === 'weekday')?.value || '').toUpperCase() };
+    const parts = new Intl.DateTimeFormat(state.language, { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d);
+    return { 
+      day: parts.find(p => p.type === 'day')?.value || '', 
+      month: (parts.find(p => p.type === 'month')?.value || '').toUpperCase(), 
+      weekday: (parts.find(p => p.type === 'weekday')?.value || '').toUpperCase() 
+    };
   }, [selectedDate, state.language]);
 
   const onTouchStart = (e: React.TouchEvent) => touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -393,7 +410,7 @@ export default function App() {
   const updateProfile = (updates: Partial<UserProfile>) => {
     const floor = (updates.gender || state.profile.gender) === 'man' ? 1500 : 1200;
     if (updates.customTargetDate && updates.customTargetDate < minSafeDate) {
-      setToast({ msg: t.invalidDate, type: 'error' });
+      setToast({ msg: t.invalidDate || 'Invalid date', type: 'error' });
       return;
     }
     setState(prev => {
@@ -437,11 +454,12 @@ export default function App() {
   };
 
   const addActivity = (typeId: string, value: number) => {
-    const burn = calculateActivityBurn({ typeId, value }, weightForSelectedDate, state.customActivities);
     setState(prev => {
       const logs = { ...prev.dailyLogs };
-      const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] };
-      logs[selectedDate] = { ...log, activities: [...log.activities, { id: generateId(), typeId, value, burnedKcal: burn }] };
+      const log = logs[selectedDate] || { date: selectedDate, meals: {}, activities: [] as LoggedActivity[] };
+      const burnedKcal = calculateActivityBurn({ typeId, value }, globalLatestWeight, prev.customActivities);
+      const activities = [...(log.activities || []), { id: generateId(), typeId, value, burnedKcal }];
+      logs[selectedDate] = { ...log, activities };
       return { ...prev, dailyLogs: logs };
     });
   };
@@ -450,7 +468,7 @@ export default function App() {
     if (!newActivityInput.name || !newActivityInput.kcalPerHour) return;
     const newAct: any = { id: editingActivityId || 'custom_act_' + generateId(), name: newActivityInput.name, met: 0, kcalPer60: Number(newActivityInput.kcalPerHour), unit: 'minuten', isCustom: true };
     setState(prev => ({ ...prev, customActivities: editingActivityId ? prev.customActivities.map(a => a.id === editingActivityId ? newAct : a) : [...prev.customActivities, newAct] }));
-    setEditingActivityId(null); setNewActivityInput({ name: '', kcalPerHour: '' }); setToast({ msg: t.save });
+    setEditingActivityId(null); setNewActivityInput({ name: '', kcalPerHour: '' }); setToast({ msg: t.save || 'Saved' });
   };
 
   const addCustomFood = () => {
@@ -464,7 +482,7 @@ export default function App() {
       });
       return { ...prev, customOptions: newOptions };
     });
-    setEditingFoodId(null); setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false, isAlcohol: false }); setToast({ msg: t.save });
+    setEditingFoodId(null); setNewFood({ name: '', kcal: '', unit: '', cats: [], isDrink: false, isAlcohol: false }); setToast({ msg: t.save || 'Saved' });
   };
 
   const handleExportData = () => {
@@ -493,7 +511,10 @@ export default function App() {
     const searchNormalized = searchTerm.trim().toLowerCase();
     if (searchNormalized) {
       const words = searchNormalized.split(/\s+/);
-      return allAvailableProducts.filter(o => words.every(w => getTranslatedName(o.id, o.name).toLowerCase().includes(w) || (o.unitName || '').toLowerCase().includes(w)));
+      return allAvailableProducts.filter(o => words.every(w => 
+        getTranslatedName(o.id, o.name).toLowerCase().includes(w) || 
+        (o.unitName || '').toLowerCase().includes(w)
+      ));
     }
     if (pickerFilter === 'all') return allAvailableProducts;
     return allAvailableProducts.filter(o => {
@@ -520,6 +541,13 @@ export default function App() {
     );
   }, [activitySearchTerm, state.customActivities, state.language]);
 
+  const toggleMomentCollapse = (moment: string) => {
+    setCollapsedMoments(prev => ({
+      ...prev,
+      [moment]: !prev[moment]
+    }));
+  };
+
   if (!isLoaded) return null;
 
   return (
@@ -537,14 +565,14 @@ export default function App() {
               <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200"><p className="text-[16px] text-slate-600 leading-relaxed italic">{t.infoModal.aboutText}</p></section>
               
               <section className="space-y-3">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2"><Zap size={16}/> {t.infoModal.scienceTitle}</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2"><Zap size={16}/> {t.scientificBasis}</h3>
                 <p className="text-[16px] text-slate-600 leading-relaxed">{t.infoModal.scienceText}</p>
               </section>
 
               <section className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2"><Settings size={16}/> {t.infoModal.manualTitle}</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2"><Settings size={16}/> {t.manualLabel}</h3>
                 <div className="space-y-4">
-                  {t.infoModal.steps.map((step: any, i: number) => (
+                  {genericSteps(state.language).map((step: any, i: number) => (
                     <div key={i} className="flex gap-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
                       <span className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs font-bold shrink-0">{i+1}</span>
                       <div>
@@ -581,7 +609,7 @@ export default function App() {
               <div className="bg-indigo-600 p-8 text-white flex justify-between items-center">
                  <div className="flex items-center gap-4">
                     <Timer size={28} />
-                    <h2 className="text-xl font-black uppercase tracking-tight">Afslank Advies</h2>
+                    <h2 className="text-xl font-black uppercase tracking-tight">{t.movement}</h2>
                  </div>
                  <button onClick={() => setShowActivityAdvice(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                     <X size={24} />
@@ -589,7 +617,7 @@ export default function App() {
               </div>
               <div className="p-8 space-y-8">
                  <p className="text-[16px] text-slate-500 font-medium leading-relaxed">
-                    Om jouw dagelijkse norm van <span className="text-indigo-600 font-black">{statsData.activityNorm} kcal</span> te halen, adviseren wij:
+                    {t.avgThisWeek} <span className="text-indigo-600 font-black">{statsData.activityNorm} kcal {t.perDay}</span>:
                  </p>
                  <div className="space-y-4">
                     {statsData.adviceOptions.map((adv, i) => (
@@ -610,7 +638,7 @@ export default function App() {
                        </div>
                     ))}
                  </div>
-                 <button onClick={() => setShowActivityAdvice(false)} className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-[14px] shadow-lg active:scale-[0.98] transition-all">Begrepen</button>
+                 <button onClick={() => setShowActivityAdvice(false)} className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-[14px] shadow-lg active:scale-[0.98] transition-all">{t.save || 'Save'}</button>
               </div>
            </div>
         </div>
@@ -630,8 +658,8 @@ export default function App() {
               <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400"><ChevronLeft size={20}/></button>
             )}
             <div className="flex flex-col items-center min-w-[70px]">
-              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-tight leading-none mb-0.5">{activeTab === 'stats' ? 'Report' : dateParts.weekday}</span>
-              <span className="text-sm font-bold text-slate-800 leading-none">{activeTab === 'stats' ? 'Insights' : `${dateParts.day} ${dateParts.month}`}</span>
+              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-tight leading-none mb-0.5">{activeTab === 'stats' ? t.report : dateParts.weekday}</span>
+              <span className="text-sm font-bold text-slate-800 leading-none">{activeTab === 'stats' ? t.insights : `${dateParts.day} ${dateParts.month}`}</span>
             </div>
             {activeTab !== 'stats' && (
               <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split('T')[0]); }} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400"><ChevronRight size={20}/></button>
@@ -642,11 +670,11 @@ export default function App() {
 
       {showWeeklyPopover && (
         <div ref={popoverRef} className="absolute top-16 right-4 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl p-5 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-           <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3"><CalendarDays size={18} className="text-orange-500" /><h3 className="font-bold text-[12px] uppercase tracking-widest text-slate-800">{t.weeklySummary}</h3></div>
+           <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3"><CalendarDays size={18} className="text-orange-500" /><h3 className="font-bold text-[12px] uppercase tracking-widest text-slate-800">{t.weeklySummary || 'Weekly Summary'}</h3></div>
            <div className="grid grid-cols-1 gap-3">
-              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.avgDaily}</span><span className="font-black text-slate-700">{weeklyStats.avgDailyIntake} <span className="text-[11px] text-slate-400">KCAL</span></span></div>
-              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.totalBurn}</span><span className="font-black text-emerald-500">{weeklyStats.totalBurned} <span className="text-[11px]">KCAL</span></span></div>
-              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.weeklyWeightChange}</span><span className={`font-black ${weeklyStats.weightChange <= 0 ? "text-emerald-500" : "text-red-500"}`}>{weeklyStats.weightChange > 0 ? '+' : ''}{weeklyStats.weightChange.toFixed(1)} <span className="text-[11px]">KG</span></span></div>
+              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.avgThisWeek}</span><span className="font-black text-slate-700">{weeklyStats.avgDailyIntake} <span className="text-[11px] text-slate-400">KCAL</span></span></div>
+              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.activitiesLabel || 'Activities'}</span><span className="font-black text-emerald-500">{weeklyStats.totalBurned} <span className="text-[11px]">KCAL</span></span></div>
+              <div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-bold uppercase text-[11px]">{t.weeklyWeightChange || 'Weight Change'}</span><span className={`font-black ${weeklyStats.weightChange <= 0 ? "text-emerald-500" : "text-red-500"}`}>{weeklyStats.weightChange > 0 ? '+' : ''}{weeklyStats.weightChange.toFixed(1)} <span className="text-[11px]">KG</span></span></div>
            </div>
         </div>
       )}
@@ -659,37 +687,37 @@ export default function App() {
                 <div><p className="text-[12px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-1.5">{t.dailyBudget}</p><h2 className="text-4xl font-black text-slate-900 tracking-tighter">{totals.actualIntake}<span className="text-base font-medium text-slate-400 ml-2">/ {totals.currentAdjustedGoal}</span></h2></div>
                 <div className="text-right"><p className="text-[12px] font-bold text-orange-500 uppercase tracking-[0.15em] mb-1.5">{t.remainingToday}</p><p className="text-3xl font-black text-orange-500 tabular-nums tracking-tight">{Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}</p></div>
               </div>
-              <div className="space-y-2 mb-6"><div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex"><div className={`h-full transition-all duration-700 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} /></div><div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-slate-400"><span>{Math.round(totals.intakePercent)}% VERBRUIKT</span><span>{totals.currentAdjustedGoal} KCAL MAX</span></div></div>
+              <div className="space-y-2 mb-6"><div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex"><div className={`h-full transition-all duration-700 ${totals.calorieStatusColor}`} style={{ width: `${Math.min(totals.intakePercent, 100)}%` }} /></div><div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-slate-400"><span>{Math.round(totals.intakePercent)}% {t.consumedLabel}</span><span>{totals.currentAdjustedGoal} {t.maxKcalLabel}</span></div></div>
               
               <div className="bg-slate-50 rounded-xl p-3 flex justify-between items-center text-[11px] font-black uppercase border border-slate-100">
                 <div className="flex items-center gap-2 text-slate-400">
                   <Zap size={12} className="text-orange-400" fill="currentColor" />
-                  <span>{t.oldBudgetLabel}: <span className="text-slate-600">{maintenanceKcal}</span></span>
+                  <span>{t.maintenanceLabel}: <span className="text-slate-600">{maintenanceKcal}</span></span>
                 </div>
                 <div className="flex items-center gap-2 text-emerald-500">
                   <TrendingDown size={12} />
-                  <span>BESPARING: -{maintenanceKcal - state.profile.dailyBudget}</span>
+                  <span>{t.savingsLabel}: {maintenanceKcal - state.profile.dailyBudget > 0 ? '-' : '+'}{Math.abs(maintenanceKcal - state.profile.dailyBudget)}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-5 border-t border-slate-100 mt-5"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm"><Flame size={20}/></div><div><p className="text-[11px] font-bold text-slate-400 uppercase leading-none mb-1.5 tracking-tight">{t.activityCalories}</p><p className="text-base font-black text-emerald-600 leading-none">+{totals.activityBurn}</p></div></div><div className="flex items-center gap-3 border-l border-slate-100 pl-4"><div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 shadow-sm"><Target size={20}/></div><div><p className="text-[11px] font-bold text-slate-400 uppercase leading-none mb-1.5 tracking-tighter whitespace-nowrap">{t.targetReached}</p><p className="text-base font-black text-blue-600 leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}</p></div></div></div>
+              <div className="grid grid-cols-2 gap-4 pt-5 border-t border-slate-100 mt-5"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm"><Flame size={20}/></div><div><p className="text-[11px] font-bold text-slate-400 uppercase leading-none mb-1.5 tracking-tight">{t.activityCalories}</p><p className="text-base font-black text-emerald-600 leading-none">+{totals.activityBurn}</p></div></div><div className="flex items-center gap-3 border-l border-slate-100 pl-4"><div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 shadow-sm"><Target size={20}/></div><div><p className="text-[11px] font-bold text-slate-400 uppercase leading-none mb-1.5 tracking-tighter whitespace-nowrap">{t.targetReached}</p><p className="text-base font-black text-blue-600 leading-none">{totals.targetDate ? new Intl.DateTimeFormat(state.language, { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}</p></div></div></div>
             </div>
 
             <div className="grid grid-cols-2 gap-5">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-tighter whitespace-nowrap mb-4 flex items-center gap-2"><Scale size={14}/> {t.weighMoment}</h3><div className="flex items-end gap-1.5"><input type="number" step="0.1" placeholder="00.0" value={(state.dailyLogs[selectedDate] as DailyLog)?.weight || ''} onChange={(e) => { const val = e.target.value ? Number(e.target.value) : undefined; setState(prev => { const logs = { ...prev.dailyLogs }; logs[selectedDate] = { ...((logs[selectedDate] as DailyLog) || { date: selectedDate, meals: {}, activities: [] }), weight: val }; return { ...prev, dailyLogs: logs }; }); }} className="w-full bg-slate-50 border-none p-2 text-2xl font-black text-slate-800 focus:ring-1 focus:ring-orange-200 rounded-xl outline-none tabular-nums" /><span className="text-[12px] font-black text-slate-300 mb-2.5 uppercase">kg</span></div></div>
               <div onClick={() => setActiveTab('stats')} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between cursor-pointer active:bg-slate-50 transition-colors">
-                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-tighter whitespace-nowrap mb-2 flex items-center justify-between"><span>INZICHTEN</span><ArrowRight size={12} className="text-slate-300" /></h3>
+                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-tighter whitespace-nowrap mb-2 flex items-center justify-between"><span>{t.insights}</span><ArrowRight size={12} className="text-slate-300" /></h3>
                 <div className="flex items-baseline gap-1.5"><span className="text-2xl font-black text-emerald-500">-{totals.weightLostSoFar.toFixed(1)}</span><span className="text-[12px] font-black text-slate-300 uppercase">kg</span></div>
                 <div className="h-2 w-full bg-slate-100 rounded-full mt-3 overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${totals.weightProgressPercent}%`}} /></div>
               </div>
             </div>
 
-            <div className="bg-orange-50 border border-orange-100 p-5 rounded-2xl flex items-center justify-between group cursor-pointer active:bg-orange-100 transition-all shadow-sm" onClick={() => setShowInfo(true)}><div className="flex items-center gap-4"><div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm border border-orange-100"><Info size={24}/></div><div><h4 className="text-base font-black text-slate-800 uppercase leading-none mb-1.5">Wetenschappelijke basis</h4><p className="text-xs text-slate-500 leading-none font-medium">Hoe we jouw budget berekenen</p></div></div><ChevronRight size={20} className="text-orange-300 group-hover:translate-x-1 transition-transform" /></div>
+            <div className="bg-orange-50 border border-orange-100 p-5 rounded-2xl flex items-center justify-between group cursor-pointer active:bg-orange-100 transition-all shadow-sm" onClick={() => setShowInfo(true)}><div className="flex items-center gap-4"><div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm border border-orange-100"><Info size={24}/></div><div><h4 className="text-base font-black text-slate-800 uppercase leading-none mb-1.5">{t.scientificBasis}</h4><p className="text-xs text-slate-500 leading-none font-medium">{t.manualLabel}</p></div></div><ChevronRight size={20} className="text-orange-300 group-hover:translate-x-1 transition-transform" /></div>
 
             <div onClick={() => setActiveTab('stats')} className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center justify-between group cursor-pointer active:bg-slate-50 transition-all shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-100"><BarChart3 size={24}/></div>
-                <div><h4 className="text-base font-black text-slate-800 uppercase leading-none mb-1.5">Gedetailleerde trends</h4><p className="text-xs text-slate-500 leading-none font-medium">Voortgang en gewichtsverloop</p></div>
+                <div><h4 className="text-base font-black text-slate-800 uppercase leading-none mb-1.5">{t.report}</h4><p className="text-xs text-slate-500 leading-none font-medium">{t.insights}</p></div>
               </div>
               <ChevronRight size={20} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -699,14 +727,14 @@ export default function App() {
         {activeTab === 'stats' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="px-1">
-              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">Doelgewicht in Zicht</h2>
-              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Rapportages & Voortgangsanalyse</p>
+              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{t.insights}</h2>
+              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">{t.report}</p>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><TrendingDown size={16} className="text-blue-500" /> Gewichtsverloop</h3>
-                <span className="text-[11px] font-black text-slate-300 uppercase">Trend</span>
+                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><TrendingDown size={16} className="text-blue-500" /> {t.weightTrend}</h3>
+                <span className="text-[11px] font-black text-slate-300 uppercase">{t.trend}</span>
               </div>
               <div className="h-44 w-full relative">
                 <svg className="w-full h-full overflow-visible" viewBox="0 0 400 150">
@@ -716,7 +744,7 @@ export default function App() {
                   {(() => {
                     const h = 150; const w = 400;
                     const history = [{ weight: state.profile.startWeight }, ...statsData.weightHistory, { weight: globalLatestWeight }];
-                    if (history.length < 2) return <text x="200" y="75" textAnchor="middle" className="text-xs fill-slate-300 uppercase font-black">Niet genoeg data</text>;
+                    if (history.length < 2) return <text x="200" y="75" textAnchor="middle" className="text-xs fill-slate-300 uppercase font-black">--</text>;
                     const weights = history.map(h => h.weight || 0);
                     const minW = Math.min(...weights, state.profile.targetWeight) - 2;
                     const maxW = Math.max(...weights, state.profile.startWeight) + 2;
@@ -743,8 +771,8 @@ export default function App() {
             {/* ACTIVITY MONITOR CARD */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Armchair size={16} className="text-indigo-500" /> Bewegingsmonitor</h3>
-                <span className="text-[11px] font-black text-slate-300 uppercase">Laatste 7 dagen</span>
+                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Armchair size={16} className="text-indigo-500" /> {t.movement}</h3>
+                <span className="text-[11px] font-black text-slate-300 uppercase">{t.report}</span>
               </div>
               <div className="h-48 w-full relative px-2 flex items-end justify-between gap-4">
                 {statsData.last7DaysBurn.map((day, idx) => {
@@ -759,7 +787,7 @@ export default function App() {
                       <span className="text-[11px] font-black text-slate-400 uppercase mt-4">{day.label}</span>
                       {idx === 0 && (
                         <div className="absolute left-0 right-0 border-t-2 border-dashed border-emerald-500/50 pointer-events-none z-20" style={{ bottom: `${normLineY + 40}px` }}>
-                          <span className="absolute -top-5 right-0 text-[10px] font-black text-emerald-600 uppercase bg-white/80 px-2 rounded-md border border-emerald-100 shadow-sm">Norm: {statsData.activityNorm}</span>
+                          <span className="absolute -top-5 right-0 text-[10px] font-black text-emerald-600 uppercase bg-white/80 px-2 rounded-md border border-emerald-100 shadow-sm">{t.norm}: {statsData.activityNorm}</span>
                         </div>
                       )}
                     </div>
@@ -768,7 +796,7 @@ export default function App() {
               </div>
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-start gap-4">
                 <p className="text-[16px] text-slate-600 leading-relaxed font-medium flex-grow">
-                  Je gemiddelde deze week is <span className={`font-black uppercase ${statsData.avgBurn >= statsData.activityNorm ? 'text-emerald-500' : 'text-orange-500'}`}>{Math.round(statsData.avgBurn)} kcal</span>. Bij jouw levensstijl adviseren we <span className="font-black text-slate-800">{statsData.activityNorm} kcal per dag</span>.
+                  {t.avgThisWeek} <span className={`font-black uppercase ${statsData.avgBurn >= statsData.activityNorm ? 'text-emerald-500' : 'text-orange-500'}`}>{Math.round(statsData.avgBurn)} kcal</span>. {t.perDay}.
                 </p>
                 <button onClick={() => setShowActivityAdvice(true)} className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center hover:bg-indigo-100 transition-colors shrink-0 shadow-sm border border-indigo-100 active:scale-90"><Info size={20} /></button>
               </div>
@@ -776,8 +804,8 @@ export default function App() {
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Zap size={16} className="text-emerald-500" /> Intake Consistentie</h3>
-                <span className="text-[11px] font-black text-slate-300 uppercase">Plan vs Werkelijk</span>
+                <h3 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Zap size={16} className="text-emerald-500" /> {t.planVsActual}</h3>
+                <span className="text-[11px] font-black text-slate-300 uppercase">{t.report}</span>
               </div>
               <div className="flex items-end justify-between h-36 gap-4 px-2">
                 {statsData.consistency.map((day, idx) => {
@@ -802,6 +830,52 @@ export default function App() {
 
         {activeTab === 'meals' && (
           <div className="space-y-5 animate-in fade-in duration-300">
+            {/* HERO DAY DASHBOARD */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 relative overflow-hidden flex items-center gap-6">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <svg className="w-24 h-24 transform -rotate-90">
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="40"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    className="text-slate-100"
+                  />
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="40"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 * (1 - Math.min(1, totals.intakePercent / 100))}
+                    strokeLinecap="round"
+                    className={`transition-all duration-700 ease-out ${totals.actualIntake > totals.currentAdjustedGoal ? 'text-red-500' : 'text-orange-500'}`}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 leading-none">
+                    {Math.round(totals.intakePercent)}%
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t.remainingToday}</p>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none mb-2">
+                  {Math.max(0, totals.currentAdjustedGoal - totals.actualIntake)}
+                  <span className="text-sm font-bold text-slate-400 ml-1.5 uppercase">kcal</span>
+                </h2>
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-tight text-slate-500">
+                  <span className="bg-slate-100 px-2 py-0.5 rounded">{totals.actualIntake}</span>
+                  <span className="text-slate-300">/</span>
+                  <span className="text-slate-400">{totals.currentAdjustedGoal} {t.maxKcalLabel}</span>
+                </div>
+              </div>
+            </div>
+
             {/* RICH SELECT FOR MEAL MOMENT */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
               <div className="relative flex-grow">
@@ -812,7 +886,7 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <Utensils size={18} className="text-orange-500" />
                     <span className="text-sm font-black uppercase text-slate-800">
-                      {openPickerMoment || t.addFoodDrink}
+                      {openPickerMoment ? (t.moments && t.moments[openPickerMoment]) || openPickerMoment : t.addFoodDrink}
                     </span>
                   </div>
                   <ChevronDown size={16} className={`text-slate-400 transition-transform ${isMealMomentOpen ? 'rotate-180' : ''}`} />
@@ -830,14 +904,6 @@ export default function App() {
                           'Avond Snack': Cherry 
                         };
                         const Icon = momentIcons[moment] || Utensils;
-                        const descriptions: Record<string, string> = {
-                          'Ontbijt': 'Start de dag vol energie',
-                          'Ochtend Snack': 'Licht tussenmoment (10:00)',
-                          'Lunch': 'Eiwitrijke middagmaaltijd',
-                          'Middag Snack': 'Boost voor de namiddag',
-                          'Diner': 'De hoofdmaaltijd van de dag',
-                          'Avond Snack': 'Lichte afsluiting van de avond'
-                        };
                         return (
                           <button 
                             key={moment}
@@ -848,8 +914,8 @@ export default function App() {
                               <Icon size={20} />
                             </div>
                             <div>
-                              <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1.5">{moment}</h4>
-                              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{descriptions[moment]}</p>
+                              <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1.5">{(t.moments && t.moments[moment]) || moment}</h4>
+                              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{t.mealSchedule}</p>
                             </div>
                           </button>
                         );
@@ -867,23 +933,23 @@ export default function App() {
               <div className="space-y-5 animate-in slide-in-from-right-2 duration-300">
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{editingFoodId ? 'Item Aanpassen' : 'Nieuw Product'}</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{editingFoodId ? t.editItem : t.addToMyList}</h3>
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setNewFood(p => ({...p, isDrink: false, isAlcohol: false}))} className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 border transition-all text-[12px] font-black uppercase ${(!newFood.isDrink && !newFood.isAlcohol) ? 'border-orange-500 text-orange-500 bg-orange-50' : 'border-slate-200 text-slate-300 bg-slate-50/50'}`}>
-                      <Utensils size={16} /> {t.mealLabel}
+                      <Utensils size={16} /> {t.mealSchedule}
                     </button>
                     <button onClick={() => setNewFood(p => ({...p, isDrink: true, isAlcohol: false}))} className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 border transition-all text-[12px] font-black uppercase ${newFood.isDrink ? 'border-orange-500 text-orange-500 bg-orange-50' : 'border-slate-200 text-slate-300 bg-slate-50/50'}`}>
-                      <GlassWater size={16} /> {t.drinkLabel}
+                      <GlassWater size={16} /> {t.drinkLabel || 'Drink'}
                     </button>
                   </div>
-                  <input type="text" placeholder={t.productName} value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-orange-100 uppercase" />
+                  <input type="text" placeholder={t.productName || 'Product Name'} value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-orange-100 uppercase" />
                   <div className="grid grid-cols-2 gap-4">
                     <input type="number" placeholder={t.kcalLabel} value={newFood.kcal} onChange={e => setNewFood({...newFood, kcal: e.target.value})} className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-orange-100" />
                     <input type="text" placeholder={t.portionPlaceholder} value={newFood.unit} onChange={e => setNewFood({...newFood, unit: e.target.value})} className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-orange-100 uppercase" />
                   </div>
                   <button onClick={addCustomFood} disabled={!newFood.name || !newFood.kcal} className={`w-full py-4 rounded-xl font-black text-sm uppercase flex items-center justify-center gap-2 transition-all shadow-lg ${(!newFood.name || !newFood.kcal) ? 'bg-slate-200 text-white' : 'bg-orange-500 text-white active:scale-[0.98]'}`}>
-                    {editingFoodId ? <Check size={18} /> : <Plus size={18} />} {editingFoodId ? 'Wijziging Opslaan' : t.addToMyList}
+                    {editingFoodId ? <Check size={18} /> : <Plus size={18} />} {editingFoodId ? t.saveChanges : t.addToMyList}
                   </button>
                 </div>
               </div>
@@ -893,9 +959,9 @@ export default function App() {
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-5 space-y-4 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
                       {[ 
-                        { id: 'breakfast', icon: Sun, label: 'Ontbijt' }, 
-                        { id: 'lunch', icon: Utensils, label: 'Lunch' }, 
-                        { id: 'diner', icon: Moon, label: 'Diner' }, 
+                        { id: 'breakfast', icon: Sun, label: (t.moments && t.moments['Ontbijt']) || 'Breakfast' }, 
+                        { id: 'lunch', icon: Utensils, label: (t.moments && t.moments['Lunch']) || 'Lunch' }, 
+                        { id: 'diner', icon: Moon, label: (t.moments && t.moments['Diner']) || 'Dinner' }, 
                         { id: 'snacks', icon: Cookie, label: 'Snack' }, 
                         { id: 'drink', icon: GlassWater, label: 'Drink' }, 
                         { id: 'fruit', icon: Apple, label: 'Fruit' }, 
@@ -905,9 +971,6 @@ export default function App() {
                           <f.icon size={14} />{f.label}
                         </button>
                       ))}
-                      <button onClick={() => { setPickerFilter('all'); setStagedProduct(null); }} className={`px-4 py-2.5 rounded-xl text-[12px] font-black uppercase whitespace-nowrap transition-all border ${pickerFilter === 'all' ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
-                        Alles
-                      </button>
                     </div>
                     <div className="relative">
                       <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -954,37 +1017,56 @@ export default function App() {
                 )}
                 <div className="space-y-4">
                   {MEAL_MOMENTS.map(moment => { 
-                    const items = (currentLog.meals[moment] as LoggedMealItem[]) || []; 
+                    const items = (currentLog.meals && currentLog.meals[moment]) || []; 
                     if (items.length === 0) return null; 
                     const momentTotal = items.reduce((sum, item) => sum + item.kcal, 0); 
+                    const isCollapsed = collapsedMoments[moment];
+
                     return (
-                      <div key={moment} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div className="bg-slate-50 px-4 py-2.5 flex justify-between items-center border-b border-slate-100">
-                          <h4 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{t.moments[moment]}</h4>
+                      <div 
+                        key={moment} 
+                        className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                        onTouchStart={(e) => e.stopPropagation()} // Isolate touch to prevent swipe navigation conflict
+                        onTouchEnd={(e) => e.stopPropagation()}
+                      >
+                        <div 
+                          className="bg-slate-50 px-4 py-3 flex justify-between items-center border-b border-slate-100 cursor-pointer active:bg-slate-100 transition-colors"
+                          onClick={() => toggleMomentCollapse(moment)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronDown 
+                              size={16} 
+                              className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} 
+                            />
+                            <h4 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{(t.moments && t.moments[moment]) || moment}</h4>
+                          </div>
                           <span className="text-sm font-black text-slate-800">{momentTotal} <span className="text-[11px] text-slate-400">KCAL</span></span>
                         </div>
-                        <div className="divide-y divide-slate-50">
-                          {items.map(item => { 
-                            const baseItem = allAvailableProducts.find(o => o.id === item.mealId); 
-                            const baseKcal = baseItem ? baseItem.kcal : 50; 
-                            return (
-                              <div key={item.id} className="flex items-center justify-between p-4">
-                                <div className="flex items-center gap-4 truncate flex-grow">
-                                  <div className="text-orange-500 shrink-0">{item.isAlcohol ? <Beer size={18}/> : item.isDrink ? <GlassWater size={18}/> : <Utensils size={18}/>}</div>
-                                  <span className="text-[16px] font-black text-slate-800 uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
-                                </div>
-                                <div className="flex items-center gap-4 shrink-0">
-                                  <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-1.5 border border-slate-100">
-                                    <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - baseKcal)} className="text-slate-400 hover:text-orange-500"><Minus size={14}/></button>
-                                    <input type="number" className="w-10 bg-transparent border-none p-0 text-sm font-black text-slate-800 focus:ring-0 text-center outline-none" value={Math.round(item.kcal)} onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))} />
-                                    <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + baseKcal)} className="text-slate-400 hover:text-orange-500"><Plus size={14}/></button>
+                        
+                        {!isCollapsed && (
+                          <div className="divide-y divide-slate-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                            {items.map(item => { 
+                              const baseItem = allAvailableProducts.find(o => o.id === item.mealId); 
+                              const baseKcal = baseItem ? baseItem.kcal : 50; 
+                              return (
+                                <div key={item.id} className="flex items-center justify-between p-4">
+                                  <div className="flex items-center gap-4 truncate flex-grow">
+                                    <div className="text-orange-500 shrink-0">{item.isAlcohol ? <Beer size={18}/> : item.isDrink ? <GlassWater size={18}/> : <Utensils size={18}/>}</div>
+                                    <span className="text-[16px] font-black text-slate-800 uppercase truncate leading-none">{getTranslatedName(item.mealId || '', item.name)}</span>
                                   </div>
-                                  <button onClick={() => { setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.meals[moment] = (log.meals[moment] as LoggedMealItem[]).filter(i => i.id !== item.id); return { ...prev, dailyLogs: logs }; }); }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                  <div className="flex items-center gap-4 shrink-0">
+                                    <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-1.5 border border-slate-100">
+                                      <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal - baseKcal)} className="text-slate-400 hover:text-orange-500"><Minus size={14}/></button>
+                                      <input type="number" className="w-10 bg-transparent border-none p-0 text-sm font-black text-slate-800 focus:ring-0 text-center outline-none" value={Math.round(item.kcal)} onChange={(e) => updateMealItemKcal(moment, item.id, Number(e.target.value))} />
+                                      <button onClick={() => updateMealItemKcal(moment, item.id, item.kcal + baseKcal)} className="text-slate-400 hover:text-orange-500"><Plus size={14}/></button>
+                                    </div>
+                                    <button onClick={() => { setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.meals[moment] = ((log.meals && log.meals[moment]) || []).filter(i => i.id !== item.id); return { ...prev, dailyLogs: logs }; }); }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                  </div>
                                 </div>
-                              </div>
-                            ); 
-                          })}
-                        </div>
+                              ); 
+                            })}
+                          </div>
+                        )}
                       </div>
                     ); 
                   })}
@@ -1011,7 +1093,7 @@ export default function App() {
                       <Activity size={18} className="text-orange-500" />
                       <span className="text-sm font-black uppercase text-slate-800 truncate">
                         {isActivityTypeOpen ? (
-                          'Zoek activiteit...'
+                          t.searchActivity
                         ) : (
                           getTranslatedName(selectedActivityId, [...ACTIVITY_TYPES, ...state.customActivities].find(a => a.id === selectedActivityId)?.name || 'Kies activiteit')
                         )}
@@ -1026,7 +1108,7 @@ export default function App() {
                         <input 
                           autoFocus
                           type="text"
-                          placeholder="Zoek activiteit..."
+                          placeholder={t.searchActivity}
                           className="w-full bg-transparent border-none p-0 text-sm font-black uppercase text-slate-800 focus:ring-0 outline-none"
                           value={activitySearchTerm}
                           onChange={(e) => setActivitySearchTerm(e.target.value)}
@@ -1046,15 +1128,6 @@ export default function App() {
                               'yoga': Armchair 
                             };
                             const Icon = Object.keys(iconMap).find(k => act.id.includes(k)) ? iconMap[Object.keys(iconMap).find(k => act.id.includes(k))!] : Activity;
-                            const activityDescriptions: Record<string, string> = {
-                              'act_wandelen_slow': 'Rustig tempo, lage intensiteit',
-                              'act_wandelen_norm': 'Stevig doorstappen',
-                              'act_wandelen_brisk': 'Zeer vlot tempo, actieve verbranding',
-                              'act_hardlopen_10': 'Hoge verbranding, cardio focus',
-                              'act_fietsen_norm': 'Woon-werk verkeer tempo',
-                              'act_fitness_kracht': 'Spieropbouw en krachttraining',
-                              'act_crossfit': 'HIIT / Boot camp intensief'
-                            };
                             return (
                               <button 
                                 key={act.id}
@@ -1066,14 +1139,14 @@ export default function App() {
                                 </div>
                                 <div className="flex-grow">
                                   <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1.5">{getTranslatedName(act.id, act.name)}</h4>
-                                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{activityDescriptions[act.id] || 'Registreer je beweging'}</p>
+                                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{t.movement}</p>
                                 </div>
                               </button>
                             );
                           })
                         ) : (
                           <div className="p-8 text-center">
-                            <p className="text-sm font-black text-slate-300 uppercase tracking-widest">Geen activiteiten gevonden</p>
+                            <p className="text-sm font-black text-slate-300 uppercase tracking-widest">--</p>
                           </div>
                         )}
                       </div>
@@ -1090,14 +1163,14 @@ export default function App() {
                 <div className="space-y-5 animate-in slide-in-from-right-2 duration-300">
                   <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
                     <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{editingActivityId ? 'Activiteit Wijzigen' : t.newActivity}</h3>
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">{editingActivityId ? t.editItem : t.newActivity}</h3>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
-                      <input type="text" placeholder={t.activityName} value={newActivityInput.name} onChange={e => setNewActivityInput({...newActivityInput, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold uppercase outline-none focus:ring-2 focus:ring-orange-100" />
-                      <input type="number" placeholder={t.kcalPerHour} value={newActivityInput.kcalPerHour} onChange={e => setNewActivityInput({...newActivityInput, kcalPerHour: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold outline-none focus:ring-2 focus:ring-orange-100" />
+                      <input type="text" placeholder={t.activityName || 'Activity Name'} value={newActivityInput.name} onChange={e => setNewActivityInput({...newActivityInput, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold uppercase outline-none focus:ring-2 focus:ring-orange-100" />
+                      <input type="number" placeholder={t.kcalPerHour || 'Kcal per hour'} value={newActivityInput.kcalPerHour} onChange={e => setNewActivityInput({...newActivityInput, kcalPerHour: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-base font-bold outline-none focus:ring-2 focus:ring-orange-100" />
                     </div>
                     <button onClick={addCustomActivity} disabled={!newActivityInput.name || !newActivityInput.kcalPerHour} className={`w-full py-4 rounded-xl font-black text-sm uppercase flex items-center justify-center gap-2 transition-all shadow-lg ${(!newActivityInput.name || !newActivityInput.kcalPerHour) ? 'bg-slate-200 text-white' : 'bg-orange-500 text-white active:scale-[0.98]'}`}>
-                      {editingActivityId ? <Check size={18}/> : <Plus size={18}/>} {editingActivityId ? 'Wijziging Opslaan' : t.newActivity}
+                      {editingActivityId ? <Check size={18}/> : <Plus size={18}/>} {editingActivityId ? t.saveChanges : t.newActivity}
                     </button>
                   </div>
                 </div>
@@ -1112,7 +1185,7 @@ export default function App() {
                    </button>
                  </div>
                  <div className="space-y-3">
-                   {currentLog.activities.map(act => { 
+                   {(currentLog.activities || []).map(act => { 
                      const type = [...ACTIVITY_TYPES, ...(state.customActivities || [])].find(t => t.id === act.typeId); 
                      return (
                        <div key={act.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center group animate-in fade-in slide-in-from-left-2 duration-200">
@@ -1125,7 +1198,7 @@ export default function App() {
                              <p className="text-xs font-bold text-slate-400 uppercase leading-none">{act.value} {t.minutes} • <span className="text-emerald-500 font-black">+{Math.round(act.burnedKcal)} KCAL</span></p>
                            </div>
                          </div>
-                         <button onClick={() => setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.activities = log.activities.filter(a => a.id !== act.id); return { ...prev, dailyLogs: logs }; })} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
+                         <button onClick={() => setState(prev => { const logs = { ...prev.dailyLogs }; const log = logs[selectedDate]; if (log) log.activities = (log.activities || []).filter(a => a.id !== act.id); return { ...prev, dailyLogs: logs }; })} className="text-slate-300 hover:text-red-500 p-2 transition-colors">
                            <Trash2 size={20}/>
                          </button>
                        </div>
@@ -1144,14 +1217,14 @@ export default function App() {
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-500"><Target size={22} /></div>
                    <div>
-                     <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">DOEL</span>
+                     <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">{t.targetWeight}</span>
                      <span className="text-base font-black text-slate-800">{state.profile.dailyBudget} <span className="text-[12px]">KCAL</span></span>
                    </div>
                 </div>
                 <div className="text-right">
-                   <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">STREEFDATUM</span>
+                   <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">{t.targetReached}</span>
                    <span className="text-sm font-black text-slate-800 uppercase">
-                      {totals.targetDate ? new Intl.DateTimeFormat(state.language === 'nl' ? 'nl-NL' : 'en-US', { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}
+                      {totals.targetDate ? new Intl.DateTimeFormat(state.language, { day: 'numeric', month: 'short' }).format(new Date(totals.targetDate)) : '--'}
                    </span>
                 </div>
              </div>
@@ -1161,17 +1234,17 @@ export default function App() {
                 <div className="flex items-center justify-between p-4">
                    <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">{t.gender}</span>
                    <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-                      <button onClick={() => updateProfile({ gender: 'man' })} className={`px-6 py-2 rounded-lg text-[12px] font-black uppercase transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`}>Man</button>
-                      <button onClick={() => updateProfile({ gender: 'woman' })} className={`px-6 py-2 rounded-lg text-[12px] font-black uppercase transition-all ${state.profile.gender === 'woman' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`}>Vrouw</button>
+                      <button onClick={() => updateProfile({ gender: 'man' })} className={`px-6 py-2 rounded-lg text-[12px] font-black uppercase transition-all ${state.profile.gender === 'man' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`}>{t.man}</button>
+                      <button onClick={() => updateProfile({ gender: 'woman' })} className={`px-6 py-2 rounded-lg text-[12px] font-black uppercase transition-all ${state.profile.gender === 'woman' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`}>{t.woman}</button>
                    </div>
                 </div>
                 <div className="grid grid-cols-2 divide-x divide-slate-100">
                    <div className="p-4 flex flex-col gap-1.5"><label className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{t.age}</label><div className="flex items-center justify-between"><select value={state.profile.birthYear} onChange={(e) => updateProfile({ birthYear: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none appearance-none text-slate-800 tabular-nums">{birthYears.map(y => <option key={y} value={y}>{y}</option>)}</select><ChevronDown size={14} className="text-slate-300" /></div></div>
-                   <div className="p-4 flex flex-col gap-1.5"><label className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{t.height.split(' ')[0]}</label><div className="flex items-center justify-between"><input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none text-slate-800 tabular-nums" /><span className="text-[12px] font-black text-slate-300 uppercase">cm</span></div></div>
+                   <div className="p-4 flex flex-col gap-1.5"><label className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{(t.height && t.height.split(' ')[0]) || 'Height'}</label><div className="flex items-center justify-between"><input type="number" value={state.profile.height} onChange={(e) => updateProfile({ height: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none text-slate-800 tabular-nums" /><span className="text-[12px] font-black text-slate-300 uppercase">cm</span></div></div>
                 </div>
                 <div className="grid grid-cols-2 divide-x divide-slate-100">
-                   <div className="p-4 flex flex-col gap-1.5"><label className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Start</label><div className="flex items-center justify-between"><input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none text-slate-800 tabular-nums" /><span className="text-[12px] font-black text-slate-300 uppercase">kg</span></div></div>
-                   <div className="p-4 flex flex-col gap-1.5 bg-orange-50/20"><label className="text-[12px] font-black text-orange-500 uppercase tracking-tight">Doel</label><div className="flex items-center justify-between"><input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none text-orange-600 tabular-nums" /><span className="text-[12px] font-black text-orange-300 uppercase">kg</span></div></div>
+                   <div className="p-4 flex flex-col gap-1.5"><label className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{t.startWeight}</label><div className="flex items-center justify-between"><input type="number" value={state.profile.startWeight} onChange={(e) => updateProfile({ startWeight: Number(e.target.value) })} className="w-full bg-transparent text-base font-black outline-none text-slate-800 tabular-nums" /><span className="text-[12px] font-black text-slate-300 uppercase">kg</span></div></div>
+                   <div className="p-4 flex flex-col gap-1.5 bg-orange-50/20"><label className="text-[12px] font-black text-orange-500 uppercase tracking-tight">{t.targetWeight}</label><div className="flex items-center justify-between"><input type="number" value={state.profile.targetWeight} onChange={(e) => updateProfile({ targetWeight: Number(e.target.value) })} className="w-full bg-transparent font-black outline-none text-orange-600 tabular-nums" /><span className="text-[12px] font-black text-orange-300 uppercase">kg</span></div></div>
                 </div>
              </div>
 
@@ -1183,15 +1256,11 @@ export default function App() {
                      className={`w-full p-5 flex items-center justify-between text-left transition-colors ${isActivitySelectOpen ? 'bg-slate-50' : 'bg-white'}`}
                    >
                      <div className="flex flex-col">
-                        <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">Dagelijkse Activiteit</span>
+                        <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">{t.levelLabel}</span>
                         <span className="text-base font-black text-slate-800 uppercase tracking-tight">
                            {(() => {
-                              const current = [
-                                { id: 'light', title: 'Zittend' },
-                                { id: 'moderate', title: 'Gemiddeld' },
-                                { id: 'heavy', title: 'Zwaar werk' }
-                              ].find(l => l.id === state.profile.activityLevel);
-                              return current?.title || 'Kies Niveau';
+                              const labels: Record<string, string> = { light: t.levelLight, moderate: t.levelModerate, heavy: t.levelHeavy };
+                              return labels[state.profile.activityLevel || 'light'] || (state.profile.activityLevel || 'light');
                            })()}
                         </span>
                      </div>
@@ -1210,9 +1279,9 @@ export default function App() {
                    {isActivitySelectOpen && (
                      <div className="border-t border-slate-100 divide-y divide-slate-50 bg-white animate-in slide-in-from-top-2 duration-300">
                         {[
-                          { id: 'light', icon: Armchair, title: 'Zittend', desc: 'Kantoorbaan, weinig beweging' },
-                          { id: 'moderate', icon: Stethoscope, title: 'Gemiddeld', desc: 'Staand werk, lichte inspanning' },
-                          { id: 'heavy', icon: Construction, title: 'Zwaar werk', desc: 'Fysiek zwaar werk / bouw' }
+                          { id: 'light', icon: Armchair, title: t.levelLight || 'Light' },
+                          { id: 'moderate', icon: Stethoscope, title: t.levelModerate || 'Moderate' },
+                          { id: 'heavy', icon: Construction, title: t.levelHeavy || 'Heavy' }
                         ].map(lvl => (
                           <button 
                              key={lvl.id}
@@ -1224,7 +1293,6 @@ export default function App() {
                              </div>
                              <div className="flex-grow">
                                 <h4 className={`text-[16px] font-black leading-none mb-1.5 uppercase tracking-tight ${state.profile.activityLevel === lvl.id ? 'text-orange-600' : 'text-slate-800'}`}>{lvl.title}</h4>
-                                <p className="text-[13px] text-slate-400 font-bold uppercase tracking-wider">{lvl.desc}</p>
                              </div>
                              {state.profile.activityLevel === lvl.id && <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm animate-in zoom-in duration-300"><Check size={14} /></div>}
                           </button>
@@ -1242,16 +1310,11 @@ export default function App() {
                      className={`w-full p-5 flex items-center justify-between text-left transition-colors ${isPaceSelectOpen ? 'bg-slate-50' : 'bg-white'}`}
                    >
                      <div className="flex flex-col">
-                        <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">Afslank Tempo</span>
+                        <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1.5">{t.paceLabel}</span>
                         <span className="text-base font-black text-slate-800 uppercase tracking-tight">
                            {(() => {
-                              const current = [
-                                { id: 'slow', title: 'Rustig' },
-                                { id: 'average', title: 'Gemiddeld' },
-                                { id: 'fast', title: 'Snel' },
-                                { id: 'custom', title: 'Eigen tempo' }
-                              ].find(p => p.id === state.profile.weightLossSpeed);
-                              return current?.title || 'Kies Tempo';
+                              const labels: Record<string, string> = { slow: t.speedSlow, average: t.speedAverage, fast: t.speedFast, custom: t.speedCustom };
+                              return labels[state.profile.weightLossSpeed || 'average'] || (state.profile.weightLossSpeed || 'average');
                            })()}
                         </span>
                      </div>
@@ -1270,10 +1333,10 @@ export default function App() {
                    {isPaceSelectOpen && (
                      <div className="border-t border-slate-100 divide-y divide-slate-50 bg-white animate-in slide-in-from-top-2 duration-300">
                         {[
-                          { id: 'slow', icon: Turtle, title: 'Rustig', desc: 'Duurzaam afvallen (-0.25kg p/w)' },
-                          { id: 'average', icon: Footprints, title: 'Gemiddeld', desc: 'Aanbevolen balans (-0.5kg p/w)' },
-                          { id: 'fast', icon: Flame, title: 'Snel', desc: 'Ambitieus doel (-1.0kg p/w)' },
-                          { id: 'custom', icon: Pencil, title: 'Eigen tempo', desc: 'Kies zelf je streefdatum' }
+                          { id: 'slow', icon: Turtle, title: t.speedSlow || 'Slow' },
+                          { id: 'average', icon: Footprints, title: t.speedAverage || 'Average' },
+                          { id: 'fast', icon: Flame, title: t.speedFast || 'Fast' },
+                          { id: 'custom', icon: Pencil, title: t.speedCustom || 'Custom' }
                         ].map(sp => (
                           <button 
                              key={sp.id}
@@ -1285,7 +1348,6 @@ export default function App() {
                              </div>
                              <div className="flex-grow">
                                 <h4 className={`text-[16px] font-black leading-none mb-1.5 uppercase tracking-tight ${state.profile.weightLossSpeed === sp.id ? 'text-orange-600' : 'text-slate-800'}`}>{sp.title}</h4>
-                                <p className="text-[13px] text-slate-400 font-bold uppercase tracking-wider">{sp.desc}</p>
                              </div>
                              {state.profile.weightLossSpeed === sp.id && <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-sm animate-in zoom-in duration-300"><Check size={14} /></div>}
                           </button>
@@ -1293,19 +1355,6 @@ export default function App() {
                      </div>
                    )}
                 </div>
-
-                {state.profile.weightLossSpeed === 'custom' && (
-                  <div className="mt-4 p-5 bg-orange-100/30 rounded-2xl border border-orange-200 flex items-center justify-between animate-in slide-in-from-top-2 duration-400">
-                     <label className="text-[13px] font-black text-orange-700 uppercase tracking-[0.2em]">EIGEN DATUM</label>
-                     <input 
-                        type="date" 
-                        min={minSafeDate} 
-                        value={state.profile.customTargetDate || ''} 
-                        onChange={(e) => updateProfile({ customTargetDate: e.target.value })} 
-                        className="bg-white border-none py-2.5 px-5 rounded-xl font-black text-[16px] text-orange-600 outline-none shadow-sm focus:ring-2 focus:ring-orange-200" 
-                     />
-                  </div>
-                )}
              </div>
 
              {/* LANGUAGE & SYSTEM */}
@@ -1316,8 +1365,8 @@ export default function App() {
                          <Languages size={20} />
                       </div>
                       <div>
-                         <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">Language</span>
-                         <span className="text-base font-black text-slate-800 uppercase">Taalinstellingen</span>
+                         <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">{t.language || 'Language'}</span>
+                         <span className="text-base font-black text-slate-800 uppercase">{t.settings || 'Settings'}</span>
                       </div>
                    </div>
                    <select 
@@ -1334,14 +1383,14 @@ export default function App() {
                          <Settings size={20} />
                       </div>
                       <div>
-                         <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">Systeem</span>
+                         <span className="text-[12px] font-black uppercase text-slate-400 block tracking-widest leading-none mb-1">{t.report}</span>
                          <span className="text-base font-black text-slate-800 uppercase">{t.dataStorage}</span>
                       </div>
                    </div>
                    <div className="flex gap-2">
                       <button onClick={handleExportData} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all shadow-sm"><FileDown size={18}/></button>
                       <button onClick={() => fileInputRef.current?.click()} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 border border-slate-100 hover:bg-slate-100 active:scale-90 transition-all shadow-sm"><FileUp size={18}/></button>
-                      <button onClick={async () => { if(confirm(t.dataManagement.clearConfirm)){ await idb.clear(); window.location.reload(); } }} className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-100 hover:bg-red-100 active:scale-90 transition-all shadow-sm"><Trash2 size={18}/></button>
+                      <button onClick={async () => { if(confirm(t.dataManagement?.clearConfirm || 'Are you sure you want to clear all data?')){ await idb.clear(); window.location.reload(); } }} className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-100 hover:bg-red-100 active:scale-90 transition-all shadow-sm"><Trash2 size={18}/></button>
                    </div>
                    <input type="file" id="restore-file" ref={fileInputRef} onChange={handleRestoreData} accept=".json" className="hidden" />
                 </div>
@@ -1353,10 +1402,10 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.03)] w-full max-w-full m-0 p-0 box-border overflow-hidden">
         <div className="flex w-full items-stretch">
           {[ 
-            { id: 'dashboard', icon: LayoutDashboard, label: t.tabs.dashboard }, 
-            { id: 'meals', icon: Utensils, label: t.tabs.meals }, 
-            { id: 'activity', icon: Activity, label: t.tabs.activity }, 
-            { id: 'profile', icon: UserIcon, label: t.tabs.profile } 
+            { id: 'dashboard', icon: LayoutDashboard, label: (t.tabs && t.tabs.dashboard) || 'Plan' }, 
+            { id: 'meals', icon: Utensils, label: (t.tabs && t.tabs.meals) || 'Nutrition' }, 
+            { id: 'activity', icon: Activity, label: (t.tabs && t.tabs.activity) || 'Move' }, 
+            { id: 'profile', icon: UserIcon, label: (t.tabs && t.tabs.profile) || 'Me' } 
           ].map(tab => (
             <button 
               key={tab.id} 

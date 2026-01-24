@@ -1,5 +1,5 @@
 
-export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | 'hi' | 'ar';
+export type Language = 'nl' | 'en' | 'es' | 'de' | 'pt' | 'zh' | 'ja' | 'ko' | 'hi' | 'ar' | 'fr';
 
 export type WeightLossSpeed = 'slow' | 'average' | 'fast' | 'custom';
 
